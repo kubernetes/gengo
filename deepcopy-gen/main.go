@@ -35,6 +35,8 @@ func main() {
 	arguments.InputDirs = []string{
 		"k8s.io/kubernetes/pkg/api",
 		"k8s.io/kubernetes/pkg/api/v1",
+		"k8s.io/kubernetes/pkg/apis/authentication.k8s.io",
+		"k8s.io/kubernetes/pkg/apis/authentication.k8s.io/v1beta1",
 		"k8s.io/kubernetes/pkg/apis/authorization",
 		"k8s.io/kubernetes/pkg/apis/authorization/v1beta1",
 		"k8s.io/kubernetes/pkg/apis/autoscaling",
@@ -50,8 +52,8 @@ func main() {
 		"k8s.io/kubernetes/pkg/apis/policy/v1alpha1",
 		"k8s.io/kubernetes/pkg/apis/extensions",
 		"k8s.io/kubernetes/pkg/apis/extensions/v1beta1",
-		"k8s.io/kubernetes/pkg/apis/metrics",
-		"k8s.io/kubernetes/pkg/apis/metrics/v1alpha1",
+		"k8s.io/kubernetes/pkg/apis/rbac",
+		"k8s.io/kubernetes/pkg/apis/rbac/v1alpha1",
 		"k8s.io/kubernetes/federation/apis/federation",
 		"k8s.io/kubernetes/federation/apis/federation/v1alpha1",
 	}

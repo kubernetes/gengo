@@ -53,6 +53,8 @@ func (g *genProtoIDL) PackageVars(c *generator.Context) []string {
 	return []string{
 		"option (gogoproto.marshaler_all) = true;",
 		"option (gogoproto.sizer_all) = true;",
+		"option (gogoproto.goproto_stringer_all) = false;",
+		"option (gogoproto.stringer_all) = true;",
 		"option (gogoproto.unmarshaler_all) = true;",
 		"option (gogoproto.goproto_unrecognized_all) = false;",
 		"option (gogoproto.goproto_enum_prefix_all) = false;",
@@ -316,6 +318,9 @@ func (b bodyGen) doStruct(sw *generator.SnippetWriter) error {
 				}
 			default:
 				if !b.omitGogo || !strings.HasPrefix(key, "(gogoproto.") {
+					if key == "(gogoproto.goproto_stringer)" && v[0] == "false" {
+						options = append(options, "(gogoproto.stringer) = false")
+					}
 					options = append(options, fmt.Sprintf("%s = %s", key, v[0]))
 				}
 			}
@@ -589,6 +594,8 @@ func protobufTagToField(tag string, field *protoField, m types.Member, t *types.
 			return fmt.Errorf("member %q of %q malformed 'protobuf' tag, tag %d should be key=value, got %q\n", m.Name, t.Name, i+4, extra)
 		}
 		switch parts[0] {
+		case "name":
+			protoExtra[parts[0]] = parts[1]
 		case "casttype", "castkey", "castvalue":
 			parts[0] = fmt.Sprintf("(gogoproto.%s)", parts[0])
 			protoExtra[parts[0]] = parts[1]

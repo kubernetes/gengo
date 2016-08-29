@@ -19,7 +19,7 @@ package namer
 import (
 	"strings"
 
-	"k8s.io/kubernetes/cmd/libs/go2idl/types"
+	"k8s.io/gengo/types"
 )
 
 type pluralNamer struct {

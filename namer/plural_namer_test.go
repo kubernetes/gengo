@@ -19,7 +19,7 @@ package namer
 import (
 	"testing"
 
-	"k8s.io/kubernetes/cmd/libs/go2idl/types"
+	"k8s.io/gengo/types"
 )
 
 func TestPluralNamer(t *testing.T) {

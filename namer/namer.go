@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"k8s.io/kubernetes/cmd/libs/go2idl/types"
+	"k8s.io/gengo/types"
 )
 
 // Returns whether a name is a private Go name.

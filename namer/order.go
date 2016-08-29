@@ -19,7 +19,7 @@ package namer
 import (
 	"sort"
 
-	"k8s.io/kubernetes/cmd/libs/go2idl/types"
+	"k8s.io/gengo/types"
 )
 
 // Orderer produces an ordering of types given a Namer.

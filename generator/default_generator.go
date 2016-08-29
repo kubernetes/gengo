@@ -19,8 +19,8 @@ package generator
 import (
 	"io"
 
-	"k8s.io/kubernetes/cmd/libs/go2idl/namer"
-	"k8s.io/kubernetes/cmd/libs/go2idl/types"
+	"k8s.io/gengo/namer"
+	"k8s.io/gengo/types"
 )
 
 const (

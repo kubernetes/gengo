@@ -19,7 +19,7 @@ package namer
 import (
 	"sort"
 
-	"k8s.io/kubernetes/cmd/libs/go2idl/types"
+	"k8s.io/gengo/types"
 )
 
 // ImportTracker may be passed to a namer.RawNamer, to track the imports needed

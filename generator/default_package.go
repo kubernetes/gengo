@@ -17,7 +17,7 @@ limitations under the License.
 package generator
 
 import (
-	"k8s.io/kubernetes/cmd/libs/go2idl/types"
+	"k8s.io/gengo/types"
 )
 
 // DefaultPackage contains a default implementation of Package.

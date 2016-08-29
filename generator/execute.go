@@ -26,8 +26,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"k8s.io/kubernetes/cmd/libs/go2idl/namer"
-	"k8s.io/kubernetes/cmd/libs/go2idl/types"
+	"k8s.io/gengo/namer"
+	"k8s.io/gengo/types"
 
 	"github.com/golang/glog"
 )

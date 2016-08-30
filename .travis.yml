@@ -1,0 +1,10 @@
+nguage: go
+go:
+  - 1.6
+  - 1.7
+  - tip
+
+script:
+  - go test -v ./...
+  - go run ./examples/set-gen/main.go -i k8s.io/gengo/examples/set-gen/sets/types -o k8s.io/gengo/examples/set-gen/sets --verify-only
+  - go run ./examples/import-boss/main.go -i k8s.io/gengo/... --verify-only

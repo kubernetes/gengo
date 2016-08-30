@@ -66,16 +66,6 @@ import (
 
 func main() {
 	arguments := args.Default()
-
-	// Override defaults. These are Kubernetes specific input and output
-	// locations.
-	arguments.InputDirs = []string{
-		"k8s.io/kubernetes/pkg/...",
-		"k8s.io/kubernetes/cmd/...",
-		"k8s.io/kubernetes/plugin/...",
-	}
-	// arguments.VerifyOnly = true
-
 	if err := arguments.Execute(
 		generators.NameSystems(),
 		generators.DefaultNameSystem(),

@@ -35,12 +35,6 @@ import (
 
 func main() {
 	arguments := args.Default()
-
-	// Override defaults. These are Kubernetes specific input and output
-	// locations.
-	arguments.InputDirs = []string{"k8s.io/kubernetes/pkg/util/sets/types"}
-	arguments.OutputPackagePath = "k8s.io/kubernetes/pkg/util/sets"
-
 	if err := arguments.Execute(
 		generators.NameSystems(),
 		generators.DefaultNameSystem(),

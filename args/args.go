@@ -123,7 +123,11 @@ func (g *GeneratorArgs) NewBuilder() (*parser.Builder, error) {
 // the InputDirs.
 func (g *GeneratorArgs) InputIncludes(p *types.Package) bool {
 	for _, dir := range g.InputDirs {
-		if strings.HasPrefix(p.Path, dir) {
+		d := dir
+		if strings.HasSuffix(d, "...") {
+			d = strings.TrimSuffix(d, "...")
+		}
+		if strings.HasPrefix(p.Path, d) {
 			return true
 		}
 	}

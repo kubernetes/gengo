@@ -203,6 +203,7 @@ func (b *Builder) AddDirRecursive(dir string) error {
 	// imported, so that vendoring can work properly.  We assume that there is
 	// only one level of vendoring, and that the CWD is inside the GOPATH, so
 	// this should be safe.
+	fmt.Printf("trying %v\n", dir)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("unable to get current directory: %v", err)
@@ -388,6 +389,7 @@ func (b *Builder) makePackage(id string) (*tc.Package, error) {
 }
 
 // FindPackages fetches a list of the user-imported packages.
+// Note that you need to call b.FindTypes() first.
 func (b *Builder) FindPackages() []string {
 	result := []string{}
 	for pkgPath := range b.pkgs {

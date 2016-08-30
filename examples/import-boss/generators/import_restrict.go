@@ -53,7 +53,7 @@ func DefaultNameSystem() string {
 	return "raw"
 }
 
-// Packages makes the sets package definition.
+// Packages makes the import-boss package definition.
 func Packages(c *generator.Context, arguments *args.GeneratorArgs) generator.Packages {
 	pkgs := generator.Packages{}
 	c.FileTypes = map[string]generator.FileType{

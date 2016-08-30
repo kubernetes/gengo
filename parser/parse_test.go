@@ -23,10 +23,34 @@ import (
 	"testing"
 	"text/template"
 
+	"k8s.io/gengo/args"
 	"k8s.io/gengo/namer"
 	"k8s.io/gengo/parser"
 	"k8s.io/gengo/types"
 )
+
+func TestRecursive(t *testing.T) {
+	d := args.Default()
+	d.InputDirs = []string{"k8s.io/gengo/testdata/a/..."}
+	b, err := d.NewBuilder()
+	if err != nil {
+		t.Fatalf("Fail making builder: %v", err)
+	}
+	_, err = b.FindTypes()
+	if err != nil {
+		t.Fatalf("Fail finding types: %v", err)
+	}
+	foundB := false
+	for _, p := range b.FindPackages() {
+		t.Logf("Package: %v", p)
+		if p == "k8s.io/gengo/testdata/a/b" {
+			foundB = true
+		}
+	}
+	if !foundB {
+		t.Errorf("Expected to find packages a and b")
+	}
+}
 
 func construct(t *testing.T, files map[string]string, testNamer namer.Namer) (*parser.Builder, types.Universe, []*types.Type) {
 	b := parser.New()

@@ -246,7 +246,11 @@ func (ns *NameStrategy) Name(t *types.Type) string {
 			names = append(names, ns.removePrefixAndSuffix(ns.Name(m.Type)))
 		}
 		name = ns.Join(ns.Prefix, names, ns.Suffix)
-	// TODO: add types.Chan
+	case types.Chan:
+		name = ns.Join(ns.Prefix, []string{
+			"Chan",
+			ns.removePrefixAndSuffix(ns.Name(t.Elem)),
+		}, ns.Suffix)
 	case types.Interface:
 		// TODO: add to name test
 		names := []string{"Interface"}
@@ -333,7 +337,9 @@ func (r *rawNamer) Name(t *types.Type) string {
 			elems = append(elems, m.Name+" "+r.Name(m.Type))
 		}
 		name = "struct{" + strings.Join(elems, "; ") + "}"
-	// TODO: add types.Chan
+	case types.Chan:
+		// TODO: include directionality
+		name = "chan " + r.Name(t.Elem)
 	case types.Interface:
 		// TODO: add to name test
 		elems := []string{}

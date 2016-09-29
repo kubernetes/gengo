@@ -14,8 +14,9 @@ in Kubernetes and is split out here for ease of reuse and maintainability.
 
 ## Examples
 
-A set generator, deep-copy generator, and go-to-protobuf generator are included
-here. Also, import-boss will enforce arbitrary rules about import trees.
+A set generator, deep-copy generator, defaulter generator and go-to-protobuf
+generator are included here. Also, import-boss will enforce arbitrary rules about
+import trees.
 
 ## args/
 

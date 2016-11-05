@@ -546,7 +546,15 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 	if len(t.Members) == 0 {
 		// at least do something with in/out to avoid "declared and not used" errors
 		sw.Do("_ = in\n_ = out\n", nil)
+		return
 	}
+
+	if hasDeepCopyMethod(t) {
+		sw.Do("outCopy := in.DeepCopy()\n", nil)
+		sw.Do("*out = outCopy\n", nil)
+		return
+	}
+
 	for _, m := range t.Members {
 		t := m.Type
 		if t.Kind == types.Alias {
@@ -587,11 +595,17 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 		default:
 			sw.Do("if in.$.name$ == nil {\n", args)
 			sw.Do("out.$.name$ = nil\n", args)
-			sw.Do("} else if newVal, err := c.DeepCopy(&in.$.name$); err != nil {\n", args)
-			sw.Do("return err\n", nil)
-			sw.Do("} else {\n", nil)
-			sw.Do("out.$.name$ = *newVal.(*$.type|raw$)\n", args)
-			sw.Do("}\n", nil)
+			if hasDeepCopyMethod(t) {
+				sw.Do("} else {\n", nil)
+				sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)
+				sw.Do("}\n", nil)
+			} else {
+				sw.Do("} else if newVal, err := c.DeepCopy(&in.$.name$); err != nil {\n", args)
+				sw.Do("return err\n", nil)
+				sw.Do("} else {\n", nil)
+				sw.Do("out.$.name$ = *newVal.(*$.type|raw$)\n", args)
+				sw.Do("}\n", nil)
+			}
 		}
 	}
 }

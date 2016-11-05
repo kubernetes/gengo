@@ -368,10 +368,18 @@ func (g *genDeepCopy) Init(c *generator.Context, w io.Writer) error {
 	cloner := c.Universe.Type(types.Name{Package: conversionPackagePath, Name: "Cloner"})
 	g.imports.AddType(cloner)
 	if !g.registerTypes {
-		// TODO: We should come up with a solution to register all generated
-		// deep-copy functions. However, for now, to avoid import cycles
-		// we register only those explicitly requested.
-		return nil
+		sw := generator.NewSnippetWriter(w, c, "$", "$")
+		sw.Do("// GetGeneratedDeepCopyFuncs returns the generated funcs, since we aren't registering them.\n", nil)
+		sw.Do("func GetGeneratedDeepCopyFuncs() []conversion.GeneratedDeepCopyFunc{\n", nil)
+		sw.Do("return []conversion.GeneratedDeepCopyFunc{\n", nil)
+		for _, t := range g.typesForInit {
+			args := argsFromType(t).
+				With("typeof", c.Universe.Package("reflect").Function("TypeOf"))
+			sw.Do("{Fn: $.type|dcFnName$, InType: $.typeof|raw$(&$.type|raw${})},\n", args)
+		}
+		sw.Do("}\n", nil)
+		sw.Do("}\n\n", nil)
+		return sw.Error()
 	}
 	glog.V(5).Infof("registering types in pkg %q", g.targetPackage)
 

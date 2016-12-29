@@ -52,7 +52,7 @@ function DIFF() {
 
 TEST wholepkg -i "${GOPRJ}/test/wholepkg"
 DIFF ./test/wholepkg/deepcopy_generated.go
-go test -v ./test/wholepkg
 PASS
+go test -v ./test/wholepkg
 
 trap - EXIT

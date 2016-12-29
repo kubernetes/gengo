@@ -131,6 +131,9 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 
 	boundingDirs := []string{}
 	if customArgs, ok := arguments.CustomArgs.(*CustomArgs); ok {
+		if customArgs.BoundingDirs == nil {
+			customArgs.BoundingDirs = context.Inputs
+		}
 		for i := range customArgs.BoundingDirs {
 			// Strip any trailing slashes - they are not exactly "correct" but
 			// this is friendlier.
@@ -546,19 +549,21 @@ func (g *genDeepCopy) doSlice(t *types.Type, sw *generator.SnippetWriter) {
 }
 
 func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
-	if len(t.Members) == 0 {
-		// at least do something with in/out to avoid "declared and not used" errors
-		sw.Do("_ = in\n_ = out\n", nil)
-		return
-	}
-
 	if hasDeepCopyMethod(t) {
 		sw.Do("*out = in.DeepCopy()\n", nil)
 		return
 	}
 
+	// Simple copy covers a lot of cases.
+	sw.Do("*out = *in\n", nil)
+
+	// Now fix-up fields as needed.
 	for _, m := range t.Members {
 		t := m.Type
+		hasMethod := false
+		if hasDeepCopyMethod(t) {
+			hasMethod = true
+		}
 		if t.Kind == types.Alias {
 			copied := *t.Underlying
 			copied.Name = t.Name
@@ -566,46 +571,63 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 		}
 		args := generator.Args{
 			"type": t,
+			"kind": t.Kind,
 			"name": m.Name,
 		}
 		switch t.Kind {
-		case types.Builtin:
-			sw.Do("out.$.name$ = in.$.name$\n", args)
-		case types.Map, types.Slice, types.Pointer:
-			sw.Do("if in.$.name$ != nil {\n", args)
-			sw.Do("in, out := &in.$.name$, &out.$.name$\n", args)
-			g.generateFor(t, sw)
-			sw.Do("} else {\n", nil)
-			sw.Do("out.$.name$ = nil\n", args)
-			sw.Do("}\n", nil)
-		case types.Struct:
-			if hasDeepCopyMethod(t) {
+		case types.Builtin, types.Array:
+			if hasMethod {
 				sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)
-			} else if t.IsAssignable() {
-				sw.Do("out.$.name$ = in.$.name$\n", args)
-			} else if g.copyableAndInBounds(t) {
-				sw.Do("if err := $.type|dcFnName$(&in.$.name$, &out.$.name$, c); err != nil {\n", args)
-				sw.Do("return err\n", nil)
+			}
+		case types.Map, types.Slice, types.Pointer:
+			if hasMethod {
+				sw.Do("if in.$.name$ != nil {\n", args)
+				sw.Do("    out.$.name$ = in.$.name$.DeepCopy()\n", args)
 				sw.Do("}\n", nil)
 			} else {
-				sw.Do("if newVal, err := c.DeepCopy(&in.$.name$); err != nil {\n", args)
-				sw.Do("return err\n", nil)
+				// Fixup non-nil reference-sematic types.
+				sw.Do("if in.$.name$ != nil {\n", args)
+				sw.Do("    in, out := &in.$.name$, &out.$.name$\n", args)
+				g.generateFor(t, sw)
 				sw.Do("} else {\n", nil)
-				sw.Do("out.$.name$ = *newVal.(*$.type|raw$)\n", args)
+				sw.Do("    out.$.name$ = nil\n", args)
+				sw.Do("}\n", nil)
+			}
+		case types.Struct:
+			if hasMethod {
+				sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)
+			} else if t.IsAssignable() {
+				// Nothing else needed.
+			} else if g.copyableAndInBounds(t) {
+				// Not assignable but should have a deepcopy function.
+				// TODO: do a topological sort of packages and ensure that this works, else inline it.
+				sw.Do("if err := $.type|dcFnName$(&in.$.name$, &out.$.name$, c); err != nil {\n", args)
+				sw.Do("    return err\n", nil)
+				sw.Do("}\n", nil)
+			} else {
+				// Fall back on the slow-path and hope it works.
+				// TODO: don't depend on kubernetes code for this
+				sw.Do("if newVal, err := c.DeepCopy(&in.$.name$); err != nil {\n", args)
+				sw.Do("    return err\n", nil)
+				sw.Do("} else {\n", nil)
+				sw.Do("    out.$.name$ = *newVal.(*$.type|raw$)\n", args)
 				sw.Do("}\n", nil)
 			}
 		default:
-			sw.Do("if in.$.name$ == nil {\n", args)
-			sw.Do("out.$.name$ = nil\n", args)
-			if hasDeepCopyMethod(t) {
-				sw.Do("} else {\n", nil)
-				sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)
-				sw.Do("}\n", nil)
+			// Interfaces and other Kinds we don't understand.
+			sw.Do("// in.$.name$ is kind '$.kind$'\n", args)
+			if hasMethod {
+				sw.Do("if in.$.name$ != nil {\n", args)
+				sw.Do("    out.$.name$ = in.$.name$.DeepCopy()\n", args)
+				sw.Do("}\n", args)
 			} else {
-				sw.Do("} else if newVal, err := c.DeepCopy(&in.$.name$); err != nil {\n", args)
-				sw.Do("return err\n", nil)
-				sw.Do("} else {\n", nil)
-				sw.Do("out.$.name$ = *newVal.(*$.type|raw$)\n", args)
+				// TODO: don't depend on kubernetes code for this
+				sw.Do("if in.$.name$ != nil {\n", args)
+				sw.Do("    if newVal, err := c.DeepCopy(&in.$.name$); err != nil {\n", args)
+				sw.Do("        return err\n", nil)
+				sw.Do("    } else {\n", nil)
+				sw.Do("        out.$.name$ = *newVal.(*$.type|raw$)\n", args)
+				sw.Do("    }\n", nil)
 				sw.Do("}\n", nil)
 			}
 		}

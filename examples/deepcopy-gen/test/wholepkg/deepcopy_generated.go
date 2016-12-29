@@ -28,11 +28,24 @@ import (
 // GetGeneratedDeepCopyFuncs returns the generated funcs, since we aren't registering them.
 func GetGeneratedDeepCopyFuncs() []conversion.GeneratedDeepCopyFunc {
 	return []conversion.GeneratedDeepCopyFunc{
+		{Fn: DeepCopy_wholepkg_Struct_Arrays, InType: reflect.TypeOf(&Struct_Arrays{})},
 		{Fn: DeepCopy_wholepkg_Struct_B, InType: reflect.TypeOf(&Struct_B{})},
+		{Fn: DeepCopy_wholepkg_Struct_Embed_Int, InType: reflect.TypeOf(&Struct_Embed_Int{})},
+		{Fn: DeepCopy_wholepkg_Struct_Embed_Struct_Primitives, InType: reflect.TypeOf(&Struct_Embed_Struct_Primitives{})},
 		{Fn: DeepCopy_wholepkg_Struct_Empty, InType: reflect.TypeOf(&Struct_Empty{})},
+		{Fn: DeepCopy_wholepkg_Struct_Everything, InType: reflect.TypeOf(&Struct_Everything{})},
 		{Fn: DeepCopy_wholepkg_Struct_Primitives, InType: reflect.TypeOf(&Struct_Primitives{})},
 		{Fn: DeepCopy_wholepkg_Struct_Primitives_Alias, InType: reflect.TypeOf(&Struct_Primitives_Alias{})},
-		{Fn: DeepCopy_wholepkg_Struct_Primitives_Embed, InType: reflect.TypeOf(&Struct_Primitives_Embed{})},
+		{Fn: DeepCopy_wholepkg_Struct_Struct_Primitives, InType: reflect.TypeOf(&Struct_Struct_Primitives{})},
+	}
+}
+
+func DeepCopy_wholepkg_Struct_Arrays(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Arrays)
+		out := out.(*Struct_Arrays)
+		*out = *in
+		return nil
 	}
 }
 
@@ -40,8 +53,25 @@ func DeepCopy_wholepkg_Struct_B(in interface{}, out interface{}, c *conversion.C
 	{
 		in := in.(*Struct_B)
 		out := out.(*Struct_B)
-		_ = in
-		_ = out
+		*out = *in
+		return nil
+	}
+}
+
+func DeepCopy_wholepkg_Struct_Embed_Int(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Embed_Int)
+		out := out.(*Struct_Embed_Int)
+		*out = *in
+		return nil
+	}
+}
+
+func DeepCopy_wholepkg_Struct_Embed_Struct_Primitives(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Embed_Struct_Primitives)
+		out := out.(*Struct_Embed_Struct_Primitives)
+		*out = *in
 		return nil
 	}
 }
@@ -50,8 +80,16 @@ func DeepCopy_wholepkg_Struct_Empty(in interface{}, out interface{}, c *conversi
 	{
 		in := in.(*Struct_Empty)
 		out := out.(*Struct_Empty)
-		_ = in
-		_ = out
+		*out = *in
+		return nil
+	}
+}
+
+func DeepCopy_wholepkg_Struct_Everything(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Everything)
+		out := out.(*Struct_Everything)
+		*out = *in
 		return nil
 	}
 }
@@ -60,10 +98,7 @@ func DeepCopy_wholepkg_Struct_Primitives(in interface{}, out interface{}, c *con
 	{
 		in := in.(*Struct_Primitives)
 		out := out.(*Struct_Primitives)
-		out.BoolField = in.BoolField
-		out.IntField = in.IntField
-		out.StringField = in.StringField
-		out.FloatField = in.FloatField
+		*out = *in
 		return nil
 	}
 }
@@ -72,19 +107,16 @@ func DeepCopy_wholepkg_Struct_Primitives_Alias(in interface{}, out interface{}, 
 	{
 		in := in.(*Struct_Primitives_Alias)
 		out := out.(*Struct_Primitives_Alias)
-		out.BoolField = in.BoolField
-		out.IntField = in.IntField
-		out.StringField = in.StringField
-		out.FloatField = in.FloatField
+		*out = *in
 		return nil
 	}
 }
 
-func DeepCopy_wholepkg_Struct_Primitives_Embed(in interface{}, out interface{}, c *conversion.Cloner) error {
+func DeepCopy_wholepkg_Struct_Struct_Primitives(in interface{}, out interface{}, c *conversion.Cloner) error {
 	{
-		in := in.(*Struct_Primitives_Embed)
-		out := out.(*Struct_Primitives_Embed)
-		out.Struct_Primitives = in.Struct_Primitives
+		in := in.(*Struct_Struct_Primitives)
+		out := out.(*Struct_Struct_Primitives)
+		*out = *in
 		return nil
 	}
 }

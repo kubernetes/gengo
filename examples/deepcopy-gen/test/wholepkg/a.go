@@ -27,8 +27,32 @@ type Struct_Primitives struct {
 	FloatField  float64
 }
 type Struct_Primitives_Alias Struct_Primitives
-type Struct_Primitives_Embed struct {
+type Struct_Embed_Struct_Primitives struct {
 	Struct_Primitives
+}
+type Struct_Embed_Int struct {
+	int
+}
+type Struct_Struct_Primitives struct {
+	StructField Struct_Primitives
+}
+
+// Arrays
+type Struct_Arrays struct {
+	StringArrayField [4]string
+	IntArrayField    [16]int
+}
+
+// Everything
+type Struct_Everything struct {
+	BoolField        bool
+	IntField         int
+	StringField      string
+	FloatField       float64
+	StringArrayField [4]string
+	IntArrayField    [16]int
+	StructField      Struct_Primitives
+	EmptyStructField Struct_Empty
 }
 
 /*

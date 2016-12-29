@@ -53,8 +53,7 @@ func DeepCopy_wholepkg_Struct_B(in interface{}, out interface{}, c *conversion.C
 	{
 		in := in.(*Struct_B)
 		out := out.(*Struct_B)
-		_ = in
-		_ = out
+		*out = *in
 		return nil
 	}
 }
@@ -63,7 +62,7 @@ func DeepCopy_wholepkg_Struct_Embed_Int(in interface{}, out interface{}, c *conv
 	{
 		in := in.(*Struct_Embed_Int)
 		out := out.(*Struct_Embed_Int)
-		out.int = in.int
+		*out = *in
 		return nil
 	}
 }
@@ -72,7 +71,7 @@ func DeepCopy_wholepkg_Struct_Embed_Struct_Primitives(in interface{}, out interf
 	{
 		in := in.(*Struct_Embed_Struct_Primitives)
 		out := out.(*Struct_Embed_Struct_Primitives)
-		out.Struct_Primitives = in.Struct_Primitives
+		*out = *in
 		return nil
 	}
 }
@@ -81,8 +80,7 @@ func DeepCopy_wholepkg_Struct_Empty(in interface{}, out interface{}, c *conversi
 	{
 		in := in.(*Struct_Empty)
 		out := out.(*Struct_Empty)
-		_ = in
-		_ = out
+		*out = *in
 		return nil
 	}
 }
@@ -91,12 +89,7 @@ func DeepCopy_wholepkg_Struct_Everything(in interface{}, out interface{}, c *con
 	{
 		in := in.(*Struct_Everything)
 		out := out.(*Struct_Everything)
-		out.BoolField = in.BoolField
-		out.IntField = in.IntField
-		out.StringField = in.StringField
-		out.FloatField = in.FloatField
-		out.StructField = in.StructField
-		out.EmptyStructField = in.EmptyStructField
+		*out = *in
 		out.ManualStructField = in.ManualStructField.DeepCopy()
 		return nil
 	}
@@ -106,10 +99,7 @@ func DeepCopy_wholepkg_Struct_Primitives(in interface{}, out interface{}, c *con
 	{
 		in := in.(*Struct_Primitives)
 		out := out.(*Struct_Primitives)
-		out.BoolField = in.BoolField
-		out.IntField = in.IntField
-		out.StringField = in.StringField
-		out.FloatField = in.FloatField
+		*out = *in
 		return nil
 	}
 }
@@ -118,10 +108,7 @@ func DeepCopy_wholepkg_Struct_Primitives_Alias(in interface{}, out interface{}, 
 	{
 		in := in.(*Struct_Primitives_Alias)
 		out := out.(*Struct_Primitives_Alias)
-		out.BoolField = in.BoolField
-		out.IntField = in.IntField
-		out.StringField = in.StringField
-		out.FloatField = in.FloatField
+		*out = *in
 		return nil
 	}
 }
@@ -130,7 +117,7 @@ func DeepCopy_wholepkg_Struct_Struct_Primitives(in interface{}, out interface{},
 	{
 		in := in.(*Struct_Struct_Primitives)
 		out := out.(*Struct_Struct_Primitives)
-		out.StructField = in.StructField
+		*out = *in
 		return nil
 	}
 }

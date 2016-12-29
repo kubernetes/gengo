@@ -202,7 +202,6 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 }
 
 const (
-	apiPackagePath        = "k8s.io/kubernetes/pkg/api"
 	conversionPackagePath = "k8s.io/kubernetes/pkg/conversion"
 	runtimePackagePath    = "k8s.io/kubernetes/pkg/runtime"
 )

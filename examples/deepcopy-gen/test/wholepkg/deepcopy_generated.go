@@ -28,6 +28,7 @@ import (
 // GetGeneratedDeepCopyFuncs returns the generated funcs, since we aren't registering them.
 func GetGeneratedDeepCopyFuncs() []conversion.GeneratedDeepCopyFunc {
 	return []conversion.GeneratedDeepCopyFunc{
+		{Fn: DeepCopy_wholepkg_ManualStruct, InType: reflect.TypeOf(&ManualStruct{})},
 		{Fn: DeepCopy_wholepkg_Struct_Arrays, InType: reflect.TypeOf(&Struct_Arrays{})},
 		{Fn: DeepCopy_wholepkg_Struct_B, InType: reflect.TypeOf(&Struct_B{})},
 		{Fn: DeepCopy_wholepkg_Struct_Embed_Int, InType: reflect.TypeOf(&Struct_Embed_Int{})},
@@ -37,6 +38,15 @@ func GetGeneratedDeepCopyFuncs() []conversion.GeneratedDeepCopyFunc {
 		{Fn: DeepCopy_wholepkg_Struct_Primitives, InType: reflect.TypeOf(&Struct_Primitives{})},
 		{Fn: DeepCopy_wholepkg_Struct_Primitives_Alias, InType: reflect.TypeOf(&Struct_Primitives_Alias{})},
 		{Fn: DeepCopy_wholepkg_Struct_Struct_Primitives, InType: reflect.TypeOf(&Struct_Struct_Primitives{})},
+	}
+}
+
+func DeepCopy_wholepkg_ManualStruct(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*ManualStruct)
+		out := out.(*ManualStruct)
+		*out = in.DeepCopy()
+		return nil
 	}
 }
 
@@ -90,6 +100,7 @@ func DeepCopy_wholepkg_Struct_Everything(in interface{}, out interface{}, c *con
 		in := in.(*Struct_Everything)
 		out := out.(*Struct_Everything)
 		*out = *in
+		out.ManualStructField = in.ManualStructField.DeepCopy()
 		return nil
 	}
 }

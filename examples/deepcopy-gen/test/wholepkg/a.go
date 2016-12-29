@@ -43,16 +43,26 @@ type Struct_Arrays struct {
 	IntArrayField    [16]int
 }
 
+// Manual DeepCopy method
+type ManualStruct struct {
+	StringField string
+}
+
+func (m ManualStruct) DeepCopy() ManualStruct {
+	return m
+}
+
 // Everything
 type Struct_Everything struct {
-	BoolField        bool
-	IntField         int
-	StringField      string
-	FloatField       float64
-	StringArrayField [4]string
-	IntArrayField    [16]int
-	StructField      Struct_Primitives
-	EmptyStructField Struct_Empty
+	BoolField         bool
+	IntField          int
+	StringField       string
+	FloatField        float64
+	StringArrayField  [4]string
+	IntArrayField     [16]int
+	StructField       Struct_Primitives
+	EmptyStructField  Struct_Empty
+	ManualStructField ManualStruct
 }
 
 /*

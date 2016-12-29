@@ -33,6 +33,9 @@ import (
 	"k8s.io/gengo/types"
 )
 
+// This clarifies when a pkg path has been canonicalized.
+type importPathString string
+
 // Builder lets you add all the go files in all the packages that you care
 // about, then constructs the type source data.
 type Builder struct {
@@ -45,23 +48,23 @@ type Builder struct {
 	buildPackages map[string]*build.Package
 
 	fset *token.FileSet
-	// map of package id to list of parsed files
-	parsed map[string][]parsedFile
-	// map of package id to absolute path (to prevent overlap)
-	absPaths map[string]string
+	// map of package path to list of parsed files
+	parsed map[importPathString][]parsedFile
+	// map of package path to absolute path (to prevent overlap)
+	absPaths map[importPathString]string
 
 	// Set by typeCheckPackage(), used by importPackage() and friends.
-	typeCheckedPackages map[string]*tc.Package
+	typeCheckedPackages map[importPathString]*tc.Package
 
 	// Map of package path to whether the user requested it or it was from
 	// an import.
-	userRequested map[string]bool
+	userRequested map[importPathString]bool
 
 	// All comments from everywhere in every parsed file.
 	endLineToCommentGroup map[fileLine]*ast.CommentGroup
 
 	// map of package to list of packages it imports.
-	importGraph map[string]map[string]struct{}
+	importGraph map[importPathString]map[string]struct{}
 }
 
 // parsedFile is for tracking files with name
@@ -93,13 +96,13 @@ func New() *Builder {
 	return &Builder{
 		context:               &c,
 		buildPackages:         map[string]*build.Package{},
-		typeCheckedPackages:   map[string]*tc.Package{},
+		typeCheckedPackages:   map[importPathString]*tc.Package{},
 		fset:                  token.NewFileSet(),
-		parsed:                map[string][]parsedFile{},
-		absPaths:              map[string]string{},
-		userRequested:         map[string]bool{},
+		parsed:                map[importPathString][]parsedFile{},
+		absPaths:              map[importPathString]string{},
+		userRequested:         map[importPathString]bool{},
 		endLineToCommentGroup: map[fileLine]*ast.CommentGroup{},
-		importGraph:           map[string]map[string]struct{}{},
+		importGraph:           map[importPathString]map[string]struct{}{},
 	}
 }
 
@@ -153,10 +156,10 @@ func (b *Builder) importBuildPackage(dir string) (*build.Package, error) {
 // sort their test files topologically first, so all deps are resolved by the
 // time we need them.
 func (b *Builder) AddFileForTest(pkg string, path string, src []byte) error {
-	if err := b.addFile(pkg, path, src, true); err != nil {
+	if err := b.addFile(importPathString(pkg), path, src, true); err != nil {
 		return err
 	}
-	if _, err := b.typeCheckPackage(pkg); err != nil {
+	if _, err := b.typeCheckPackage(importPathString(pkg)); err != nil {
 		return err
 	}
 	return nil
@@ -166,7 +169,7 @@ func (b *Builder) AddFileForTest(pkg string, path string, src []byte) error {
 // "canonical/pkg/path" and the path must be the absolute path to the file. A
 // flag indicates whether this file was user-requested or just from following
 // the import graph.
-func (b *Builder) addFile(pkgPath string, path string, src []byte, userRequested bool) error {
+func (b *Builder) addFile(pkgPath importPathString, path string, src []byte, userRequested bool) error {
 	glog.V(6).Infof("addFile %s %s", pkgPath, path)
 	p, err := parser.ParseFile(b.fset, path, src, parser.DeclarationErrors|parser.ParseComments)
 	if err != nil {
@@ -247,7 +250,7 @@ func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
 	if _, err := b.importPackage(dir, true); err != nil {
 		return err
 	}
-	return b.findTypesIn(b.buildPackages[dir].ImportPath, u)
+	return b.findTypesIn(importPathString(b.buildPackages[dir].ImportPath), u)
 }
 
 // The implementation of AddDir. A flag indicates whether this directory was
@@ -258,7 +261,7 @@ func (b *Builder) addDir(dir string, userRequested bool) error {
 	if err != nil {
 		return err
 	}
-	pkgPath := buildPkg.ImportPath
+	pkgPath := importPathString(buildPkg.ImportPath)
 	if dir != buildPkg.ImportPath {
 		glog.V(5).Infof("addDir %s, canonical path is %s", dir, pkgPath)
 	}
@@ -293,12 +296,12 @@ func (b *Builder) addDir(dir string, userRequested bool) error {
 // needs to import a go package. 'path' is the import path.
 func (b *Builder) importPackage(dir string, userRequested bool) (*tc.Package, error) {
 	glog.V(5).Infof("importPackage %s", dir)
-	var pkgPath = dir
+	var pkgPath = importPathString(dir)
 
 	// Get the canonical path if we can.
 	if buildPkg := b.buildPackages[dir]; buildPkg != nil {
 		glog.V(5).Infof("importPackage %s, canonical path is %s", dir, buildPkg.ImportPath)
-		pkgPath = buildPkg.ImportPath
+		pkgPath = importPathString(buildPkg.ImportPath)
 	}
 
 	// If we have not seen this before, process it now.
@@ -316,7 +319,7 @@ func (b *Builder) importPackage(dir string, userRequested bool) (*tc.Package, er
 		// Get the canonical path now that it has been added.
 		if buildPkg := b.buildPackages[dir]; buildPkg != nil {
 			glog.V(5).Infof("importPackage %s, canonical path is %s", dir, buildPkg.ImportPath)
-			pkgPath = buildPkg.ImportPath
+			pkgPath = importPathString(buildPkg.ImportPath)
 		}
 	}
 
@@ -350,7 +353,7 @@ func (a importAdapter) Import(path string) (*tc.Package, error) {
 // typeCheckPackage will attempt to return the package even if there are some
 // errors, so you may check whether the package is nil or not even if you get
 // an error.
-func (b *Builder) typeCheckPackage(pkgPath string) (*tc.Package, error) {
+func (b *Builder) typeCheckPackage(pkgPath importPathString) (*tc.Package, error) {
 	glog.V(5).Infof("typeCheckPackage %s", pkgPath)
 	if pkg, ok := b.typeCheckedPackages[pkgPath]; ok {
 		if pkg != nil {
@@ -408,7 +411,7 @@ func (b *Builder) FindTypes() (types.Universe, error) {
 
 	// Take a snapshot of pkgs to iterate, since this will recursively mutate
 	// b.parsed.
-	keys := []string{}
+	keys := []importPathString{}
 	for pkgPath := range b.parsed {
 		keys = append(keys, pkgPath)
 	}
@@ -422,7 +425,7 @@ func (b *Builder) FindTypes() (types.Universe, error) {
 
 // findTypesIn finalizes the package import and searches through the package
 // for types.
-func (b *Builder) findTypesIn(pkgPath string, u *types.Universe) error {
+func (b *Builder) findTypesIn(pkgPath importPathString, u *types.Universe) error {
 	glog.V(5).Infof("findTypesIn %s", pkgPath)
 	pkg := b.typeCheckedPackages[pkgPath]
 	if pkg == nil {

@@ -41,7 +41,7 @@ function TEST() {
 }
 
 function DIFF() {
-    d=$(git diff "$1" || true)
+    d=$(git diff HEAD "$1" || true)
     if [ -n "${d}" ]; then
         echo "$1 changed"
         echo
@@ -52,7 +52,7 @@ function DIFF() {
 
 TEST wholepkg -i "${GOPRJ}/test/wholepkg"
 DIFF ./test/wholepkg/deepcopy_generated.go
-go test -v ./test/wholepkg
 PASS
+go test -v ./test/wholepkg
 
 trap - EXIT

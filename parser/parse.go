@@ -186,7 +186,7 @@ func (b *Builder) AddDir(dir string) error {
 	// Find the requested dir.
 	buildPkg, err := b.findBuildPackage(dir)
 	if err != nil {
-		return fmt.Errorf("unable to find %q: %v", dir, err)
+		return err
 	}
 	return b.addDir(buildPkg, true)
 }
@@ -198,7 +198,7 @@ func (b *Builder) AddDirRecursive(dir string) error {
 	// Find the requested dir.
 	buildPkg, err := b.findBuildPackage(dir)
 	if err != nil {
-		return fmt.Errorf("unable to find %q: %v", dir, err)
+		return err
 	}
 	if err := b.addDir(buildPkg, true); err != nil {
 		glog.Warningf("Ignoring directory %v: %v", dir, err)
@@ -217,7 +217,7 @@ func (b *Builder) AddDirRecursive(dir string) error {
 				// Find the requested pkg.
 				buildPkg, err := b.findBuildPackage(pkg)
 				if err != nil {
-					return fmt.Errorf("unable to find %q: %v", pkg, err)
+					return err
 				}
 				if err := b.addDir(buildPkg, true); err != nil {
 					glog.Warningf("Ignoring child directory %v: %v", pkg, err)
@@ -241,7 +241,7 @@ func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
 	// Find the requested dir.
 	buildPkg, err := b.findBuildPackage(dir)
 	if err != nil {
-		return fmt.Errorf("unable to find %q: %v", dir, err)
+		return err
 	}
 	pkgPath := importPathString(buildPkg.ImportPath)
 
@@ -336,9 +336,14 @@ type importAdapter struct {
 
 func (a importAdapter) Import(path string) (*tc.Package, error) {
 	// Find the requested dir.
+	///FIXME: without this, it fails on vendored files (canonical path != import path).  With this it fails on tests where files do not exist.
+	/// 1) inject an Importer interface, fake for tests
+	/// 2) test through files (and GOPATH)
+	/// 3) only canonicalize ./paths
+	/// 4) track as both user-provided (non-vendor) paths and canonical (vendor) paths, don't canonicalize on Import()
 	buildPkg, err := a.b.findBuildPackage(path)
 	if err != nil {
-		return nil, fmt.Errorf("unable to find %q: %v", path, err)
+		return nil, err
 	}
 	return a.b.importer(buildPkg, a.b.pkgs)
 }
@@ -514,9 +519,11 @@ func (b *Builder) findTypesIn(pkgPath importPathString, u *types.Universe) error
 func (b *Builder) importWithMode(dir string, mode build.ImportMode) (*build.Package, error) {
 	// This is a bit of a hack.  The srcDir argument to Import() should
 	// properly be the dir of the file which depends on the package to be
-	// imported, so that vendoring can work properly.  We assume that there is
-	// only one level of vendoring, and that the CWD is inside the GOPATH, so
-	// this should be safe.
+	// imported, so that vendoring can work properly and local paths can
+	// resolve.  We assume that there is only one level of vendoring, and that
+	// the CWD is inside the GOPATH, so this should be safe. Nobody should be
+	// using local (relative) paths except on the CLI, so CWD is also
+	// sufficient.
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get current directory: %v", err)

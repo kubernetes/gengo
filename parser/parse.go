@@ -39,8 +39,13 @@ type importPathString string
 // Builder lets you add all the go files in all the packages that you care
 // about, then constructs the type source data.
 type Builder struct {
-	context       *build.Context
-	buildPackages map[importPathString]*build.Package
+	context *build.Context
+
+	// Map of package names to more canonical information about the package.
+	// This might hold the same value for multiple names, e.g. if someone
+	// referenced ./pkg/name or in the case of vendoring, which canoncalizes
+	// differently that what humans would type.
+	buildPackages map[string]*build.Package
 
 	fset *token.FileSet
 	// map of package path to list of parsed files
@@ -90,7 +95,7 @@ func New() *Builder {
 	c.CgoEnabled = false
 	return &Builder{
 		context:               &c,
-		buildPackages:         map[importPathString]*build.Package{},
+		buildPackages:         map[string]*build.Package{},
 		tcPackages:            map[importPathString]*tc.Package{},
 		fset:                  token.NewFileSet(),
 		parsed:                map[importPathString][]parsedFile{},
@@ -109,31 +114,46 @@ func (b *Builder) AddBuildTags(tags ...string) {
 // Get package information from the go/build package. Automatically excludes
 // e.g. test files and files for other platforms-- there is quite a bit of
 // logic of that nature in the build package.
-func (b *Builder) importBuildPackage(buildPkg *build.Package) (*build.Package, error) {
-	pkgPath := importPathString(buildPkg.ImportPath)
-	if pkg, ok := b.buildPackages[pkgPath]; ok {
-		return pkg, nil
+func (b *Builder) importBuildPackage(dir string) (*build.Package, error) {
+	if buildPkg, ok := b.buildPackages[dir]; ok {
+		return buildPkg, nil
 	}
 	// This validates the `package foo // github.com/bar/foo` comments.
-	pkg, err := b.importWithMode(buildPkg.ImportPath, build.ImportComment)
+	buildPkg, err := b.importWithMode(dir, build.ImportComment)
 	if err != nil {
 		if _, ok := err.(*build.NoGoError); !ok {
-			return nil, fmt.Errorf("unable to import %q: %v", pkgPath, err)
+			return nil, fmt.Errorf("unable to import %q: %v", dir, err)
 		}
 	}
-	if pkg == nil {
-		// Might be an emoty directory or similar.
-		return nil, nil
+	if buildPkg == nil {
+		// Might be an empty directory. Try to just find the dir.
+		buildPkg, err = b.importWithMode(dir, build.FindOnly)
+		if err != nil {
+			return nil, err
+		}
 	}
-	b.buildPackages[pkgPath] = pkg
+
+	// Remember it under the user-provided name.
+	b.buildPackages[dir] = buildPkg
+	if dir != buildPkg.ImportPath {
+		// Since `dir` is not the canonical name, see if we knew it under another name.
+		if buildPkg, ok := b.buildPackages[buildPkg.ImportPath]; ok {
+			return buildPkg, nil
+		}
+		// Must be new, save it under the canonical name, too.
+		b.buildPackages[buildPkg.ImportPath] = buildPkg
+	}
+
+	// Use the canonical name henceforth.
+	pkgPath := importPathString(buildPkg.ImportPath)
 
 	if b.importGraph[pkgPath] == nil {
 		b.importGraph[pkgPath] = map[string]struct{}{}
 	}
-	for _, p := range pkg.Imports {
+	for _, p := range buildPkg.Imports {
 		b.importGraph[pkgPath][p] = struct{}{}
 	}
-	return pkg, nil
+	return buildPkg, nil
 }
 
 // AddFileForTest adds a file to the set, without verifying that the provided
@@ -162,7 +182,7 @@ func (b *Builder) addFile(pkg importPathString, path string, src []byte, userReq
 	}
 
 	b.parsed[pkg] = append(b.parsed[pkg], parsedFile{path, p})
-	b.userRequested[pkg] = userRequested
+	b.userRequested[pkg] = userRequested //FIXME: dup with addDir
 	for _, c := range p.Comments {
 		position := b.fset.Position(c.End())
 		b.endLineToCommentGroup[fileLine{position.Filename, position.Line}] = c
@@ -184,50 +204,37 @@ func (b *Builder) addFile(pkg importPathString, path string, src []byte, userReq
 // a single go package in it. GOPATH, GOROOT, and the location of your go
 // binary (`which go`) will all be searched if dir doesn't literally resolve.
 func (b *Builder) AddDir(dir string) error {
-	// Find the requested dir.
-	buildPkg, err := b.findBuildPackage(dir)
-	if err != nil {
-		return err
-	}
-	return b.addBuildPackage(buildPkg, true)
+	return b.addDir(dir, true)
 }
 
 // AddDirRecursive is just like AddDir, but it also recursively adds
 // subdirectories; it returns an error only if the path couldn't be resolved;
 // any directories recursed into without go source are ignored.
 func (b *Builder) AddDirRecursive(dir string) error {
-	// Find the requested dir.
-	buildPkg, err := b.findBuildPackage(dir)
-	if err != nil {
-		return err
-	}
-	if err := b.addBuildPackage(buildPkg, true); err != nil {
+	// Add the root.
+	if err := b.addDir(dir, true); err != nil {
 		glog.Warningf("Ignoring directory %v: %v", dir, err)
 	}
 
 	// filepath.Walk includes the root dir, but we already did that, so we'll
 	// remove that prefix and rebuild a package import path.
-	prefix := buildPkg.Dir
+	prefix := b.buildPackages[dir].Dir
 	fn := func(path string, info os.FileInfo, err error) error {
 		if info != nil && info.IsDir() {
 			rel := strings.TrimPrefix(path, prefix)
 			if rel != "" {
 				// Make a pkg path.
-				pkg := filepath.Join(buildPkg.ImportPath, rel)
+				pkg := filepath.Join(b.buildPackages[dir].ImportPath, rel)
 
-				// Find the requested pkg.
-				buildPkg, err := b.findBuildPackage(pkg)
-				if err != nil {
-					return err
-				}
-				if err := b.addBuildPackage(buildPkg, true); err != nil {
+				// Add it.
+				if err := b.addDir(pkg, true); err != nil {
 					glog.Warningf("Ignoring child directory %v: %v", pkg, err)
 				}
 			}
 		}
 		return nil
 	}
-	if err := filepath.Walk(buildPkg.Dir, fn); err != nil {
+	if err := filepath.Walk(b.buildPackages[dir].Dir, fn); err != nil {
 		return err
 	}
 	return nil
@@ -239,51 +246,34 @@ func (b *Builder) AddDirRecursive(dir string) error {
 // GOPATH, GOROOT, and the location of your go binary (`which go`) will all be
 // searched if dir doesn't literally resolve.
 func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
-	// Find the requested dir.
-	buildPkg, err := b.findBuildPackage(dir)
+	// We want all types from this package, as if they were directly added
+	// by the user.  They WERE added by the user, in effect.
+	if err := b.addDir(dir, true); err != nil {
+		return err
+	}
+	return b.findTypesIn(importPathString(b.buildPackages[dir].ImportPath), u)
+}
+
+// The implementation of AddDir. A flag indicates whether this directory was
+// user-requested or just from following the import graph.
+func (b *Builder) addDir(dir string, userRequested bool) error {
+	buildPkg, err := b.importBuildPackage(dir)
 	if err != nil {
 		return err
 	}
 	pkgPath := importPathString(buildPkg.ImportPath)
 
-	if _, found := b.parsed[pkgPath]; !found {
-		// We want all types from this package, as if they were directly added
-		// by the user.  They WERE added by the user, in effect.
-		if err := b.addBuildPackage(buildPkg, true); err != nil {
-			return err
-		}
-	} else {
-		// We already had this package, but we want it to be considered as if
-		// the user addid it directly.
-		b.userRequested[pkgPath] = true
-	}
-	return b.findTypesIn(pkgPath, u)
-}
-
-// The implementation of AddDir. A flag indicates whether this directory was
-// user-requested or just from following the import graph.
-func (b *Builder) addBuildPackage(buildPkg *build.Package, userRequested bool) error {
-	pkg, err := b.importBuildPackage(buildPkg)
-	if err != nil {
-		return err
-	}
-	if pkg == nil {
+	// If not user-requested or was previously user-requesed, we're done.
+	if !userRequested || b.userRequested[pkgPath] {
 		return nil
 	}
-	pkgPath := importPathString(pkg.ImportPath)
+	b.userRequested[pkgPath] = true
 
-	// Check in case this package was added (maybe was not canonical)
-	if wasRequested, wasAdded := b.userRequested[pkgPath]; wasAdded {
-		if !userRequested || userRequested == wasRequested {
-			return nil
-		}
-	}
-
-	for _, n := range pkg.GoFiles {
+	for _, n := range buildPkg.GoFiles {
 		if !strings.HasSuffix(n, ".go") {
 			continue
 		}
-		absPath := filepath.Join(pkg.Dir, n)
+		absPath := filepath.Join(buildPkg.Dir, n)
 		data, err := ioutil.ReadFile(absPath)
 		if err != nil {
 			return fmt.Errorf("while loading %q: %v", absPath, err)
@@ -301,10 +291,12 @@ func (b *Builder) addBuildPackage(buildPkg *build.Package, userRequested bool) e
 // interface, and importAdapter below implements the new interface in terms of
 // the old one.
 //FIXME: need a better nam that clarifies build and tc packages
-func (b *Builder) importer(buildPkg *build.Package, imports map[importPathString]*tc.Package) (*tc.Package, error) {
+func (b *Builder) importer(dir string, imports map[importPathString]*tc.Package) (*tc.Package, error) {
 	// Canonical path.
-	pkgPath := importPathString(buildPkg.ImportPath)
+	//FIXME: lookup dir in buildPackages
+	pkgPath := importPathString(dir)
 
+	//FIXME: just use tcPackages?
 	if pkg, ok := imports[pkgPath]; ok {
 		return pkg, nil
 	}
@@ -316,10 +308,12 @@ func (b *Builder) importer(buildPkg *build.Package, imports map[importPathString
 		ignoreError = true
 
 		// Add it.
-		if err := b.addBuildPackage(buildPkg, false); err != nil {
+		//FIXME: is this ever triggered?
+		if err := b.addDir(dir, false); err != nil {
 			return nil, err
 		}
 	}
+	//FIXME: what prevents a loop, since this is the same as current call?
 	pkg, err := b.typeCheckPackage(pkgPath)
 	if err != nil {
 		if ignoreError && pkg != nil {
@@ -343,11 +337,7 @@ func (a importAdapter) Import(path string) (*tc.Package, error) {
 	/// 2) test through files (and GOPATH)
 	/// 3) only canonicalize ./paths
 	/// 4) track as both user-provided (non-vendor) paths and canonical (vendor) paths, don't canonicalize on Import()
-	buildPkg, err := a.b.findBuildPackage(path)
-	if err != nil {
-		return nil, err
-	}
-	return a.b.importer(buildPkg, a.b.tcPackages)
+	return a.b.importer(path, a.b.tcPackages)
 }
 
 // typeCheckPackage will attempt to return the package even if there are some
@@ -520,10 +510,6 @@ func (b *Builder) importWithMode(dir string, mode build.ImportMode) (*build.Pack
 		return nil, err
 	}
 	return buildPkg, nil
-}
-
-func (b *Builder) findBuildPackage(dir string) (*build.Package, error) {
-	return b.importWithMode(dir, build.FindOnly)
 }
 
 // if there's a comment on the line `lines` before pos, return its text, otherwise "".

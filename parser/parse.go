@@ -151,7 +151,10 @@ func (b *Builder) importBuildPackage(dir string) (*build.Package, error) {
 
 // AddFileForTest adds a file to the set, without verifying that the provided
 // pkg actually exists on disk. The pkg must be of the form "canonical/pkg/path"
-// and the path must be the absolute path to the file.
+// and the path must be the absolute path to the file.  Because this bypasses
+// the normal recursive finding of package dependencies (on disk), test should
+// sort their test files topologically first, so all deps are resolved by the
+// time we need them.
 func (b *Builder) AddFileForTest(pkg string, path string, src []byte) error {
 	if err := b.addFile(importPathString(pkg), path, src, true); err != nil {
 		return err
@@ -160,6 +163,7 @@ func (b *Builder) AddFileForTest(pkg string, path string, src []byte) error {
 		return err
 	}
 	return nil
+
 }
 
 // addFile adds a file to the set. The pkg must be of the form
@@ -418,6 +422,7 @@ func (b *Builder) FindTypes() (types.Universe, error) {
 		keys = append(keys, pkgPath)
 	}
 	for _, pkgPath := range keys {
+		//FIXME: either TC here otr make AddFile be topologically ordered
 		if err := b.findTypesIn(pkgPath, &u); err != nil {
 			return nil, err
 		}

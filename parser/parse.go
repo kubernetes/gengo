@@ -153,7 +153,13 @@ func (b *Builder) importBuildPackage(dir string) (*build.Package, error) {
 // pkg actually exists on disk. The pkg must be of the form "canonical/pkg/path"
 // and the path must be the absolute path to the file.
 func (b *Builder) AddFileForTest(pkg string, path string, src []byte) error {
-	return b.addFile(importPathString(pkg), path, src, true)
+	if err := b.addFile(importPathString(pkg), path, src, true); err != nil {
+		return err
+	}
+	if _, err := b.typeCheckPackage(importPathString(pkg)); err != nil {
+		return err
+	}
+	return nil
 }
 
 // addFile adds a file to the set. The pkg must be of the form
@@ -161,6 +167,7 @@ func (b *Builder) AddFileForTest(pkg string, path string, src []byte) error {
 // flag indicates whether this file was user-requested or just from following
 // the import graph.
 func (b *Builder) addFile(pkgPath importPathString, path string, src []byte, userRequested bool) error {
+	glog.Errorf("TIM: addFile(%s, %s)", pkgPath, path)
 	p, err := parser.ParseFile(b.fset, path, src, parser.DeclarationErrors|parser.ParseComments)
 	if err != nil {
 		return err

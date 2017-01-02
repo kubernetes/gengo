@@ -53,7 +53,7 @@ type Builder struct {
 	// map of package path to absolute path (to prevent overlap)
 	absPaths map[importPathString]string
 
-	// Set by typeCheckPackage(), used by importDep() and friends.
+	// Set by typeCheckPackage(), used by importPackage() and friends.
 	typeCheckedPackages map[importPathString]*tc.Package
 
 	// Map of package path to whether the user requested it or it was from
@@ -193,7 +193,8 @@ func (b *Builder) addFile(pkgPath importPathString, path string, src []byte, use
 // a single go package in it. GOPATH, GOROOT, and the location of your go
 // binary (`which go`) will all be searched if dir doesn't literally resolve.
 func (b *Builder) AddDir(dir string) error {
-	return b.addDir(dir, true)
+	_, err := b.importPackage(dir, true)
+	return err
 }
 
 // AddDirRecursive is just like AddDir, but it also recursively adds
@@ -201,7 +202,7 @@ func (b *Builder) AddDir(dir string) error {
 // any directories recursed into without go source are ignored.
 func (b *Builder) AddDirRecursive(dir string) error {
 	// Add the root.
-	if err := b.addDir(dir, true); err != nil {
+	if _, err := b.importPackage(dir, true); err != nil {
 		glog.Warningf("Ignoring directory %v: %v", dir, err)
 	}
 
@@ -216,7 +217,7 @@ func (b *Builder) AddDirRecursive(dir string) error {
 				pkg := filepath.Join(b.buildPackages[dir].ImportPath, rel)
 
 				// Add it.
-				if err := b.addDir(pkg, true); err != nil {
+				if _, err := b.importPackage(pkg, true); err != nil {
 					glog.Warningf("Ignoring child directory %v: %v", pkg, err)
 				}
 			}
@@ -237,7 +238,7 @@ func (b *Builder) AddDirRecursive(dir string) error {
 func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
 	// We want all types from this package, as if they were directly added
 	// by the user.  They WERE added by the user, in effect.
-	if err := b.addDir(dir, true); err != nil {
+	if _, err := b.importPackage(dir, true); err != nil {
 		return err
 	}
 	return b.findTypesIn(importPathString(b.buildPackages[dir].ImportPath), u)
@@ -263,15 +264,6 @@ func (b *Builder) addDir(dir string, userRequested bool) error {
 		b.absPaths[pkgPath] = buildPkg.Dir
 	}
 
-	// If it was previously known, just check that the user-requestedness hasn't
-	// changed, else save it.
-	if wasUserRequested, found := b.userRequested[pkgPath]; found {
-		b.userRequested[pkgPath] = wasUserRequested || userRequested
-		return nil
-	} else {
-		b.userRequested[pkgPath] = userRequested
-	}
-
 	for _, n := range buildPkg.GoFiles {
 		if !strings.HasSuffix(n, ".go") {
 			continue
@@ -289,15 +281,15 @@ func (b *Builder) addDir(dir string, userRequested bool) error {
 	return nil
 }
 
-// importDep is a function that will be called by the type check package when it
+// importPackage is a function that will be called by the type check package when it
 // needs to import a go package. 'path' is the import path.
-func (b *Builder) importDep(dir string) (*tc.Package, error) {
-	glog.Errorf("TIM: importDep %s", dir)
+func (b *Builder) importPackage(dir string, userRequested bool) (*tc.Package, error) {
+	glog.Errorf("TIM: importPackage %s", dir)
 	var pkgPath = importPathString(dir)
 
 	// Get the canonical path if we can.
 	if buildPkg := b.buildPackages[dir]; buildPkg != nil {
-		glog.Errorf("TIM: importDep canonical to %s", buildPkg.ImportPath)
+		glog.Errorf("TIM: importPackage canonical to %s", buildPkg.ImportPath)
 		pkgPath = importPathString(buildPkg.ImportPath)
 	}
 
@@ -309,19 +301,23 @@ func (b *Builder) importDep(dir string) (*tc.Package, error) {
 		ignoreError = true
 
 		// Add it.
-		glog.Errorf("TIM: importDep->addDir %s", dir)
-		if err := b.addDir(dir, false); err != nil {
+		glog.Errorf("TIM: importPackage->addDir %s", dir)
+		if err := b.addDir(dir, userRequested); err != nil {
 			return nil, err
 		}
 
 		// Get the canonical path now that it has been added.
 		if buildPkg := b.buildPackages[dir]; buildPkg != nil {
-			glog.Errorf("TIM: importDep canonical 2 to %s", buildPkg.ImportPath)
+			glog.Errorf("TIM: importPackage canonical 2 to %s", buildPkg.ImportPath)
 			pkgPath = importPathString(buildPkg.ImportPath)
 		}
 	}
 
-	glog.Errorf("TIM: importDep->typeCheckPackage %s", pkgPath)
+	// If it was previously known, just check that the user-requestedness hasn't
+	// changed.
+	b.userRequested[pkgPath] = userRequested || b.userRequested[pkgPath]
+
+	glog.Errorf("TIM: importPackage->typeCheckPackage %s", pkgPath)
 	// Run the type checker.  We may end up doing this to pkgs that are already
 	// done, or are in the queue to be done later, but it will short-circuit,
 	// and we can't miss pkgs that are only depended on.
@@ -342,7 +338,7 @@ type importAdapter struct {
 }
 
 func (a importAdapter) Import(path string) (*tc.Package, error) {
-	return a.b.importDep(path)
+	return a.b.importPackage(path, false)
 }
 
 // typeCheckPackage will attempt to return the package even if there are some
@@ -375,7 +371,7 @@ func (b *Builder) typeCheckPackage(pkgPath importPathString) (*tc.Package, error
 	b.typeCheckedPackages[pkgPath] = nil
 	c := tc.Config{
 		IgnoreFuncBodies: true,
-		// Note that importAdater can call b.importDep which calls this
+		// Note that importAdapter can call b.importPackage which calls this
 		// method. So there can't be cycles in the import graph.
 		Importer: importAdapter{b},
 		Error: func(err error) {
@@ -426,11 +422,12 @@ func (b *Builder) FindTypes() (types.Universe, error) {
 // for types.
 func (b *Builder) findTypesIn(pkgPath importPathString, u *types.Universe) error {
 	glog.Errorf("TIM: findTypesIn %s", pkgPath)
-	pkg, err := b.typeCheckPackage(pkgPath)
-	if err != nil {
-		return err
+	pkg := b.typeCheckedPackages[pkgPath]
+	if pkg == nil {
+		return fmt.Errorf("findTypesIn(%s): package is not known", pkgPath)
 	}
 	if !b.userRequested[pkgPath] {
+		glog.Errorf("TIM: findTypesIn(%s): package is not user requested", pkgPath)
 		// Since walkType is recursive, all types that the
 		// packages they asked for depend on will be included.
 		// But we don't need to include all types in all

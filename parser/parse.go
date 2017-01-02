@@ -53,8 +53,8 @@ type Builder struct {
 	// map of package path to absolute path (to prevent overlap)
 	absPaths map[importPathString]string
 
-	// Set by typeCheckPackage(), used by importer() and friends.
-	tcPackages map[importPathString]*tc.Package
+	// Set by typeCheckPackage(), used by importDep() and friends.
+	typeCheckedPackages map[importPathString]*tc.Package
 
 	// Map of package path to whether the user requested it or it was from
 	// an import.
@@ -96,7 +96,7 @@ func New() *Builder {
 	return &Builder{
 		context:               &c,
 		buildPackages:         map[string]*build.Package{},
-		tcPackages:            map[importPathString]*tc.Package{},
+		typeCheckedPackages:   map[importPathString]*tc.Package{},
 		fset:                  token.NewFileSet(),
 		parsed:                map[importPathString][]parsedFile{},
 		absPaths:              map[importPathString]string{},
@@ -134,6 +134,7 @@ func (b *Builder) importBuildPackage(dir string) (*build.Package, error) {
 	}
 
 	// Remember it under the user-provided name.
+	glog.Errorf("TIM: saving bldpkg %s, canon %s", dir, buildPkg.ImportPath)
 	b.buildPackages[dir] = buildPkg
 	if dir != buildPkg.ImportPath {
 		// Since `dir` is not the canonical name, see if we knew it under another name.
@@ -142,17 +143,9 @@ func (b *Builder) importBuildPackage(dir string) (*build.Package, error) {
 		}
 		// Must be new, save it under the canonical name, too.
 		b.buildPackages[buildPkg.ImportPath] = buildPkg
+		glog.Errorf("TIM: saving bldpkg %s", buildPkg.ImportPath)
 	}
 
-	// Use the canonical name henceforth.
-	pkgPath := importPathString(buildPkg.ImportPath)
-
-	if b.importGraph[pkgPath] == nil {
-		b.importGraph[pkgPath] = map[string]struct{}{}
-	}
-	for _, p := range buildPkg.Imports {
-		b.importGraph[pkgPath][p] = struct{}{}
-	}
 	return buildPkg, nil
 }
 
@@ -167,22 +160,17 @@ func (b *Builder) AddFileForTest(pkg string, path string, src []byte) error {
 // "canonical/pkg/path" and the path must be the absolute path to the file. A
 // flag indicates whether this file was user-requested or just from following
 // the import graph.
-func (b *Builder) addFile(pkg importPathString, path string, src []byte, userRequested bool) error {
+func (b *Builder) addFile(pkgPath importPathString, path string, src []byte, userRequested bool) error {
 	p, err := parser.ParseFile(b.fset, path, src, parser.DeclarationErrors|parser.ParseComments)
 	if err != nil {
 		return err
 	}
-	dirPath := filepath.Dir(path)
-	if prev, found := b.absPaths[pkg]; found {
-		if dirPath != prev {
-			return fmt.Errorf("package %q (%s) previously resolved to %s", pkg, dirPath, prev)
-		}
-	} else {
-		b.absPaths[pkg] = dirPath
-	}
 
-	b.parsed[pkg] = append(b.parsed[pkg], parsedFile{path, p})
-	b.userRequested[pkg] = userRequested //FIXME: dup with addDir
+	// This is redundant with addDir, but some tests call AddFileForTest, which
+	// call into here without calling addDir.
+	b.userRequested[pkgPath] = userRequested || b.userRequested[pkgPath]
+
+	b.parsed[pkgPath] = append(b.parsed[pkgPath], parsedFile{path, p})
 	for _, c := range p.Comments {
 		position := b.fset.Position(c.End())
 		b.endLineToCommentGroup[fileLine{position.Filename, position.Line}] = c
@@ -190,12 +178,13 @@ func (b *Builder) addFile(pkg importPathString, path string, src []byte, userReq
 
 	// We have to get the packages from this specific file, in case the
 	// user added individual files instead of entire directories.
-	if b.importGraph[pkg] == nil {
-		b.importGraph[pkg] = map[string]struct{}{}
+	if b.importGraph[pkgPath] == nil {
+		b.importGraph[pkgPath] = map[string]struct{}{}
 	}
 	for _, im := range p.Imports {
+		glog.Errorf("TIM: adding importGraph %s -> %s", pkgPath, im.Path.Value)
 		importedPath := strings.Trim(im.Path.Value, `"`)
-		b.importGraph[pkg][importedPath] = struct{}{}
+		b.importGraph[pkgPath][importedPath] = struct{}{}
 	}
 	return nil
 }
@@ -257,17 +246,31 @@ func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
 // The implementation of AddDir. A flag indicates whether this directory was
 // user-requested or just from following the import graph.
 func (b *Builder) addDir(dir string, userRequested bool) error {
+	glog.Errorf("TIM: addDir->importBuildPkg %s", dir)
 	buildPkg, err := b.importBuildPackage(dir)
 	if err != nil {
 		return err
 	}
 	pkgPath := importPathString(buildPkg.ImportPath)
+	glog.Errorf("TIM: addDir canon is %s", pkgPath)
 
-	// If not user-requested or was previously user-requesed, we're done.
-	if !userRequested || b.userRequested[pkgPath] {
-		return nil
+	// Sanity check the pkg dir has nit changed.
+	if prev, found := b.absPaths[pkgPath]; found {
+		if buildPkg.Dir != prev {
+			return fmt.Errorf("package %q (%s) previously resolved to %s", pkgPath, buildPkg.Dir, prev)
+		}
+	} else {
+		b.absPaths[pkgPath] = buildPkg.Dir
 	}
-	b.userRequested[pkgPath] = true
+
+	// If it was previously known, just check that the user-requestedness hasn't
+	// changed, else save it.
+	if wasUserRequested, found := b.userRequested[pkgPath]; found {
+		b.userRequested[pkgPath] = wasUserRequested || userRequested
+		return nil
+	} else {
+		b.userRequested[pkgPath] = userRequested
+	}
 
 	for _, n := range buildPkg.GoFiles {
 		if !strings.HasSuffix(n, ".go") {
@@ -286,34 +289,42 @@ func (b *Builder) addDir(dir string, userRequested bool) error {
 	return nil
 }
 
-// importer is a function that will be called by the type check package when it
-// needs to import a go package. 'path' is the import path. go1.5 changes the
-// interface, and importAdapter below implements the new interface in terms of
-// the old one.
-//FIXME: need a better nam that clarifies build and tc packages
-func (b *Builder) importer(dir string, imports map[importPathString]*tc.Package) (*tc.Package, error) {
-	// Canonical path.
-	//FIXME: lookup dir in buildPackages
-	pkgPath := importPathString(dir)
+// importDep is a function that will be called by the type check package when it
+// needs to import a go package. 'path' is the import path.
+func (b *Builder) importDep(dir string) (*tc.Package, error) {
+	glog.Errorf("TIM: importDep %s", dir)
+	var pkgPath = importPathString(dir)
 
-	//FIXME: just use tcPackages?
-	if pkg, ok := imports[pkgPath]; ok {
-		return pkg, nil
+	// Get the canonical path if we can.
+	if buildPkg := b.buildPackages[dir]; buildPkg != nil {
+		glog.Errorf("TIM: importDep canonical to %s", buildPkg.ImportPath)
+		pkgPath = importPathString(buildPkg.ImportPath)
 	}
 
+	// IF we have not seen this before, process it now.
 	ignoreError := false
-	if _, ours := b.parsed[pkgPath]; !ours {
+	if _, found := b.parsed[pkgPath]; !found {
 		// Ignore errors in paths that we're importing solely because
 		// they're referenced by other packages.
 		ignoreError = true
 
 		// Add it.
-		//FIXME: is this ever triggered?
+		glog.Errorf("TIM: importDep->addDir %s", dir)
 		if err := b.addDir(dir, false); err != nil {
 			return nil, err
 		}
+
+		// Get the canonical path now that it has been added.
+		if buildPkg := b.buildPackages[dir]; buildPkg != nil {
+			glog.Errorf("TIM: importDep canonical 2 to %s", buildPkg.ImportPath)
+			pkgPath = importPathString(buildPkg.ImportPath)
+		}
 	}
-	//FIXME: what prevents a loop, since this is the same as current call?
+
+	glog.Errorf("TIM: importDep->typeCheckPackage %s", pkgPath)
+	// Run the type checker.  We may end up doing this to pkgs that are already
+	// done, or are in the queue to be done later, but it will short-circuit,
+	// and we can't miss pkgs that are only depended on.
 	pkg, err := b.typeCheckPackage(pkgPath)
 	if err != nil {
 		if ignoreError && pkg != nil {
@@ -322,7 +333,7 @@ func (b *Builder) importer(dir string, imports map[importPathString]*tc.Package)
 			return nil, err
 		}
 	}
-	imports[pkgPath] = pkg
+
 	return pkg, nil
 }
 
@@ -331,23 +342,21 @@ type importAdapter struct {
 }
 
 func (a importAdapter) Import(path string) (*tc.Package, error) {
-	// Find the requested dir.
-	///FIXME: without this, it fails on vendored files (canonical path != import path).  With this it fails on tests where files do not exist.
-	/// 1) inject an Importer interface, fake for tests
-	/// 2) test through files (and GOPATH)
-	/// 3) only canonicalize ./paths
-	/// 4) track as both user-provided (non-vendor) paths and canonical (vendor) paths, don't canonicalize on Import()
-	return a.b.importer(path, a.b.tcPackages)
+	return a.b.importDep(path)
 }
 
 // typeCheckPackage will attempt to return the package even if there are some
 // errors, so you may check whether the package is nil or not even if you get
 // an error.
 func (b *Builder) typeCheckPackage(pkgPath importPathString) (*tc.Package, error) {
-	if pkg, ok := b.tcPackages[pkgPath]; ok {
+	glog.Errorf("TIM: typecheck %s", pkgPath)
+	if pkg, ok := b.typeCheckedPackages[pkgPath]; ok {
+		glog.Errorf("TIM: found %s in tcPackages", pkgPath)
 		if pkg != nil {
+			glog.Errorf("TIM: typecheck %s found itself", pkgPath)
 			return pkg, nil
 		}
+		glog.Errorf("TIM: found %s in tcPackages but it was nil", pkgPath)
 		// We store a nil right before starting work on a package. So
 		// if we get here and it's present and nil, that means there's
 		// another invocation of this function on the call stack
@@ -356,46 +365,34 @@ func (b *Builder) typeCheckPackage(pkgPath importPathString) (*tc.Package, error
 	}
 	parsedFiles, ok := b.parsed[pkgPath]
 	if !ok {
+		glog.Errorf("TIM: no files for %s", pkgPath)
 		return nil, fmt.Errorf("No files for pkg %q: %#v", pkgPath, b.parsed)
 	}
 	files := make([]*ast.File, len(parsedFiles))
 	for i := range parsedFiles {
 		files[i] = parsedFiles[i].file
 	}
-	b.tcPackages[pkgPath] = nil
+	b.typeCheckedPackages[pkgPath] = nil
 	c := tc.Config{
 		IgnoreFuncBodies: true,
-		// Note that importAdater can call b.importer which calls this
+		// Note that importAdater can call b.importDep which calls this
 		// method. So there can't be cycles in the import graph.
 		Importer: importAdapter{b},
 		Error: func(err error) {
 			glog.V(2).Infof("type checker error: %v\n", err)
 		},
 	}
+	glog.Errorf("TIM: typecheck %s calling Check", pkgPath)
 	pkg, err := c.Check(string(pkgPath), b.fset, files, nil)
-	b.tcPackages[pkgPath] = pkg // record the result whether or not there was an error
+	b.typeCheckedPackages[pkgPath] = pkg // record the result whether or not there was an error
 	return pkg, err
-}
-
-func (b *Builder) typeCheckAllPackages() error {
-	// Take a snapshot to iterate, since this will recursively mutate b.parsed.
-	keys := []importPathString{}
-	for pkgPath := range b.parsed {
-		keys = append(keys, pkgPath)
-	}
-	for _, pkgPath := range keys {
-		if _, err := b.typeCheckPackage(pkgPath); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // FindPackages fetches a list of the user-imported packages.
 // Note that you need to call b.FindTypes() first.
 func (b *Builder) FindPackages() []string {
 	result := []string{}
-	for pkgPath := range b.tcPackages {
+	for pkgPath := range b.typeCheckedPackages {
 		if b.userRequested[pkgPath] {
 			// Since walkType is recursive, all types that are in packages that
 			// were directly mentioned will be included.  We don't need to
@@ -409,13 +406,15 @@ func (b *Builder) FindPackages() []string {
 // FindTypes finalizes the package imports, and searches through all the
 // packages for types.
 func (b *Builder) FindTypes() (types.Universe, error) {
-	if err := b.typeCheckAllPackages(); err != nil {
-		return nil, err
-	}
-
 	u := types.Universe{}
 
+	// Take a snapshot of pkgs to iterate, since this will recursively mutate
+	// b.parsed.
+	keys := []importPathString{}
 	for pkgPath := range b.parsed {
+		keys = append(keys, pkgPath)
+	}
+	for _, pkgPath := range keys {
 		if err := b.findTypesIn(pkgPath, &u); err != nil {
 			return nil, err
 		}
@@ -426,6 +425,7 @@ func (b *Builder) FindTypes() (types.Universe, error) {
 // findTypesIn finalizes the package import and searches through the package
 // for types.
 func (b *Builder) findTypesIn(pkgPath importPathString, u *types.Universe) error {
+	glog.Errorf("TIM: findTypesIn %s", pkgPath)
 	pkg, err := b.typeCheckPackage(pkgPath)
 	if err != nil {
 		return err

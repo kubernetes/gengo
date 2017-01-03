@@ -150,9 +150,9 @@ func (b *Builder) importBuildPackage(pkgPath string) (*build.Package, error) {
 	return pkg, nil
 }
 
-// AddFile adds a file to the set. The pkg must be of the form
+// AddFileForTest adds a file to the set. The pkg must be of the form
 // "canonical/pkg/path" and the path must be the absolute path to the file.
-func (b *Builder) AddFile(pkg string, path string, src []byte) error {
+func (b *Builder) AddFileForTest(pkg string, path string, src []byte) error {
 	return b.addFile(pkg, path, src, true)
 }
 

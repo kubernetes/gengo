@@ -123,59 +123,59 @@ func (b *Builder) importBuildPackage(pkgPath string) (*build.Package, error) {
 	}
 
 	// First, find it, so we know what path to use.
-	pkg, err := b.context.Import(pkgPath, cwd, build.FindOnly)
+	buildPackage, err := b.context.Import(pkgPath, cwd, build.FindOnly)
 	if err != nil {
 		return nil, fmt.Errorf("unable to *find* %q: %v", pkgPath, err)
 	}
 
-	pkgPath = pkg.ImportPath
+	pkgPath = buildPackage.ImportPath
 
-	if pkg, ok := b.buildPackages[pkgPath]; ok {
-		return pkg, nil
+	if buildPackage, ok := b.buildPackages[pkgPath]; ok {
+		return buildPackage, nil
 	}
-	pkg, err = b.context.Import(pkgPath, cwd, build.ImportComment)
+	buildPackage, err = b.context.Import(pkgPath, cwd, build.ImportComment)
 	if err != nil {
 		if _, ok := err.(*build.NoGoError); !ok {
 			return nil, fmt.Errorf("unable to import %q: %v", pkgPath, err)
 		}
 	}
-	b.buildPackages[pkgPath] = pkg
+	b.buildPackages[pkgPath] = buildPackage
 
 	if b.importGraph[pkgPath] == nil {
 		b.importGraph[pkgPath] = map[string]struct{}{}
 	}
-	for _, p := range pkg.Imports {
+	for _, p := range buildPackage.Imports {
 		b.importGraph[pkgPath][p] = struct{}{}
 	}
-	return pkg, nil
+	return buildPackage, nil
 }
 
 // AddFileForTest adds a file to the set. The pkg must be of the form
 // "canonical/pkg/path" and the path must be the absolute path to the file.
-func (b *Builder) AddFileForTest(pkg string, path string, src []byte) error {
-	return b.addFile(pkg, path, src, true)
+func (b *Builder) AddFileForTest(pkgPath string, path string, src []byte) error {
+	return b.addFile(pkgPath, path, src, true)
 }
 
 // addFile adds a file to the set. The pkg must be of the form
 // "canonical/pkg/path" and the path must be the absolute path to the file. A
 // flag indicates whether this file was user-requested or just from following
 // the import graph.
-func (b *Builder) addFile(pkg string, path string, src []byte, userRequested bool) error {
+func (b *Builder) addFile(pkgPath string, path string, src []byte, userRequested bool) error {
 	p, err := parser.ParseFile(b.fset, path, src, parser.DeclarationErrors|parser.ParseComments)
 	if err != nil {
 		return err
 	}
 	dirPath := filepath.Dir(path)
-	if prev, found := b.absPaths[pkg]; found {
+	if prev, found := b.absPaths[pkgPath]; found {
 		if dirPath != prev {
-			return fmt.Errorf("package %q (%s) previously resolved to %s", pkg, dirPath, prev)
+			return fmt.Errorf("package %q (%s) previously resolved to %s", pkgPath, dirPath, prev)
 		}
 	} else {
-		b.absPaths[pkg] = dirPath
+		b.absPaths[pkgPath] = dirPath
 	}
 
-	b.parsed[pkg] = append(b.parsed[pkg], parsedFile{path, p})
-	b.userRequested[pkg] = userRequested
+	b.parsed[pkgPath] = append(b.parsed[pkgPath], parsedFile{path, p})
+	b.userRequested[pkgPath] = userRequested
 	for _, c := range p.Comments {
 		position := b.fset.Position(c.End())
 		b.endLineToCommentGroup[fileLine{position.Filename, position.Line}] = c
@@ -183,12 +183,12 @@ func (b *Builder) addFile(pkg string, path string, src []byte, userRequested boo
 
 	// We have to get the packages from this specific file, in case the
 	// user added individual files instead of entire directories.
-	if b.importGraph[pkg] == nil {
-		b.importGraph[pkg] = map[string]struct{}{}
+	if b.importGraph[pkgPath] == nil {
+		b.importGraph[pkgPath] = map[string]struct{}{}
 	}
 	for _, im := range p.Imports {
 		importedPath := strings.Trim(im.Path.Value, `"`)
-		b.importGraph[pkg][importedPath] = struct{}{}
+		b.importGraph[pkgPath][importedPath] = struct{}{}
 	}
 	return nil
 }

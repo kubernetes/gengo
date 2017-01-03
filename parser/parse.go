@@ -46,7 +46,7 @@ type Builder struct {
 	absPaths map[string]string
 
 	// Set by makePackage(), used by importer() and friends.
-	pkgs map[string]*tc.Package
+	typeCheckedPackages map[string]*tc.Package
 
 	// Map of package path to whether the user requested it or it was from
 	// an import.
@@ -88,6 +88,7 @@ func New() *Builder {
 	return &Builder{
 		context:               &c,
 		buildInfo:             map[string]*build.Package{},
+		typeCheckedPackages:   map[string]*tc.Package{},
 		fset:                  token.NewFileSet(),
 		parsed:                map[string][]parsedFile{},
 		absPaths:              map[string]string{},
@@ -318,14 +319,14 @@ type importAdapter struct {
 }
 
 func (a importAdapter) Import(path string) (*tc.Package, error) {
-	return a.b.importer(a.b.pkgs, path)
+	return a.b.importer(a.b.typeCheckedPackages, path)
 }
 
 // typeCheckPackage will attempt to return the package even if there are some
 // errors, so you may check whether the package is nil or not even if you get
 // an error.
 func (b *Builder) typeCheckPackage(id string) (*tc.Package, error) {
-	if pkg, ok := b.pkgs[id]; ok {
+	if pkg, ok := b.typeCheckedPackages[id]; ok {
 		if pkg != nil {
 			return pkg, nil
 		}
@@ -343,7 +344,7 @@ func (b *Builder) typeCheckPackage(id string) (*tc.Package, error) {
 	for i := range parsedFiles {
 		files[i] = parsedFiles[i].file
 	}
-	b.pkgs[id] = nil
+	b.typeCheckedPackages[id] = nil
 	c := tc.Config{
 		IgnoreFuncBodies: true,
 		// Note that importAdater can call b.import which calls this
@@ -354,7 +355,7 @@ func (b *Builder) typeCheckPackage(id string) (*tc.Package, error) {
 		},
 	}
 	pkg, err := c.Check(id, b.fset, files, nil)
-	b.pkgs[id] = pkg // record the result whether or not there was an error
+	b.typeCheckedPackages[id] = pkg // record the result whether or not there was an error
 	return pkg, err
 }
 
@@ -373,15 +374,11 @@ func (b *Builder) makeAllPackages() error {
 }
 
 func (b *Builder) makePackage(id string) (*tc.Package, error) {
-	if b.pkgs == nil {
-		b.pkgs = map[string]*tc.Package{}
-	}
-
 	// We have to check here even though we made a new one above,
 	// because typeCheckPackage follows the import graph, which may
 	// cause a package to be filled before we get to it in this
 	// loop.
-	if pkg, done := b.pkgs[id]; done {
+	if pkg, done := b.typeCheckedPackages[id]; done {
 		return pkg, nil
 	}
 	return b.typeCheckPackage(id)
@@ -391,7 +388,7 @@ func (b *Builder) makePackage(id string) (*tc.Package, error) {
 // Note that you need to call b.FindTypes() first.
 func (b *Builder) FindPackages() []string {
 	result := []string{}
-	for pkgPath := range b.pkgs {
+	for pkgPath := range b.typeCheckedPackages {
 		if b.userRequested[pkgPath] {
 			// Since walkType is recursive, all types that are in packages that
 			// were directly mentioned will be included.  We don't need to

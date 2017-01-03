@@ -31,11 +31,16 @@ func GetGeneratedDeepCopyFuncs() []conversion.GeneratedDeepCopyFunc {
 		{Fn: DeepCopy_wholepkg_ManualStruct, InType: reflect.TypeOf(&ManualStruct{})},
 		{Fn: DeepCopy_wholepkg_Struct_B, InType: reflect.TypeOf(&Struct_B{})},
 		{Fn: DeepCopy_wholepkg_Struct_Embed_Int, InType: reflect.TypeOf(&Struct_Embed_Int{})},
+		{Fn: DeepCopy_wholepkg_Struct_Embed_Pointer, InType: reflect.TypeOf(&Struct_Embed_Pointer{})},
+		{Fn: DeepCopy_wholepkg_Struct_Embed_Struct_PrimitivePointers, InType: reflect.TypeOf(&Struct_Embed_Struct_PrimitivePointers{})},
 		{Fn: DeepCopy_wholepkg_Struct_Embed_Struct_Primitives, InType: reflect.TypeOf(&Struct_Embed_Struct_Primitives{})},
 		{Fn: DeepCopy_wholepkg_Struct_Empty, InType: reflect.TypeOf(&Struct_Empty{})},
 		{Fn: DeepCopy_wholepkg_Struct_Everything, InType: reflect.TypeOf(&Struct_Everything{})},
+		{Fn: DeepCopy_wholepkg_Struct_PrimitivePointers, InType: reflect.TypeOf(&Struct_PrimitivePointers{})},
+		{Fn: DeepCopy_wholepkg_Struct_PrimitivePointers_Alias, InType: reflect.TypeOf(&Struct_PrimitivePointers_Alias{})},
 		{Fn: DeepCopy_wholepkg_Struct_Primitives, InType: reflect.TypeOf(&Struct_Primitives{})},
 		{Fn: DeepCopy_wholepkg_Struct_Primitives_Alias, InType: reflect.TypeOf(&Struct_Primitives_Alias{})},
+		{Fn: DeepCopy_wholepkg_Struct_Struct_PrimitivePointers, InType: reflect.TypeOf(&Struct_Struct_PrimitivePointers{})},
 		{Fn: DeepCopy_wholepkg_Struct_Struct_Primitives, InType: reflect.TypeOf(&Struct_Struct_Primitives{})},
 	}
 }
@@ -67,6 +72,32 @@ func DeepCopy_wholepkg_Struct_Embed_Int(in interface{}, out interface{}, c *conv
 	}
 }
 
+func DeepCopy_wholepkg_Struct_Embed_Pointer(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Embed_Pointer)
+		out := out.(*Struct_Embed_Pointer)
+		*out = *in
+		if in.int != nil {
+			in, out := &in.int, &out.int
+			*out = new(int)
+			**out = **in
+		}
+		return nil
+	}
+}
+
+func DeepCopy_wholepkg_Struct_Embed_Struct_PrimitivePointers(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Embed_Struct_PrimitivePointers)
+		out := out.(*Struct_Embed_Struct_PrimitivePointers)
+		*out = *in
+		if err := DeepCopy_wholepkg_Struct_PrimitivePointers(&in.Struct_PrimitivePointers, &out.Struct_PrimitivePointers, c); err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
 func DeepCopy_wholepkg_Struct_Embed_Struct_Primitives(in interface{}, out interface{}, c *conversion.Cloner) error {
 	{
 		in := in.(*Struct_Embed_Struct_Primitives)
@@ -91,6 +122,87 @@ func DeepCopy_wholepkg_Struct_Everything(in interface{}, out interface{}, c *con
 		out := out.(*Struct_Everything)
 		*out = *in
 		out.ManualStructField = in.ManualStructField.DeepCopy()
+		if in.BoolPtrField != nil {
+			in, out := &in.BoolPtrField, &out.BoolPtrField
+			*out = new(bool)
+			**out = **in
+		}
+		if in.IntPtrField != nil {
+			in, out := &in.IntPtrField, &out.IntPtrField
+			*out = new(int)
+			**out = **in
+		}
+		if in.StringPtrField != nil {
+			in, out := &in.StringPtrField, &out.StringPtrField
+			*out = new(string)
+			**out = **in
+		}
+		if in.FloatPtrField != nil {
+			in, out := &in.FloatPtrField, &out.FloatPtrField
+			*out = new(float64)
+			**out = **in
+		}
+		if err := DeepCopy_wholepkg_Struct_PrimitivePointers(&in.PrimitivePointersField, &out.PrimitivePointersField, c); err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func DeepCopy_wholepkg_Struct_PrimitivePointers(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_PrimitivePointers)
+		out := out.(*Struct_PrimitivePointers)
+		*out = *in
+		if in.BoolPtrField != nil {
+			in, out := &in.BoolPtrField, &out.BoolPtrField
+			*out = new(bool)
+			**out = **in
+		}
+		if in.IntPtrField != nil {
+			in, out := &in.IntPtrField, &out.IntPtrField
+			*out = new(int)
+			**out = **in
+		}
+		if in.StringPtrField != nil {
+			in, out := &in.StringPtrField, &out.StringPtrField
+			*out = new(string)
+			**out = **in
+		}
+		if in.FloatPtrField != nil {
+			in, out := &in.FloatPtrField, &out.FloatPtrField
+			*out = new(float64)
+			**out = **in
+		}
+		return nil
+	}
+}
+
+func DeepCopy_wholepkg_Struct_PrimitivePointers_Alias(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_PrimitivePointers_Alias)
+		out := out.(*Struct_PrimitivePointers_Alias)
+		*out = *in
+		if in.BoolPtrField != nil {
+			in, out := &in.BoolPtrField, &out.BoolPtrField
+			*out = new(bool)
+			**out = **in
+		}
+		if in.IntPtrField != nil {
+			in, out := &in.IntPtrField, &out.IntPtrField
+			*out = new(int)
+			**out = **in
+		}
+		if in.StringPtrField != nil {
+			in, out := &in.StringPtrField, &out.StringPtrField
+			*out = new(string)
+			**out = **in
+		}
+		if in.FloatPtrField != nil {
+			in, out := &in.FloatPtrField, &out.FloatPtrField
+			*out = new(float64)
+			**out = **in
+		}
 		return nil
 	}
 }
@@ -109,6 +221,18 @@ func DeepCopy_wholepkg_Struct_Primitives_Alias(in interface{}, out interface{}, 
 		in := in.(*Struct_Primitives_Alias)
 		out := out.(*Struct_Primitives_Alias)
 		*out = *in
+		return nil
+	}
+}
+
+func DeepCopy_wholepkg_Struct_Struct_PrimitivePointers(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Struct_PrimitivePointers)
+		out := out.(*Struct_Struct_PrimitivePointers)
+		*out = *in
+		if err := DeepCopy_wholepkg_Struct_PrimitivePointers(&in.StructField, &out.StructField, c); err != nil {
+			return err
+		}
 		return nil
 	}
 }

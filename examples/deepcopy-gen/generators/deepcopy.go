@@ -586,8 +586,6 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 				sw.Do("if in.$.name$ != nil {\n", args)
 				sw.Do("in, out := &in.$.name$, &out.$.name$\n", args)
 				g.generateFor(t, sw)
-				sw.Do("} else {\n", nil)
-				sw.Do("out.$.name$ = nil\n", args)
 				sw.Do("}\n", nil)
 			}
 		case types.Struct:

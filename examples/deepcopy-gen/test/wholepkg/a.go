@@ -46,23 +46,36 @@ func (m ManualStruct) DeepCopy() ManualStruct {
 	return m
 }
 
-// Everything
-type Struct_Everything struct {
-	BoolField         bool
-	IntField          int
-	StringField       string
-	FloatField        float64
-	StructField       Struct_Primitives
-	EmptyStructField  Struct_Empty
-	ManualStructField ManualStruct
-}
-
-/*
 // Only pointers to primitives
 type Struct_PrimitivePointers struct {
-	BoolField   *bool
-	IntField    *int
-	StringField *string
-	FloatField  *float64
+	BoolPtrField   *bool
+	IntPtrField    *int
+	StringPtrField *string
+	FloatPtrField  *float64
 }
-*/
+type Struct_PrimitivePointers_Alias Struct_PrimitivePointers
+type Struct_Embed_Struct_PrimitivePointers struct {
+	Struct_PrimitivePointers
+}
+type Struct_Embed_Pointer struct {
+	*int
+}
+type Struct_Struct_PrimitivePointers struct {
+	StructField Struct_PrimitivePointers
+}
+
+// Everything
+type Struct_Everything struct {
+	BoolField              bool
+	IntField               int
+	StringField            string
+	FloatField             float64
+	StructField            Struct_Primitives
+	EmptyStructField       Struct_Empty
+	ManualStructField      ManualStruct
+	BoolPtrField           *bool
+	IntPtrField            *int
+	StringPtrField         *string
+	FloatPtrField          *float64
+	PrimitivePointersField Struct_PrimitivePointers
+}

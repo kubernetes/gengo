@@ -112,42 +112,32 @@ func (b *Builder) AddBuildTags(tags ...string) {
 // e.g. test files and files for other platforms-- there is quite a bit of
 // logic of that nature in the build package.
 func (b *Builder) importBuildPackage(pkgPath string) (*build.Package, error) {
-	// This is a bit of a hack.  The srcDir argument to Import() should
-	// properly be the dir of the file which depends on the package to be
-	// imported, so that vendoring can work properly.  We assume that there is
-	// only one level of vendoring, and that the CWD is inside the GOPATH, so
-	// this should be safe.
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get current directory: %v", err)
-	}
-
 	// First, find it, so we know what path to use.
-	buildPackage, err := b.context.Import(pkgPath, cwd, build.FindOnly)
+	buildPkg, err := b.importWithMode(pkgPath, build.FindOnly)
 	if err != nil {
 		return nil, fmt.Errorf("unable to *find* %q: %v", pkgPath, err)
 	}
 
-	pkgPath = buildPackage.ImportPath
+	pkgPath = buildPkg.ImportPath
 
-	if buildPackage, ok := b.buildPackages[pkgPath]; ok {
-		return buildPackage, nil
+	if buildPkg, ok := b.buildPackages[pkgPath]; ok {
+		return buildPkg, nil
 	}
-	buildPackage, err = b.context.Import(pkgPath, cwd, build.ImportComment)
+	buildPkg, err = b.importWithMode(pkgPath, build.ImportComment)
 	if err != nil {
 		if _, ok := err.(*build.NoGoError); !ok {
 			return nil, fmt.Errorf("unable to import %q: %v", pkgPath, err)
 		}
 	}
-	b.buildPackages[pkgPath] = buildPackage
+	b.buildPackages[pkgPath] = buildPkg
 
 	if b.importGraph[pkgPath] == nil {
 		b.importGraph[pkgPath] = map[string]struct{}{}
 	}
-	for _, p := range buildPackage.Imports {
+	for _, p := range buildPkg.Imports {
 		b.importGraph[pkgPath][p] = struct{}{}
 	}
-	return buildPackage, nil
+	return buildPkg, nil
 }
 
 // AddFileForTest adds a file to the set. The pkg must be of the form
@@ -204,18 +194,8 @@ func (b *Builder) AddDir(dir string) error {
 // subdirectories; it returns an error only if the path couldn't be resolved;
 // any directories recursed into without go source are ignored.
 func (b *Builder) AddDirRecursive(dir string) error {
-	// This is a bit of a hack.  The srcDir argument to Import() should
-	// properly be the dir of the file which depends on the package to be
-	// imported, so that vendoring can work properly.  We assume that there is
-	// only one level of vendoring, and that the CWD is inside the GOPATH, so
-	// this should be safe.
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("unable to get current directory: %v", err)
-	}
-
 	// First, find it, so we know what path to use.
-	pkg, err := b.context.Import(dir, cwd, build.FindOnly)
+	pkg, err := b.importWithMode(dir, build.FindOnly)
 	if err != nil {
 		return fmt.Errorf("unable to *find* %q: %v", dir, err)
 	}
@@ -486,6 +466,25 @@ func (b *Builder) findTypesIn(pkgPath string, u *types.Universe) error {
 	}
 	u.Package(pkgPath).Name = pkg.Name()
 	return nil
+}
+
+func (b *Builder) importWithMode(dir string, mode build.ImportMode) (*build.Package, error) {
+	// This is a bit of a hack.  The srcDir argument to Import() should
+	// properly be the dir of the file which depends on the package to be
+	// imported, so that vendoring can work properly and local paths can
+	// resolve.  We assume that there is only one level of vendoring, and that
+	// the CWD is inside the GOPATH, so this should be safe. Nobody should be
+	// using local (relative) paths except on the CLI, so CWD is also
+	// sufficient.
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get current directory: %v", err)
+	}
+	buildPkg, err := b.context.Import(dir, cwd, mode)
+	if err != nil {
+		return nil, err
+	}
+	return buildPkg, nil
 }
 
 // if there's a comment on the line `lines` before pos, return its text, otherwise "".

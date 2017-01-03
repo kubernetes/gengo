@@ -111,7 +111,7 @@ func (b *Builder) AddBuildTags(tags ...string) {
 // Get package information from the go/build package. Automatically excludes
 // e.g. test files and files for other platforms-- there is quite a bit of
 // logic of that nature in the build package.
-func (b *Builder) buildPackage(pkgPath string) (*build.Package, error) {
+func (b *Builder) importBuildPackage(pkgPath string) (*build.Package, error) {
 	// This is a bit of a hack.  The srcDir argument to Import() should
 	// properly be the dir of the file which depends on the package to be
 	// imported, so that vendoring can work properly.  We assume that there is
@@ -262,7 +262,7 @@ func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
 // The implementation of AddDir. A flag indicates whether this directory was
 // user-requested or just from following the import graph.
 func (b *Builder) addDir(dir string, userRequested bool) error {
-	pkg, err := b.buildPackage(dir)
+	pkg, err := b.importBuildPackage(dir)
 	if err != nil {
 		return err
 	}

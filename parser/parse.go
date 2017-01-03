@@ -36,8 +36,13 @@ import (
 // Builder lets you add all the go files in all the packages that you care
 // about, then constructs the type source data.
 type Builder struct {
-	context   *build.Context
-	buildInfo map[string]*build.Package
+	context *build.Context
+
+	// Map of package names to more canonical information about the package.
+	// This might hold the same value for multiple names, e.g. if someone
+	// referenced ./pkg/name or in the case of vendoring, which canonicalizes
+	// differently that what humans would type.
+	buildPackages map[string]*build.Package
 
 	fset *token.FileSet
 	// map of package id to list of parsed files
@@ -87,7 +92,7 @@ func New() *Builder {
 	c.CgoEnabled = false
 	return &Builder{
 		context:               &c,
-		buildInfo:             map[string]*build.Package{},
+		buildPackages:         map[string]*build.Package{},
 		typeCheckedPackages:   map[string]*tc.Package{},
 		fset:                  token.NewFileSet(),
 		parsed:                map[string][]parsedFile{},
@@ -125,7 +130,7 @@ func (b *Builder) buildPackage(pkgPath string) (*build.Package, error) {
 
 	pkgPath = pkg.ImportPath
 
-	if pkg, ok := b.buildInfo[pkgPath]; ok {
+	if pkg, ok := b.buildPackages[pkgPath]; ok {
 		return pkg, nil
 	}
 	pkg, err = b.context.Import(pkgPath, cwd, build.ImportComment)
@@ -134,7 +139,7 @@ func (b *Builder) buildPackage(pkgPath string) (*build.Package, error) {
 			return nil, fmt.Errorf("unable to import %q: %v", pkgPath, err)
 		}
 	}
-	b.buildInfo[pkgPath] = pkg
+	b.buildPackages[pkgPath] = pkg
 
 	if b.importGraph[pkgPath] == nil {
 		b.importGraph[pkgPath] = map[string]struct{}{}

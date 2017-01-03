@@ -111,11 +111,11 @@ func (b *Builder) AddBuildTags(tags ...string) {
 // Get package information from the go/build package. Automatically excludes
 // e.g. test files and files for other platforms-- there is quite a bit of
 // logic of that nature in the build package.
-func (b *Builder) importBuildPackage(pkgPath string) (*build.Package, error) {
+func (b *Builder) importBuildPackage(dir string) (*build.Package, error) {
 	// First, find it, so we know what path to use.
-	buildPkg, err := b.importWithMode(pkgPath, build.FindOnly)
+	buildPkg, err := b.importWithMode(dir, build.FindOnly)
 	if err != nil {
-		return nil, fmt.Errorf("unable to *find* %q: %v", pkgPath, err)
+		return nil, fmt.Errorf("unable to *find* %q: %v", dir, err)
 	}
 
 	pkgPath = buildPkg.ImportPath
@@ -142,11 +142,11 @@ func (b *Builder) importBuildPackage(pkgPath string) (*build.Package, error) {
 
 // AddFileForTest adds a file to the set. The pkg must be of the form
 // "canonical/pkg/path" and the path must be the absolute path to the file.
-func (b *Builder) AddFileForTest(pkgPath string, path string, src []byte) error {
-	return b.addFile(pkgPath, path, src, true)
+func (b *Builder) AddFileForTest(pkg string, path string, src []byte) error {
+	return b.addFile(pkg, path, src, true)
 }
 
-// addFile adds a file to the set. The pkg must be of the form
+// addFile adds a file to the set. The pkgPath must be of the form
 // "canonical/pkg/path" and the path must be the absolute path to the file. A
 // flag indicates whether this file was user-requested or just from following
 // the import graph.
@@ -195,7 +195,7 @@ func (b *Builder) AddDir(dir string) error {
 // any directories recursed into without go source are ignored.
 func (b *Builder) AddDirRecursive(dir string) error {
 	// First, find it, so we know what path to use.
-	pkg, err := b.importWithMode(dir, build.FindOnly)
+	buildPkg, err := b.importWithMode(dir, build.FindOnly)
 	if err != nil {
 		return fmt.Errorf("unable to *find* %q: %v", dir, err)
 	}
@@ -204,8 +204,8 @@ func (b *Builder) AddDirRecursive(dir string) error {
 		glog.Warningf("Ignoring directory %v: %v", dir, err)
 	}
 
-	prefix := strings.TrimSuffix(pkg.Dir, strings.TrimSuffix(dir, "/"))
-	filepath.Walk(pkg.Dir, func(path string, info os.FileInfo, err error) error {
+	prefix := strings.TrimSuffix(buildPkg.Dir, strings.TrimSuffix(dir, "/"))
+	filepath.Walk(buildPkg.Dir, func(path string, info os.FileInfo, err error) error {
 		if info != nil && info.IsDir() {
 			trimmed := strings.TrimPrefix(path, prefix)
 			if trimmed != "" {
@@ -242,7 +242,7 @@ func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
 // The implementation of AddDir. A flag indicates whether this directory was
 // user-requested or just from following the import graph.
 func (b *Builder) addDir(dir string, userRequested bool) error {
-	pkg, err := b.importBuildPackage(dir)
+	buildPkg, err := b.importBuildPackage(dir)
 	if err != nil {
 		return err
 	}
@@ -253,11 +253,11 @@ func (b *Builder) addDir(dir string, userRequested bool) error {
 		}
 	}
 
-	for _, n := range pkg.GoFiles {
+	for _, n := range buildPkg.GoFiles {
 		if !strings.HasSuffix(n, ".go") {
 			continue
 		}
-		absPath := filepath.Join(pkg.Dir, n)
+		absPath := filepath.Join(buildPkg.Dir, n)
 		data, err := ioutil.ReadFile(absPath)
 		if err != nil {
 			return fmt.Errorf("while loading %q: %v", absPath, err)

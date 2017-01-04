@@ -220,6 +220,16 @@ func DeepCopy_wholepkg_Struct_Everything(in interface{}, out interface{}, c *con
 		if err := DeepCopy_wholepkg_Struct_Slices(&in.SlicesField, &out.SlicesField, c); err != nil {
 			return err
 		}
+		if in.SliceManualStructField != nil {
+			in, out := &in.SliceManualStructField, &out.SliceManualStructField
+			*out = make([]ManualStruct, len(*in))
+			for i := range *in {
+				(*out)[i] = (*in)[i].DeepCopy()
+			}
+		}
+		if in.ManualSliceField != nil {
+			out.ManualSliceField = in.ManualSliceField.DeepCopy()
+		}
 		return nil
 	}
 }
@@ -369,6 +379,16 @@ func DeepCopy_wholepkg_Struct_Slices(in interface{}, out interface{}, c *convers
 				}
 			}
 		}
+		if in.SliceManualStructField != nil {
+			in, out := &in.SliceManualStructField, &out.SliceManualStructField
+			*out = make([]ManualStruct, len(*in))
+			for i := range *in {
+				(*out)[i] = (*in)[i].DeepCopy()
+			}
+		}
+		if in.ManualSliceField != nil {
+			out.ManualSliceField = in.ManualSliceField.DeepCopy()
+		}
 		return nil
 	}
 }
@@ -441,6 +461,16 @@ func DeepCopy_wholepkg_Struct_Slices_Alias(in interface{}, out interface{}, c *c
 					copy(*out, *in)
 				}
 			}
+		}
+		if in.SliceManualStructField != nil {
+			in, out := &in.SliceManualStructField, &out.SliceManualStructField
+			*out = make([]ManualStruct, len(*in))
+			for i := range *in {
+				(*out)[i] = (*in)[i].DeepCopy()
+			}
+		}
+		if in.ManualSliceField != nil {
+			out.ManualSliceField = in.ManualSliceField.DeepCopy()
 		}
 		return nil
 	}

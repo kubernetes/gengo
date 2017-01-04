@@ -70,6 +70,15 @@ type Struct_Struct_PrimitivePointers struct {
 	StructField Struct_PrimitivePointers
 }
 
+// Manual DeepCopy method
+type ManualSlice []string
+
+func (m ManualSlice) DeepCopy() ManualSlice {
+	r := make(ManualSlice, len(m))
+	copy(r, m)
+	return r
+}
+
 // Slices
 type Struct_Slices struct {
 	SliceBoolField                         []bool
@@ -82,6 +91,8 @@ type Struct_Slices struct {
 	SliceStructPrimitivePointersField      []Struct_PrimitivePointers
 	SliceStructPrimitivePointersAliasField []Struct_PrimitivePointers_Alias
 	SliceSliceIntField                     [][]int
+	SliceManualStructField                 []ManualStruct
+	ManualSliceField                       ManualSlice
 }
 type Struct_Slices_Alias Struct_Slices
 type Struct_Embed_Struct_Slices struct {
@@ -114,4 +125,6 @@ type Struct_Everything struct {
 	SliceStringField          []string
 	SliceFloatField           []float64
 	SlicesField               Struct_Slices
+	SliceManualStructField    []ManualStruct
+	ManualSliceField          ManualSlice
 }

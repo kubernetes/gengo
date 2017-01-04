@@ -29,8 +29,10 @@ import (
 func GetGeneratedDeepCopyFuncs() []conversion.GeneratedDeepCopyFunc {
 	return []conversion.GeneratedDeepCopyFunc{
 		{Fn: DeepCopy_wholepkg_ManualStruct, InType: reflect.TypeOf(&ManualStruct{})},
+		{Fn: DeepCopy_wholepkg_ManualStruct_Alias, InType: reflect.TypeOf(&ManualStruct_Alias{})},
 		{Fn: DeepCopy_wholepkg_Struct_B, InType: reflect.TypeOf(&Struct_B{})},
 		{Fn: DeepCopy_wholepkg_Struct_Embed_Int, InType: reflect.TypeOf(&Struct_Embed_Int{})},
+		{Fn: DeepCopy_wholepkg_Struct_Embed_ManualStruct, InType: reflect.TypeOf(&Struct_Embed_ManualStruct{})},
 		{Fn: DeepCopy_wholepkg_Struct_Embed_Pointer, InType: reflect.TypeOf(&Struct_Embed_Pointer{})},
 		{Fn: DeepCopy_wholepkg_Struct_Embed_Struct_PrimitivePointers, InType: reflect.TypeOf(&Struct_Embed_Struct_PrimitivePointers{})},
 		{Fn: DeepCopy_wholepkg_Struct_Embed_Struct_Primitives, InType: reflect.TypeOf(&Struct_Embed_Struct_Primitives{})},
@@ -54,6 +56,15 @@ func DeepCopy_wholepkg_ManualStruct(in interface{}, out interface{}, c *conversi
 	}
 }
 
+func DeepCopy_wholepkg_ManualStruct_Alias(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*ManualStruct_Alias)
+		out := out.(*ManualStruct_Alias)
+		*out = *in
+		return nil
+	}
+}
+
 func DeepCopy_wholepkg_Struct_B(in interface{}, out interface{}, c *conversion.Cloner) error {
 	{
 		in := in.(*Struct_B)
@@ -68,6 +79,16 @@ func DeepCopy_wholepkg_Struct_Embed_Int(in interface{}, out interface{}, c *conv
 		in := in.(*Struct_Embed_Int)
 		out := out.(*Struct_Embed_Int)
 		*out = *in
+		return nil
+	}
+}
+
+func DeepCopy_wholepkg_Struct_Embed_ManualStruct(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Embed_ManualStruct)
+		out := out.(*Struct_Embed_ManualStruct)
+		*out = *in
+		out.ManualStruct = in.ManualStruct.DeepCopy()
 		return nil
 	}
 }
@@ -144,6 +165,16 @@ func DeepCopy_wholepkg_Struct_Everything(in interface{}, out interface{}, c *con
 		}
 		if err := DeepCopy_wholepkg_Struct_PrimitivePointers(&in.PrimitivePointersField, &out.PrimitivePointersField, c); err != nil {
 			return err
+		}
+		if in.ManualStructPtrField != nil {
+			in, out := &in.ManualStructPtrField, &out.ManualStructPtrField
+			*out = new(ManualStruct)
+			**out = (*in).DeepCopy()
+		}
+		if in.ManualStructAliasPtrField != nil {
+			in, out := &in.ManualStructAliasPtrField, &out.ManualStructAliasPtrField
+			*out = new(ManualStruct_Alias)
+			**out = **in
 		}
 		return nil
 	}

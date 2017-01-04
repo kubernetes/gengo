@@ -36,14 +36,18 @@ func GetGeneratedDeepCopyFuncs() []conversion.GeneratedDeepCopyFunc {
 		{Fn: DeepCopy_wholepkg_Struct_Embed_Pointer, InType: reflect.TypeOf(&Struct_Embed_Pointer{})},
 		{Fn: DeepCopy_wholepkg_Struct_Embed_Struct_PrimitivePointers, InType: reflect.TypeOf(&Struct_Embed_Struct_PrimitivePointers{})},
 		{Fn: DeepCopy_wholepkg_Struct_Embed_Struct_Primitives, InType: reflect.TypeOf(&Struct_Embed_Struct_Primitives{})},
+		{Fn: DeepCopy_wholepkg_Struct_Embed_Struct_Slices, InType: reflect.TypeOf(&Struct_Embed_Struct_Slices{})},
 		{Fn: DeepCopy_wholepkg_Struct_Empty, InType: reflect.TypeOf(&Struct_Empty{})},
 		{Fn: DeepCopy_wholepkg_Struct_Everything, InType: reflect.TypeOf(&Struct_Everything{})},
 		{Fn: DeepCopy_wholepkg_Struct_PrimitivePointers, InType: reflect.TypeOf(&Struct_PrimitivePointers{})},
 		{Fn: DeepCopy_wholepkg_Struct_PrimitivePointers_Alias, InType: reflect.TypeOf(&Struct_PrimitivePointers_Alias{})},
 		{Fn: DeepCopy_wholepkg_Struct_Primitives, InType: reflect.TypeOf(&Struct_Primitives{})},
 		{Fn: DeepCopy_wholepkg_Struct_Primitives_Alias, InType: reflect.TypeOf(&Struct_Primitives_Alias{})},
+		{Fn: DeepCopy_wholepkg_Struct_Slices, InType: reflect.TypeOf(&Struct_Slices{})},
+		{Fn: DeepCopy_wholepkg_Struct_Slices_Alias, InType: reflect.TypeOf(&Struct_Slices_Alias{})},
 		{Fn: DeepCopy_wholepkg_Struct_Struct_PrimitivePointers, InType: reflect.TypeOf(&Struct_Struct_PrimitivePointers{})},
 		{Fn: DeepCopy_wholepkg_Struct_Struct_Primitives, InType: reflect.TypeOf(&Struct_Struct_Primitives{})},
+		{Fn: DeepCopy_wholepkg_Struct_Struct_Slices, InType: reflect.TypeOf(&Struct_Struct_Slices{})},
 	}
 }
 
@@ -128,6 +132,18 @@ func DeepCopy_wholepkg_Struct_Embed_Struct_Primitives(in interface{}, out interf
 	}
 }
 
+func DeepCopy_wholepkg_Struct_Embed_Struct_Slices(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Embed_Struct_Slices)
+		out := out.(*Struct_Embed_Struct_Slices)
+		*out = *in
+		if err := DeepCopy_wholepkg_Struct_Slices(&in.Struct_Slices, &out.Struct_Slices, c); err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
 func DeepCopy_wholepkg_Struct_Empty(in interface{}, out interface{}, c *conversion.Cloner) error {
 	{
 		in := in.(*Struct_Empty)
@@ -175,6 +191,34 @@ func DeepCopy_wholepkg_Struct_Everything(in interface{}, out interface{}, c *con
 			in, out := &in.ManualStructAliasPtrField, &out.ManualStructAliasPtrField
 			*out = new(ManualStruct_Alias)
 			**out = **in
+		}
+		if in.SliceBoolField != nil {
+			in, out := &in.SliceBoolField, &out.SliceBoolField
+			*out = make([]bool, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceByteField != nil {
+			in, out := &in.SliceByteField, &out.SliceByteField
+			*out = make([]byte, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceIntField != nil {
+			in, out := &in.SliceIntField, &out.SliceIntField
+			*out = make([]int, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceStringField != nil {
+			in, out := &in.SliceStringField, &out.SliceStringField
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceFloatField != nil {
+			in, out := &in.SliceFloatField, &out.SliceFloatField
+			*out = make([]float64, len(*in))
+			copy(*out, *in)
+		}
+		if err := DeepCopy_wholepkg_Struct_Slices(&in.SlicesField, &out.SlicesField, c); err != nil {
+			return err
 		}
 		return nil
 	}
@@ -256,6 +300,152 @@ func DeepCopy_wholepkg_Struct_Primitives_Alias(in interface{}, out interface{}, 
 	}
 }
 
+func DeepCopy_wholepkg_Struct_Slices(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Slices)
+		out := out.(*Struct_Slices)
+		*out = *in
+		if in.SliceBoolField != nil {
+			in, out := &in.SliceBoolField, &out.SliceBoolField
+			*out = make([]bool, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceByteField != nil {
+			in, out := &in.SliceByteField, &out.SliceByteField
+			*out = make([]byte, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceIntField != nil {
+			in, out := &in.SliceIntField, &out.SliceIntField
+			*out = make([]int, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceStringField != nil {
+			in, out := &in.SliceStringField, &out.SliceStringField
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceFloatField != nil {
+			in, out := &in.SliceFloatField, &out.SliceFloatField
+			*out = make([]float64, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceStructPrimitivesField != nil {
+			in, out := &in.SliceStructPrimitivesField, &out.SliceStructPrimitivesField
+			*out = make([]Struct_Primitives, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceStructPrimitivesAliasField != nil {
+			in, out := &in.SliceStructPrimitivesAliasField, &out.SliceStructPrimitivesAliasField
+			*out = make([]Struct_Primitives_Alias, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceStructPrimitivePointersField != nil {
+			in, out := &in.SliceStructPrimitivePointersField, &out.SliceStructPrimitivePointersField
+			*out = make([]Struct_PrimitivePointers, len(*in))
+			for i := range *in {
+				if err := DeepCopy_wholepkg_Struct_PrimitivePointers(&(*in)[i], &(*out)[i], c); err != nil {
+					return err
+				}
+			}
+		}
+		if in.SliceStructPrimitivePointersAliasField != nil {
+			in, out := &in.SliceStructPrimitivePointersAliasField, &out.SliceStructPrimitivePointersAliasField
+			*out = make([]Struct_PrimitivePointers_Alias, len(*in))
+			for i := range *in {
+				if err := DeepCopy_wholepkg_Struct_PrimitivePointers_Alias(&(*in)[i], &(*out)[i], c); err != nil {
+					return err
+				}
+			}
+		}
+		if in.SliceSliceIntField != nil {
+			in, out := &in.SliceSliceIntField, &out.SliceSliceIntField
+			*out = make([][]int, len(*in))
+			for i := range *in {
+				if (*in)[i] != nil {
+					in, out := &(*in)[i], &(*out)[i]
+					*out = make([]int, len(*in))
+					copy(*out, *in)
+				}
+			}
+		}
+		return nil
+	}
+}
+
+func DeepCopy_wholepkg_Struct_Slices_Alias(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Slices_Alias)
+		out := out.(*Struct_Slices_Alias)
+		*out = *in
+		if in.SliceBoolField != nil {
+			in, out := &in.SliceBoolField, &out.SliceBoolField
+			*out = make([]bool, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceByteField != nil {
+			in, out := &in.SliceByteField, &out.SliceByteField
+			*out = make([]byte, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceIntField != nil {
+			in, out := &in.SliceIntField, &out.SliceIntField
+			*out = make([]int, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceStringField != nil {
+			in, out := &in.SliceStringField, &out.SliceStringField
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceFloatField != nil {
+			in, out := &in.SliceFloatField, &out.SliceFloatField
+			*out = make([]float64, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceStructPrimitivesField != nil {
+			in, out := &in.SliceStructPrimitivesField, &out.SliceStructPrimitivesField
+			*out = make([]Struct_Primitives, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceStructPrimitivesAliasField != nil {
+			in, out := &in.SliceStructPrimitivesAliasField, &out.SliceStructPrimitivesAliasField
+			*out = make([]Struct_Primitives_Alias, len(*in))
+			copy(*out, *in)
+		}
+		if in.SliceStructPrimitivePointersField != nil {
+			in, out := &in.SliceStructPrimitivePointersField, &out.SliceStructPrimitivePointersField
+			*out = make([]Struct_PrimitivePointers, len(*in))
+			for i := range *in {
+				if err := DeepCopy_wholepkg_Struct_PrimitivePointers(&(*in)[i], &(*out)[i], c); err != nil {
+					return err
+				}
+			}
+		}
+		if in.SliceStructPrimitivePointersAliasField != nil {
+			in, out := &in.SliceStructPrimitivePointersAliasField, &out.SliceStructPrimitivePointersAliasField
+			*out = make([]Struct_PrimitivePointers_Alias, len(*in))
+			for i := range *in {
+				if err := DeepCopy_wholepkg_Struct_PrimitivePointers_Alias(&(*in)[i], &(*out)[i], c); err != nil {
+					return err
+				}
+			}
+		}
+		if in.SliceSliceIntField != nil {
+			in, out := &in.SliceSliceIntField, &out.SliceSliceIntField
+			*out = make([][]int, len(*in))
+			for i := range *in {
+				if (*in)[i] != nil {
+					in, out := &(*in)[i], &(*out)[i]
+					*out = make([]int, len(*in))
+					copy(*out, *in)
+				}
+			}
+		}
+		return nil
+	}
+}
+
 func DeepCopy_wholepkg_Struct_Struct_PrimitivePointers(in interface{}, out interface{}, c *conversion.Cloner) error {
 	{
 		in := in.(*Struct_Struct_PrimitivePointers)
@@ -273,6 +463,18 @@ func DeepCopy_wholepkg_Struct_Struct_Primitives(in interface{}, out interface{},
 		in := in.(*Struct_Struct_Primitives)
 		out := out.(*Struct_Struct_Primitives)
 		*out = *in
+		return nil
+	}
+}
+
+func DeepCopy_wholepkg_Struct_Struct_Slices(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*Struct_Struct_Slices)
+		out := out.(*Struct_Struct_Slices)
+		*out = *in
+		if err := DeepCopy_wholepkg_Struct_Slices(&in.StructField, &out.StructField, c); err != nil {
+			return err
+		}
 		return nil
 	}
 }

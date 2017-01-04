@@ -70,6 +70,27 @@ type Struct_Struct_PrimitivePointers struct {
 	StructField Struct_PrimitivePointers
 }
 
+// Slices
+type Struct_Slices struct {
+	SliceBoolField                         []bool
+	SliceByteField                         []byte
+	SliceIntField                          []int
+	SliceStringField                       []string
+	SliceFloatField                        []float64
+	SliceStructPrimitivesField             []Struct_Primitives
+	SliceStructPrimitivesAliasField        []Struct_Primitives_Alias
+	SliceStructPrimitivePointersField      []Struct_PrimitivePointers
+	SliceStructPrimitivePointersAliasField []Struct_PrimitivePointers_Alias
+	SliceSliceIntField                     [][]int
+}
+type Struct_Slices_Alias Struct_Slices
+type Struct_Embed_Struct_Slices struct {
+	Struct_Slices
+}
+type Struct_Struct_Slices struct {
+	StructField Struct_Slices
+}
+
 // Everything
 type Struct_Everything struct {
 	BoolField                 bool
@@ -87,4 +108,10 @@ type Struct_Everything struct {
 	PrimitivePointersField    Struct_PrimitivePointers
 	ManualStructPtrField      *ManualStruct
 	ManualStructAliasPtrField *ManualStruct_Alias
+	SliceBoolField            []bool
+	SliceByteField            []byte
+	SliceIntField             []int
+	SliceStringField          []string
+	SliceFloatField           []float64
+	SlicesField               Struct_Slices
 }

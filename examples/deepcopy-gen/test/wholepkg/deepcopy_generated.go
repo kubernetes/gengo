@@ -21,7 +21,7 @@ limitations under the License.
 package wholepkg
 
 import (
-	conversion "k8s.io/kubernetes/pkg/conversion"
+	conversion "k8s.io/apimachinery/pkg/conversion"
 	reflect "reflect"
 )
 

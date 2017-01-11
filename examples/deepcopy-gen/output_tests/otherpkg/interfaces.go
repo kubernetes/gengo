@@ -14,16 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +k8s:deepcopy-gen=package
+package otherpkg
 
-// This is a test package.
-package interfaces
-
-type Inner interface {
-	function() float64
-	DeepCopyInner() Inner
+type Object interface {
+	DeepCopyObject() Object
 }
 
-type Ttest struct {
-	I []Inner
+type List interface {
+	DeepCopyList() List
 }

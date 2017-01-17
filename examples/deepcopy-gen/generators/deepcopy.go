@@ -524,15 +524,25 @@ func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 }
 
 func (g *genDeepCopy) doSlice(t *types.Type, sw *generator.SnippetWriter) {
+	if hasDeepCopyMethod(t) {
+		sw.Do("*out = in.DeepCopy()\n", nil)
+		return
+	}
+
 	sw.Do("*out = make($.|raw$, len(*in))\n", t)
-	if t.Elem.Kind == types.Builtin {
+	if hasDeepCopyMethod(t.Elem) {
+		sw.Do("for i := range *in {\n", nil)
+		sw.Do("(*out)[i] = (*in)[i].DeepCopy()\n", nil)
+		sw.Do("}\n", nil)
+	} else if t.Elem.Kind == types.Builtin || t.Elem.IsAssignable() {
 		sw.Do("copy(*out, *in)\n", nil)
 	} else {
 		sw.Do("for i := range *in {\n", nil)
-		if hasDeepCopyMethod(t.Elem) {
-			sw.Do("(*out)[i] = (*in)[i].DeepCopy()\n", nil)
-		} else if t.Elem.IsAssignable() {
-			sw.Do("(*out)[i] = (*in)[i]\n", nil)
+		if t.Elem.Kind == types.Slice {
+			sw.Do("if (*in)[i] != nil {\n", nil)
+			sw.Do("in, out := &(*in)[i], &(*out)[i]\n", nil)
+			g.generateFor(t.Elem, sw)
+			sw.Do("}\n", nil)
 		} else if g.copyableAndInBounds(t.Elem) {
 			sw.Do("if err := $.type|dcFnName$(&(*in)[i], &(*out)[i], c); err != nil {\n", argsFromType(t.Elem))
 			sw.Do("return err\n", nil)
@@ -582,7 +592,7 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 				sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)
 				sw.Do("}\n", nil)
 			} else {
-				// Fixup non-nil reference-sematic types.
+				// Fixup non-nil reference-semantic types.
 				sw.Do("if in.$.name$ != nil {\n", args)
 				sw.Do("in, out := &in.$.name$, &out.$.name$\n", args)
 				g.generateFor(t, sw)

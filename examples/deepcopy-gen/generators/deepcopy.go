@@ -184,10 +184,25 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 
 		if pkgNeedsGeneration {
 			glog.V(3).Infof("Package %q needs generation", i)
+			path := pkg.Path
+			// if the source path is within a /vendor/ directory (for example,
+			// k8s.io/kubernetes/vendor/k8s.io/apimachinery/pkg/apis/meta/v1), allow
+			// generation to output to the proper relative path (under vendor).
+			// Otherwise, the generator will create the file in the wrong location
+			// in the output directory.
+			// TODO: build a more fundamental concept in gengo for dealing with modifications
+			// to vendored packages.
+			if strings.HasPrefix(pkg.SourcePath, arguments.OutputBase) {
+				expandedPath := strings.TrimPrefix(pkg.SourcePath, arguments.OutputBase)
+				if strings.Contains(expandedPath, "/vendor/") {
+					path = expandedPath
+					glog.V(3).Infof("  %s", path)
+				}
+			}
 			packages = append(packages,
 				&generator.DefaultPackage{
 					PackageName: strings.Split(filepath.Base(pkg.Path), ".")[0],
-					PackagePath: pkg.Path,
+					PackagePath: path,
 					HeaderText:  header,
 					GeneratorFunc: func(c *generator.Context) (generators []generator.Generator) {
 						return []generator.Generator{

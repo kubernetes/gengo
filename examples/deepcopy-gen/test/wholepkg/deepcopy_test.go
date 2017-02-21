@@ -24,8 +24,8 @@ import (
 )
 
 func TestDeepCopy(t *testing.T) {
-	x := Struct_Primitives{}
-	y := Struct_Primitives{}
+	x := StructPrimitives{}
+	y := StructPrimitives{}
 
 	if !reflect.DeepEqual(&x, &y) {
 		t.Errorf("objects should be equal to start, but are not")
@@ -39,7 +39,7 @@ func TestDeepCopy(t *testing.T) {
 		t.Errorf("objects should not be equal, but are")
 	}
 
-	if err := DeepCopy_wholepkg_Struct_Primitives(&x, &y, nil); err != nil {
+	if err := DeepCopywholepkgStructPrimitives(&x, &y, nil); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 	if !reflect.DeepEqual(&x, &y) {

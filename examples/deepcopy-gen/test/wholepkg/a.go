@@ -17,24 +17,24 @@ limitations under the License.
 package wholepkg
 
 // Trivial
-type Struct_Empty struct{}
+type StructEmpty struct{}
 
 // Only primitives
-type Struct_Primitives struct {
+type StructPrimitives struct {
 	BoolField   bool
 	IntField    int
 	StringField string
 	FloatField  float64
 }
-type Struct_Primitives_Alias Struct_Primitives
-type Struct_Embed_Struct_Primitives struct {
-	Struct_Primitives
+type StructPrimitivesAlias StructPrimitives
+type StructEmbedStructPrimitives struct {
+	StructPrimitives
 }
-type Struct_Embed_Int struct {
+type StructEmbedInt struct {
 	int
 }
-type Struct_Struct_Primitives struct {
-	StructField Struct_Primitives
+type StructStructPrimitives struct {
+	StructField StructPrimitives
 }
 
 // Manual DeepCopy method
@@ -46,28 +46,28 @@ func (m ManualStruct) DeepCopy() ManualStruct {
 	return m
 }
 
-type ManualStruct_Alias ManualStruct
+type ManualStructAlias ManualStruct
 
-type Struct_Embed_ManualStruct struct {
+type StructEmbedManualStruct struct {
 	ManualStruct
 }
 
 // Only pointers to primitives
-type Struct_PrimitivePointers struct {
+type StructPrimitivePointers struct {
 	BoolPtrField   *bool
 	IntPtrField    *int
 	StringPtrField *string
 	FloatPtrField  *float64
 }
-type Struct_PrimitivePointers_Alias Struct_PrimitivePointers
-type Struct_Embed_Struct_PrimitivePointers struct {
-	Struct_PrimitivePointers
+type StructPrimitivePointersAlias StructPrimitivePointers
+type StructEmbedStructPrimitivePointers struct {
+	StructPrimitivePointers
 }
-type Struct_Embed_Pointer struct {
+type StructEmbedPointer struct {
 	*int
 }
-type Struct_Struct_PrimitivePointers struct {
-	StructField Struct_PrimitivePointers
+type StructStructPrimitivePointers struct {
+	StructField StructPrimitivePointers
 }
 
 // Manual DeepCopy method
@@ -80,51 +80,51 @@ func (m ManualSlice) DeepCopy() ManualSlice {
 }
 
 // Slices
-type Struct_Slices struct {
+type StructSlices struct {
 	SliceBoolField                         []bool
 	SliceByteField                         []byte
 	SliceIntField                          []int
 	SliceStringField                       []string
 	SliceFloatField                        []float64
-	SliceStructPrimitivesField             []Struct_Primitives
-	SliceStructPrimitivesAliasField        []Struct_Primitives_Alias
-	SliceStructPrimitivePointersField      []Struct_PrimitivePointers
-	SliceStructPrimitivePointersAliasField []Struct_PrimitivePointers_Alias
+	SliceStructPrimitivesField             []StructPrimitives
+	SliceStructPrimitivesAliasField        []StructPrimitivesAlias
+	SliceStructPrimitivePointersField      []StructPrimitivePointers
+	SliceStructPrimitivePointersAliasField []StructPrimitivePointersAlias
 	SliceSliceIntField                     [][]int
 	SliceManualStructField                 []ManualStruct
 	ManualSliceField                       ManualSlice
 }
-type Struct_Slices_Alias Struct_Slices
-type Struct_Embed_Struct_Slices struct {
-	Struct_Slices
+type StructSlicesAlias StructSlices
+type StructEmbedStructSlices struct {
+	StructSlices
 }
-type Struct_Struct_Slices struct {
-	StructField Struct_Slices
+type StructStructSlices struct {
+	StructField StructSlices
 }
 
 // Everything
-type Struct_Everything struct {
+type StructEverything struct {
 	BoolField                 bool
 	IntField                  int
 	StringField               string
 	FloatField                float64
-	StructField               Struct_Primitives
-	EmptyStructField          Struct_Empty
+	StructField               StructPrimitives
+	EmptyStructField          StructEmpty
 	ManualStructField         ManualStruct
-	ManualStructAliasField    ManualStruct_Alias
+	ManualStructAliasField    ManualStructAlias
 	BoolPtrField              *bool
 	IntPtrField               *int
 	StringPtrField            *string
 	FloatPtrField             *float64
-	PrimitivePointersField    Struct_PrimitivePointers
+	PrimitivePointersField    StructPrimitivePointers
 	ManualStructPtrField      *ManualStruct
-	ManualStructAliasPtrField *ManualStruct_Alias
+	ManualStructAliasPtrField *ManualStructAlias
 	SliceBoolField            []bool
 	SliceByteField            []byte
 	SliceIntField             []int
 	SliceStringField          []string
 	SliceFloatField           []float64
-	SlicesField               Struct_Slices
+	SlicesField               StructSlices
 	SliceManualStructField    []ManualStruct
 	ManualSliceField          ManualSlice
 }

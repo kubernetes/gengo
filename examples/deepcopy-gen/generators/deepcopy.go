@@ -382,7 +382,7 @@ func (n *dcFnNamer) Name(t *types.Type) string {
 	if t.Name.Package == n.myPackage {
 		return "DeepCopy" + pubName
 	}
-	return fmt.Sprintf("%s.DeepCopy%s", n.tracker.LocalNameOf(t.Name.Package), pubName)
+	return fmt.Sprintf("%s.DeepCopy_%s", n.tracker.LocalNameOf(t.Name.Package), pubName)
 }
 
 func (g *genDeepCopy) Init(c *generator.Context, w io.Writer) error {
@@ -644,10 +644,10 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 			} else {
 				// TODO: don't depend on kubernetes code for this
 				sw.Do("if in.$.name$ != nil {\n", args)
-				sw.Do("if newVal, err := c.DeepCopy(&in.$.name$); err == nil {\n", args)
-				sw.Do("out.$.name$ = *newVal.(*$.type|raw$)\n", args)
-				sw.Do("} else {\n", nil)
+				sw.Do("if newVal, err := c.DeepCopy(&in.$.name$); err != nil {\n", args)
 				sw.Do("return err\n", nil)
+				sw.Do("} else {\n", nil)
+				sw.Do("out.$.name$ = *newVal.(*$.type|raw$)\n", args)
 				sw.Do("}\n", nil)
 				sw.Do("}\n", nil)
 			}

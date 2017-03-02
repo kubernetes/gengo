@@ -55,7 +55,7 @@ func checkTag(comments []string, require ...string) bool {
 
 func defaultFnNamer() *namer.NameStrategy {
 	return &namer.NameStrategy{
-		Prefix: "SetDefaults_",
+		Prefix: "SetDefaults",
 		Join: func(pre string, in []string, post string) string {
 			return pre + strings.Join(in, "_") + post
 		},
@@ -64,7 +64,7 @@ func defaultFnNamer() *namer.NameStrategy {
 
 func objectDefaultFnNamer() *namer.NameStrategy {
 	return &namer.NameStrategy{
-		Prefix: "SetObjectDefaults_",
+		Prefix: "SetObjectDefaults",
 		Join: func(pre string, in []string, post string) string {
 			return pre + strings.Join(in, "_") + post
 		},
@@ -551,6 +551,7 @@ func defaultingArgsFromType(inType *types.Type) generator.Args {
 }
 
 func (g *genDefaulter) generateDefaulter(inType *types.Type, callTree *callNode, sw *generator.SnippetWriter) {
+	sw.Do("// $.inType|objectdefaultfn$ ... \n", defaultingArgsFromType(inType))
 	sw.Do("func $.inType|objectdefaultfn$(in *$.inType|raw$) {\n", defaultingArgsFromType(inType))
 	callTree.WriteMethod("in", 0, nil, sw)
 	sw.Do("}\n\n", nil)

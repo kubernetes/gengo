@@ -17,4 +17,4 @@ limitations under the License.
 package wholepkg
 
 // Another type in another file.
-type Struct_B struct{}
+type StructB struct{}

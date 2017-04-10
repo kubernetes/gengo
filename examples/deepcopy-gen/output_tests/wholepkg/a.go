@@ -144,8 +144,13 @@ type Struct_NonPointerExplicitObject struct {
 	x int
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/examples/deepcopy-gen/output_tests/otherpkg.Object
 // +k8s:deepcopy-gen=false
 type Struct_TypeMeta struct {
+}
+
+type Struct_ObjectByPromotion struct {
+	Struct_TypeMeta
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/gengo/examples/deepcopy-gen/output_tests/otherpkg.Object
@@ -158,9 +163,13 @@ type Struct_ObjectAndList struct {
 type Struct_ObjectAndObject struct {
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/examples/deepcopy-gen/output_tests/wholepkg.Selector
 // +k8s:deepcopy-gen:interfaces=k8s.io/gengo/examples/deepcopy-gen/output_tests/otherpkg.Object
-type Struct_ExplicitSelectorExplicitObject struct {
+type Struct_ExplicitAndImplicitObject struct {
+	Struct_TypeMeta
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/examples/deepcopy-gen/output_tests/wholepkg.Selector
+type Struct_ExplicitSelectorImplicitObject struct {
 	Struct_TypeMeta
 }
 

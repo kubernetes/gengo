@@ -450,6 +450,21 @@ func (g *genDeepCopy) deepCopyableInterfaces(c *generator.Context, t *types.Type
 		ts = append(ts, intfT)
 	}
 
+	// recursive dive into embedded fields
+	for _, m := range t.Members {
+		if m.Embedded {
+			// make sure the package of the embedded type is parse. Otherwise, we might miss k8s:deepcopy-
+			// tags on those types.
+			c.AddDir(m.Type.Name.Package)
+
+			mts, err := g.deepCopyableInterfaces(c, m.Type)
+			if err != nil {
+				return nil, err
+			}
+			ts = append(ts, mts...)
+		}
+	}
+
 	return ts, nil
 }
 

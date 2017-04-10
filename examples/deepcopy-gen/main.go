@@ -50,6 +50,18 @@ limitations under the License.
 // interfaces as return types. We say that the tagged type implements deepcopy for the
 // interfaces.
 //
+// In addition, if a type T embeds another type T' which implements deepcopy for
+// an interface, this property if promoted to T and the respecitve DeepCopyInterfaceName
+// is also generated, i.e. those +k8s:deepcopy-gen:interfaces tags are applied
+// transitively if types are anonymously embedded.
+//
+// Note: types can be tagged with +k8s:deepcopy-gen:interfaces and +k8s:deepcopy-gen=false
+// at the same time. Then no methods are generated, but this property can be promoted
+// to other types via embeddings (and those will get the auto-generated DeepCopyInterfaceName
+// methods). E.g. TypeMeta is such a type in Kubernetes. This makes it easy to apply the
+// tag one struct only, and all types embedding that struct will implement the given
+// interfaces. No manual tagging is neccessary then.
+//
 // The deepcopy funcs for interfaces using "+k8s:deepcopy-gen:interfaces" use the pointer
 // of the type as receiver. For those special cases where the non-pointer object should
 // implement the interface, this can be done with:

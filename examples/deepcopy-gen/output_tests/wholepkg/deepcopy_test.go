@@ -59,7 +59,7 @@ func TestDeepCopyInterfaceFields(t *testing.T) {
 	fuzzer.Fuzz(&obj)
 	x.ObjectField = &obj
 
-	sel := Struct_ExplicitSelectorExplicitObject{}
+	sel := Struct_ExplicitSelectorImplicitObject{}
 	fuzzer.Fuzz(&sel)
 	x.SelectorField = &sel
 
@@ -100,6 +100,9 @@ func TestInterfaceTypes(t *testing.T) {
 	typeMeta := reflect.TypeOf(&Struct_TypeMeta{})
 	assertNotMethod(t, typeMeta, "DeepCopy")
 
+	objectByPromotion := reflect.TypeOf(&Struct_ObjectByPromotion{})
+	assertMethod(t, objectByPromotion, "DeepCopyObject")
+
 	objectAndList := reflect.TypeOf(&Struct_ObjectAndList{})
 	assertMethod(t, objectAndList, "DeepCopyObject")
 	assertMethod(t, objectAndList, "DeepCopyList")
@@ -107,9 +110,12 @@ func TestInterfaceTypes(t *testing.T) {
 	objectAndObject := reflect.TypeOf(&Struct_ObjectAndObject{})
 	assertMethod(t, objectAndObject, "DeepCopyObject")
 
-	explicitSelectorExplicitObject := reflect.TypeOf(&Struct_ExplicitSelectorExplicitObject{})
-	assertMethod(t, explicitSelectorExplicitObject, "DeepCopySelector")
-	assertMethod(t, explicitSelectorExplicitObject, "DeepCopyObject")
+	explicitAndImplicitObject := reflect.TypeOf(&Struct_ExplicitAndImplicitObject{})
+	assertMethod(t, explicitAndImplicitObject, "DeepCopyObject")
+
+	explicitSelectorImplicitObject := reflect.TypeOf(&Struct_ExplicitSelectorImplicitObject{})
+	assertMethod(t, explicitSelectorImplicitObject, "DeepCopySelector")
+	assertMethod(t, explicitSelectorImplicitObject, "DeepCopyObject")
 }
 
 func TestInterfaceDeepCopy(t *testing.T) {

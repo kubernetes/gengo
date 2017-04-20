@@ -523,10 +523,10 @@ func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 				sw.Do("}\n", nil)
 				sw.Do("(*out)[key] = *newVal\n", nil)
 			} else {
-				sw.Do("if newVal, err := c.DeepCopy(&val); err != nil {\n", nil)
-				sw.Do("return err\n", nil)
-				sw.Do("} else {\n", nil)
+				sw.Do("if newVal, err := c.DeepCopy(&val); err == nil {\n", nil)
 				sw.Do("(*out)[key] = *newVal.(*$.|raw$)\n", t.Elem)
+				sw.Do("} else {\n", nil)
+				sw.Do("return err\n", nil)
 				sw.Do("}\n", nil)
 			}
 			sw.Do("}\n", nil)
@@ -564,10 +564,10 @@ func (g *genDeepCopy) doSlice(t *types.Type, sw *generator.SnippetWriter) {
 			sw.Do("return err\n", nil)
 			sw.Do("}\n", nil)
 		} else {
-			sw.Do("if newVal, err := c.DeepCopy(&(*in)[i]); err != nil {\n", nil)
-			sw.Do("return err\n", nil)
-			sw.Do("} else {\n", nil)
+			sw.Do("if newVal, err := c.DeepCopy(&(*in)[i]); err == nil {\n", nil)
 			sw.Do("(*out)[i] = *newVal.(*$.|raw$)\n", t.Elem)
+			sw.Do("} else {\n", nil)
+			sw.Do("return err\n", nil)
 			sw.Do("}\n", nil)
 		}
 		sw.Do("}\n", nil)
@@ -628,10 +628,10 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 			} else {
 				// Fall back on the slow-path and hope it works.
 				// TODO: don't depend on kubernetes code for this
-				sw.Do("if newVal, err := c.DeepCopy(&in.$.name$); err != nil {\n", args)
-				sw.Do("return err\n", nil)
-				sw.Do("} else {\n", nil)
+				sw.Do("if newVal, err := c.DeepCopy(&in.$.name$); err == nil {\n", args)
 				sw.Do("out.$.name$ = *newVal.(*$.type|raw$)\n", args)
+				sw.Do("} else {\n", nil)
+				sw.Do("return err\n", nil)
 				sw.Do("}\n", nil)
 			}
 		default:
@@ -673,10 +673,10 @@ func (g *genDeepCopy) doPointer(t *types.Type, sw *generator.SnippetWriter) {
 		sw.Do("return err\n", nil)
 		sw.Do("}\n", nil)
 	} else {
-		sw.Do("if newVal, err := c.DeepCopy(*in); err != nil {\n", nil)
-		sw.Do("return err\n", nil)
-		sw.Do("} else {\n", nil)
+		sw.Do("if newVal, err := c.DeepCopy(*in); err == nil {\n", nil)
 		sw.Do("*out = newVal.(*$.|raw$)\n", t.Elem)
+		sw.Do("} else {\n", nil)
+		sw.Do("return err\n", nil)
 		sw.Do("}\n", nil)
 	}
 }

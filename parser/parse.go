@@ -251,6 +251,7 @@ func (b *Builder) AddDirRecursive(dir string) error {
 // generator (rather than just at init time. 'dir' must be a single go package.
 // GOPATH, GOROOT, and the location of your go binary (`which go`) will all be
 // searched if dir doesn't literally resolve.
+// Deprecated. Please use AddDirectoryTo.
 func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
 	// We want all types from this package, as if they were directly added
 	// by the user.  They WERE added by the user, in effect.
@@ -258,6 +259,24 @@ func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
 		return err
 	}
 	return b.findTypesIn(canonicalizeImportPath(b.buildPackages[dir].ImportPath), u)
+}
+
+// AddDirectoryTo adds an entire directory to a given Universe. Unlike AddDir,
+// this processes the package immediately, which makes it safe to use from
+// within a generator (rather than just at init time. 'dir' must be a single go
+// package. GOPATH, GOROOT, and the location of your go binary (`which go`)
+// will all be searched if dir doesn't literally resolve.
+func (b *Builder) AddDirectoryTo(dir string, u *types.Universe) (*types.Package, error) {
+	// We want all types from this package, as if they were directly added
+	// by the user.  They WERE added by the user, in effect.
+	if _, err := b.importPackage(dir, true); err != nil {
+		return nil, err
+	}
+	path := canonicalizeImportPath(b.buildPackages[dir].ImportPath)
+	if err := b.findTypesIn(path, u); err != nil {
+		return nil, err
+	}
+	return u.Package(string(path)), nil
 }
 
 // The implementation of AddDir. A flag indicates whether this directory was

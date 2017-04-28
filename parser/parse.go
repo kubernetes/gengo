@@ -458,6 +458,9 @@ func (b *Builder) findTypesIn(pkgPath importPathString, u *types.Universe) error
 	for _, f := range b.parsed[pkgPath] {
 		if strings.HasSuffix(f.name, "/doc.go") {
 			tp := u.Package(string(pkgPath))
+			// findTypesIn might be called multiple times. Clean up tp.Comments
+			// to avoid repeatedly fill same comments to it.
+			tp.Comments = []string{}
 			for i := range f.file.Comments {
 				tp.Comments = append(tp.Comments, splitLines(f.file.Comments[i].Text())...)
 			}

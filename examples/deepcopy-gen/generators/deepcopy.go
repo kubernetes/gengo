@@ -405,9 +405,6 @@ func (g *genDeepCopy) Init(c *generator.Context, w io.Writer) error {
 	glog.V(5).Infof("Registering types in pkg %q", g.targetPackage)
 
 	sw := generator.NewSnippetWriter(w, c, "$", "$")
-	sw.Do("func init() {\n", nil)
-	sw.Do("SchemeBuilder.Register(RegisterDeepCopies)\n", nil)
-	sw.Do("}\n\n", nil)
 
 	scheme := c.Universe.Type(types.Name{Package: runtimePackagePath, Name: "Scheme"})
 	schemePtr := &types.Type{

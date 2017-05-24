@@ -328,10 +328,15 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 			glog.V(5).Infof("no defaulters in package %s", pkg.Name)
 		}
 
+		fqPkgPath := pkg.Path
+		if strings.Contains(pkg.SourcePath, "/vendor/") {
+			fqPkgPath = filepath.Join("k8s.io", "kubernetes", "vendor", pkg.Path)
+		}
+
 		packages = append(packages,
 			&generator.DefaultPackage{
 				PackageName: filepath.Base(pkg.Path),
-				PackagePath: pkg.Path,
+				PackagePath: fqPkgPath,
 				HeaderText:  header,
 				GeneratorFunc: func(c *generator.Context) (generators []generator.Generator) {
 					return []generator.Generator{

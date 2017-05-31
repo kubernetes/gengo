@@ -260,6 +260,14 @@ func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
 	return b.findTypesIn(canonicalizeImportPath(b.buildPackages[dir].ImportPath), u)
 }
 
+func (b *Builder) CanonicalPath(dir string) (string, error) {
+	p, ok := b.buildPackages[dir]
+	if !ok {
+		return "", fmt.Errorf("buildPackages doesn't have %s", dir)
+	}
+	return nil, canonicalizeImportPath(b.buildPackages[dir].ImportPath)
+}
+
 // AddDirToAndReturnAddedPath is the same as AddDirTo except that it also
 // returns the path of the added package.
 func (b *Builder) AddDirToAndReturnAddedPath(dir string, u *types.Universe) (string, error) {

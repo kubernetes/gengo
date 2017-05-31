@@ -210,6 +210,10 @@ func (ctxt *Context) AddDir(path string) error {
 	return ctxt.builder.AddDirTo(path, &ctxt.Universe)
 }
 
+func (ctxt *Context) CanonicalPath(path string) (string, error) {
+	ctxt.builder.CanonicalPath(path)
+}
+
 // AddDirAndReturnAddedPath is the same as AddDir except that it also returns
 // the package path of the added package. One can use the returned path as a key
 // to ctxt.Universe to find the added package.

@@ -287,14 +287,10 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 			panic(fmt.Sprintf("there could only be one input tag, got %#v", inputTags))
 		}
 		if len(inputTags) == 1 {
-			typesLocation, err := context.AddDirAndReturnAddedPath(filepath.Join(pkg.Path, inputTags[0]))
+			var err error
+			typesPkg, err = context.AddDirectory(filepath.Join(pkg.Path, inputTags[0]))
 			if err != nil {
 				glog.Fatalf("cannot import package %s", inputTags[0])
-			}
-			var ok bool
-			typesPkg, ok = context.Universe[typesLocation]
-			if !ok {
-				glog.Fatalf("%s is not added to Universe", typesLocation)
 			}
 			// update context.Order to the latest context.Universe
 			orderer := namer.Orderer{Namer: namer.NewPublicNamer(1)}

@@ -203,16 +203,14 @@ func NewContext(b *parser.Builder, nameSystems namer.NameSystems, canonicalOrder
 	return c, nil
 }
 
-// AddDir adds a Go package to the context. The specified path must be a single
-// go package import path.  GOPATH, GOROOT, and the location of your go binary
-// (`which go`) will all be searched, in the normal Go fashion.
+// Deprecated. Please use AddDirectory.
 func (ctxt *Context) AddDir(path string) error {
 	return ctxt.builder.AddDirTo(path, &ctxt.Universe)
 }
 
-// AddDirAndReturnAddedPath is the same as AddDir except that it also returns
-// the package path of the added package. One can use the returned path as a key
-// to ctxt.Universe to find the added package.
-func (ctxt *Context) AddDirAndReturnAddedPath(path string) (string, error) {
-	return ctxt.builder.AddDirToAndReturnAddedPath(path, &ctxt.Universe)
+// AddDirectory adds a Go package to the context. The specified path must be a
+// single go package import path.  GOPATH, GOROOT, and the location of your go
+// binary (`which go`) will all be searched, in the normal Go fashion.
+func (ctxt *Context) AddDirectory(path string) (*types.Package, error) {
+	return ctxt.builder.AddDirectoryTo(path, &ctxt.Universe)
 }

@@ -260,16 +260,14 @@ func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
 	return b.findTypesIn(canonicalizeImportPath(b.buildPackages[dir].ImportPath), u)
 }
 
-// AddDirToAndReturnAddedPath is the same as AddDirTo except that it also
-// returns the path of the added package.
-func (b *Builder) AddDirToAndReturnAddedPath(dir string, u *types.Universe) (string, error) {
-	// We want all types from this package, as if they were directly added
-	// by the user.  They WERE added by the user, in effect.
-	if _, err := b.importPackage(dir, true); err != nil {
-		return "", err
+// DirectoryToPackage returns the package path given a dir. dir must be already
+// parsed.
+func (b *Builder) DirectoryToPackagePath(dir string) (string, error) {
+	p, ok := b.buildPackages[dir]
+	if !ok {
+		return "", fmt.Errorf("builder does not know about %s", dir)
 	}
-	path := canonicalizeImportPath(b.buildPackages[dir].ImportPath)
-	return string(path), b.findTypesIn(path, u)
+	return string(canonicalizeImportPath(p.ImportPath)), nil
 }
 
 // The implementation of AddDir. A flag indicates whether this directory was

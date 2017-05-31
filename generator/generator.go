@@ -210,9 +210,9 @@ func (ctxt *Context) AddDir(path string) error {
 	return ctxt.builder.AddDirTo(path, &ctxt.Universe)
 }
 
-// AddDirAndReturnAddedPath is the same as AddDir except that it also returns
-// the package path of the added package. One can use the returned path as a key
-// to ctxt.Universe to find the added package.
-func (ctxt *Context) AddDirAndReturnAddedPath(path string) (string, error) {
-	return ctxt.builder.AddDirToAndReturnAddedPath(path, &ctxt.Universe)
+// DirectoryToPackagePath translates the directory to package path. The
+// Directory must be already parsed via AddDir, otherwise the ctxt will
+// not understand the dir.
+func (ctxt *Context) DirectoryToPackagePath(dir string) (string, error) {
+	return ctxt.builder.DirectoryToPackagePath(dir)
 }

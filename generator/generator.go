@@ -53,6 +53,7 @@ type File struct {
 	Name        string
 	FileType    string
 	PackageName string
+	ImportPath  string
 	Header      []byte
 	Imports     map[string]struct{}
 	Vars        bytes.Buffer

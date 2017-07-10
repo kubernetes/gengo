@@ -127,7 +127,15 @@ func (ft DefaultFileType) VerifyFile(f *File, pathname string) error {
 
 func assembleGolangFile(w io.Writer, f *File) {
 	w.Write(f.Header)
-	fmt.Fprintf(w, "package %v\n\n", f.PackageName)
+
+	if len(f.ImportPath) > 0 {
+		// If ImportPath is provided, ensure the package enforces its vanity
+		// import path.
+		// https://golang.org/doc/go1.4#canonicalimports
+		fmt.Fprintf(w, "package %v // import %q\n\n", f.PackageName, f.ImportPath)
+	} else {
+		fmt.Fprintf(w, "package %v\n\n", f.PackageName)
+	}
 
 	if len(f.Imports) > 0 {
 		fmt.Fprint(w, "import (\n")
@@ -233,6 +241,7 @@ func (c *Context) ExecutePackage(outDir string, p Package) error {
 				Name:        g.Filename(),
 				FileType:    fileType,
 				PackageName: p.Name(),
+				ImportPath:  p.Path(),
 				Header:      p.Header(g.Filename()),
 				Imports:     map[string]struct{}{},
 			}

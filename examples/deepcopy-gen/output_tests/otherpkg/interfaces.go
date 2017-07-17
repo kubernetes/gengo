@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +k8s:deepcopy-gen=package
+package otherpkg
 
-// This is a test package.
-package emptyinterface
+type Object interface {
+	DeepCopyObject() Object
+}
 
-type Ttest struct {
-	Interface interface{}
+type List interface {
+	DeepCopyList() List
 }

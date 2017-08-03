@@ -34,107 +34,107 @@ func GetGeneratedDeepCopyFuncs() []conversion.GeneratedDeepCopyFunc {
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*ManualStruct).DeepCopyInto(out.(*ManualStruct))
 			return nil
-		}, InType: reflect.TypeOf(&ManualStruct{})},
+		}, InType: reflect.TypeOf(new(ManualStruct))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*ManualStruct_Alias).DeepCopyInto(out.(*ManualStruct_Alias))
 			return nil
-		}, InType: reflect.TypeOf(&ManualStruct_Alias{})},
+		}, InType: reflect.TypeOf(new(ManualStruct_Alias))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_B).DeepCopyInto(out.(*Struct_B))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_B{})},
+		}, InType: reflect.TypeOf(new(Struct_B))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Embed_Int).DeepCopyInto(out.(*Struct_Embed_Int))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Embed_Int{})},
+		}, InType: reflect.TypeOf(new(Struct_Embed_Int))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Embed_ManualStruct).DeepCopyInto(out.(*Struct_Embed_ManualStruct))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Embed_ManualStruct{})},
+		}, InType: reflect.TypeOf(new(Struct_Embed_ManualStruct))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Embed_Pointer).DeepCopyInto(out.(*Struct_Embed_Pointer))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Embed_Pointer{})},
+		}, InType: reflect.TypeOf(new(Struct_Embed_Pointer))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Embed_Struct_PrimitivePointers).DeepCopyInto(out.(*Struct_Embed_Struct_PrimitivePointers))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Embed_Struct_PrimitivePointers{})},
+		}, InType: reflect.TypeOf(new(Struct_Embed_Struct_PrimitivePointers))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Embed_Struct_Primitives).DeepCopyInto(out.(*Struct_Embed_Struct_Primitives))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Embed_Struct_Primitives{})},
+		}, InType: reflect.TypeOf(new(Struct_Embed_Struct_Primitives))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Embed_Struct_Slices).DeepCopyInto(out.(*Struct_Embed_Struct_Slices))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Embed_Struct_Slices{})},
+		}, InType: reflect.TypeOf(new(Struct_Embed_Struct_Slices))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Empty).DeepCopyInto(out.(*Struct_Empty))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Empty{})},
+		}, InType: reflect.TypeOf(new(Struct_Empty))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Everything).DeepCopyInto(out.(*Struct_Everything))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Everything{})},
+		}, InType: reflect.TypeOf(new(Struct_Everything))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_ExplicitObject).DeepCopyInto(out.(*Struct_ExplicitObject))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_ExplicitObject{})},
+		}, InType: reflect.TypeOf(new(Struct_ExplicitObject))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_ExplicitSelectorExplicitObject).DeepCopyInto(out.(*Struct_ExplicitSelectorExplicitObject))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_ExplicitSelectorExplicitObject{})},
+		}, InType: reflect.TypeOf(new(Struct_ExplicitSelectorExplicitObject))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Interfaces).DeepCopyInto(out.(*Struct_Interfaces))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Interfaces{})},
+		}, InType: reflect.TypeOf(new(Struct_Interfaces))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_NonPointerExplicitObject).DeepCopyInto(out.(*Struct_NonPointerExplicitObject))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_NonPointerExplicitObject{})},
+		}, InType: reflect.TypeOf(new(Struct_NonPointerExplicitObject))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_ObjectAndList).DeepCopyInto(out.(*Struct_ObjectAndList))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_ObjectAndList{})},
+		}, InType: reflect.TypeOf(new(Struct_ObjectAndList))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_ObjectAndObject).DeepCopyInto(out.(*Struct_ObjectAndObject))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_ObjectAndObject{})},
+		}, InType: reflect.TypeOf(new(Struct_ObjectAndObject))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_PrimitivePointers).DeepCopyInto(out.(*Struct_PrimitivePointers))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_PrimitivePointers{})},
+		}, InType: reflect.TypeOf(new(Struct_PrimitivePointers))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_PrimitivePointers_Alias).DeepCopyInto(out.(*Struct_PrimitivePointers_Alias))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_PrimitivePointers_Alias{})},
+		}, InType: reflect.TypeOf(new(Struct_PrimitivePointers_Alias))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Primitives).DeepCopyInto(out.(*Struct_Primitives))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Primitives{})},
+		}, InType: reflect.TypeOf(new(Struct_Primitives))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Primitives_Alias).DeepCopyInto(out.(*Struct_Primitives_Alias))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Primitives_Alias{})},
+		}, InType: reflect.TypeOf(new(Struct_Primitives_Alias))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Slices).DeepCopyInto(out.(*Struct_Slices))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Slices{})},
+		}, InType: reflect.TypeOf(new(Struct_Slices))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Slices_Alias).DeepCopyInto(out.(*Struct_Slices_Alias))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Slices_Alias{})},
+		}, InType: reflect.TypeOf(new(Struct_Slices_Alias))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Struct_PrimitivePointers).DeepCopyInto(out.(*Struct_Struct_PrimitivePointers))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Struct_PrimitivePointers{})},
+		}, InType: reflect.TypeOf(new(Struct_Struct_PrimitivePointers))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Struct_Primitives).DeepCopyInto(out.(*Struct_Struct_Primitives))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Struct_Primitives{})},
+		}, InType: reflect.TypeOf(new(Struct_Struct_Primitives))},
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Struct_Struct_Slices).DeepCopyInto(out.(*Struct_Struct_Slices))
 			return nil
-		}, InType: reflect.TypeOf(&Struct_Struct_Slices{})},
+		}, InType: reflect.TypeOf(new(Struct_Struct_Slices))},
 	}
 }
 

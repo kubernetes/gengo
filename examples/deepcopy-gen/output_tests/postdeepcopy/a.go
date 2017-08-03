@@ -27,6 +27,19 @@ type Struct_WithPostDeepCopyFields struct {
 	SMap   map[string]Struct_WithPostDeepCopy
 }
 
+type Struct_WithSkippedFields struct {
+	S   string
+	Ptr *string
+	// +k8s:deepcopy-gen:skip-field
+	//
+	// JSON is what json.Unmarshal returns when an interface is passed.
+	JSON interface{}
+}
+
 func (in *Struct_WithPostDeepCopy) postDeepCopy(out *Struct_WithPostDeepCopy) {
 	out.marker = 42
+}
+
+func (in *Struct_WithSkippedFields) postDeepCopy(out *Struct_WithSkippedFields) {
+	out.JSON = deepCopyJSON(in.JSON)
 }

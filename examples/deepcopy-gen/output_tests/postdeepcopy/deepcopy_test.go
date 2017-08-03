@@ -68,3 +68,29 @@ func TestNoCopyOptimizationForAssignablesWithPostDeepCopy(t *testing.T) {
 	}
 }
 
+func TestSkipFieldAndPostDeepCopy(t *testing.T) {
+	x := &Struct_WithSkippedFields{}
+
+	fuzzer := fuzz.New()
+	fuzzer.Fuzz(&x.S)
+	fuzzer.Fuzz(&x.Ptr)
+	x.JSON = map[string]interface{}{"X": 42}
+
+	y := x.DeepCopy()
+	if !reflect.DeepEqual(y, x) {
+		t.Error("objects should be equal, but are not")
+	}
+	x.JSON.(map[string]interface{})["X"] = 43
+	if reflect.DeepEqual(y, x) {
+		t.Error("deepcopy was not deep, JSON looks shallow")
+	}
+
+	s := "foo"
+	if x.Ptr != nil {
+		s = *x.Ptr + "x"
+	}
+	x.Ptr = &s
+	if reflect.DeepEqual(y, x) {
+		t.Error("deepcopy was not deep, Ptr looks shallow")
+	}
+}

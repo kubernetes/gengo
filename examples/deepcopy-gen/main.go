@@ -22,7 +22,10 @@ limitations under the License.
 // generating new ones.
 //
 // If a "func (in *T) postDeepCopy(out *T)" func is predefined on an object by the
-// developer, it is invoked after the generated deepcopy code.
+// developer, it is invoked after the generated deepcopy code. This can be used
+// in combination with a +k8s:deepcopy-gen:skip-field tag above a field to skip
+// deepcopy code generation for that field and to allow custom deepcopy code on
+// a per-field basis.
 //
 // If interfaces are referenced in types, it is expected that corresponding
 // DeepCopyInterfaceName methods exist, e.g. DeepCopyObject for runtime.Object.

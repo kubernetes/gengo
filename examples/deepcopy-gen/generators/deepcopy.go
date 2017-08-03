@@ -40,9 +40,11 @@ type CustomArgs struct {
 
 // This is the comment tag that carries parameters for deep-copy generation.
 const (
-	tagName                     = "k8s:deepcopy-gen"
-	interfacesTagName           = tagName + ":interfaces"
-	interfacesNonPointerTagName = tagName + ":nonpointer-interfaces" // attach the DeepCopy<Interface> methods to the
+	tagName           = "k8s:deepcopy-gen"
+	interfacesTagName = tagName + ":interfaces"
+	// attach the DeepCopy<Interface> methods to the
+	interfacesNonPointerTagName = tagName + ":nonpointer-interfaces"
+	skipFieldTagName            = tagName + ":skip-field"
 )
 
 // Known values for the comment tag.
@@ -176,7 +178,7 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 			for _, t := range pkg.Types {
 				glog.V(5).Infof("  considering type %q", t.Name.String())
 				ttag := extractTag(t.CommentLines)
-				if ttag != nil && ttag.value == "true" {
+				if ttag != nil && tagValueIsTrue(ttag.value) {
 					glog.V(5).Infof("    tag=true")
 					if !copyableType(t) {
 						glog.Fatalf("Type %v requests deepcopy generation but is not copyable", t)
@@ -259,7 +261,7 @@ func (g *genDeepCopy) Filter(c *generator.Context, t *types.Type) bool {
 	enabled := g.allTypes
 	if !enabled {
 		ttag := extractTag(t.CommentLines)
-		if ttag != nil && ttag.value == "true" {
+		if ttag != nil && tagValueIsTrue(ttag.value) {
 			enabled = true
 		}
 	}
@@ -310,7 +312,9 @@ func hasDeepCopyMethod(t *types.Type) bool {
 }
 
 // hasDeepCopyMethod returns true if an appropriate postDeepCopy(out *T) method is
-// defined for the given type. It is called after the generated deepcopy is
+// defined for the given type.  This allows to exclude fields from automatic
+// deepcopy generation via +k8s:deepcopy-gen:skip-field and then to implement
+// custom code for these very fields. It is called after the generated deepcopy is
 // finished.
 //
 //  The correct signature for a type T is:
@@ -471,6 +475,10 @@ func (g *genDeepCopy) needsGeneration(t *types.Type) bool {
 	return true
 }
 
+func tagValueIsTrue(val string) bool {
+	return val == "true" || val == ""
+}
+
 func extractInterfacesTag(comments []string) []string {
 	var result []string
 	values := types.ExtractCommentTags("+", comments)[interfacesTagName]
@@ -494,10 +502,24 @@ func extractNonPointerInterfaces(comments []string) (bool, error) {
 	if len(values) == 0 {
 		return false, nil
 	}
-	result := values[0] == "true"
+	result := tagValueIsTrue(values[0])
 	for _, v := range values {
-		if v == "true" != result {
+		if tagValueIsTrue(v) != result && values[0] != "" {
 			return false, fmt.Errorf("contradicting %v value %q found to previous value %v", interfacesNonPointerTagName, v, result)
+		}
+	}
+	return result, nil
+}
+
+func extractSkipField(comments []string) (bool, error) {
+	values := types.ExtractCommentTags("+", comments)[skipFieldTagName]
+	if len(values) == 0 {
+		return false, nil
+	}
+	result := tagValueIsTrue(values[0])
+	for _, v := range values {
+		if tagValueIsTrue(v) && values[0] != "" {
+			return false, fmt.Errorf("contradicting %v value %q found to previous value %v", skipFieldTagName, v, result)
 		}
 	}
 	return result, nil
@@ -763,6 +785,15 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 	// Now fix-up fields as needed.
 	for _, m := range t.Members {
 		t := m.Type
+
+		skipField, err := extractSkipField(m.CommentLines)
+		if err != nil {
+			glog.Fatalf("Invalid tag for type %q field %q: %v", t.String(), m.String(), err)
+		}
+		if skipField {
+			continue
+		}
+
 		hasMethod := hasDeepCopyMethod(t)
 		hasPostDeepCopyMethod := hasPostDeepCopyMethod(t)
 		if t.Kind == types.Alias {
@@ -803,6 +834,9 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 			}
 		case types.Interface:
 			sw.Do("if in.$.name$ == nil {out.$.name$=nil} else {\n", args)
+			if t.Name.String() == "interface{}" {
+				glog.Fatalf("Cannot deepcopy %s.%s of type interface{}. Use a +%s tag and implement a method: func (in *%s) postDeepCopy(out *%s).", t.Name.Name, m.Name, skipFieldTagName, t.Name.Name, t.Name.Name)
+			}
 			sw.Do(fmt.Sprintf("out.$.name$ = in.$.name$.DeepCopy%s()\n", t.Name.Name), args)
 			sw.Do("}\n", nil)
 		default:

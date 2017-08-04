@@ -1,6 +1,6 @@
 # gengo
 
-[![Travis Widget]][Travis] [![GoDoc Widget]][GoDoc]
+[![Travis Widget]][Travis] [![GoDoc Widget]][GoDoc]  [![Go Report Card](https://goreportcard.com/badge/github.com/kubernetes/gengo)](https://goreportcard.com/report/github.com/kubernetes/gengo)
 
 [Travis]: https://travis-ci.org/kubernetes/gengo
 [Travis Widget]: https://travis-ci.org/kubernetes/gengo.svg?branch=master

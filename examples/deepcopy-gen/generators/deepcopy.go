@@ -309,6 +309,30 @@ func hasDeepCopyMethod(t *types.Type) bool {
 	return false
 }
 
+// hasDeepCopyMethod returns true if an appropriate postDeepCopy(out *T) method is
+// defined for the given type. It is called after the generated deepcopy is
+// finished.
+//
+//  The correct signature for a type T is:
+//    func (in *T) postDeepCopy(out *T)
+//
+func hasPostDeepCopyMethod(t *types.Type) bool {
+	for mn, mt := range t.Methods {
+		if mn != "postDeepCopy" {
+			continue
+		}
+		if mt.Signature.Receiver.Kind != types.Pointer ||
+			len(mt.Signature.Results) != 0 ||
+			len(mt.Signature.Parameters) != 1 ||
+			mt.Signature.Parameters[0].Kind != types.Pointer ||
+			mt.Signature.Parameters[0].Elem != t {
+			glog.Fatalf("Type %v has a postDeepCopy method of wrong type. Expected: func (in *%v) postDeepCopy(out *%v)", t, t.Name.Name, t.Name.Name)
+		}
+		return true
+	}
+	return false
+}
+
 func isRootedUnder(pkg string, roots []string) bool {
 	// Add trailing / to avoid false matches, e.g. foo/bar vs foo/barn.  This
 	// assumes that bounding dirs do not have trailing slashes.
@@ -632,6 +656,7 @@ func (g *genDeepCopy) doBuiltin(t *types.Type, sw *generator.SnippetWriter) {
 
 func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 	sw.Do("*out = make($.|raw$, len(*in))\n", t)
+	elemHasPostDeepCopy := hasPostDeepCopyMethod(t.Elem)
 	if t.Key.IsAssignable() {
 		switch {
 		case hasDeepCopyMethod(t.Elem):
@@ -642,7 +667,7 @@ func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 			sw.Do("for key := range *in {\n", nil)
 			sw.Do("(*out)[key] = struct{}{}\n", nil)
 			sw.Do("}\n", nil)
-		case t.Elem.IsAssignable():
+		case t.Elem.IsAssignable() && !elemHasPostDeepCopy: // we cannot call (private) postDeepCopy from here on val
 			sw.Do("for key, val := range *in {\n", nil)
 			sw.Do("(*out)[key] = val\n", nil)
 			sw.Do("}\n", nil)
@@ -662,7 +687,7 @@ func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 				sw.Do("(*out)[key] = make($.|raw$, len(val))\n", t.Elem)
 				sw.Do("copy((*out)[key], val)\n", nil)
 				sw.Do("}\n", nil)
-			} else if t.Elem.Kind == types.Alias && t.Elem.Underlying.Kind == types.Slice && t.Elem.Underlying.Elem.Kind == types.Builtin {
+			} else if (!hasPostDeepCopyMethod(t.Elem) && t.Elem.Kind == types.Alias) && t.Elem.Underlying.Kind == types.Slice && t.Elem.Underlying.Elem.Kind == types.Builtin {
 				sw.Do("(*out)[key] = make($.|raw$, len(val))\n", t.Elem)
 				sw.Do("copy((*out)[key], val)\n", nil)
 			} else if t.Elem.Kind == types.Pointer {
@@ -694,7 +719,7 @@ func (g *genDeepCopy) doSlice(t *types.Type, sw *generator.SnippetWriter) {
 		sw.Do("for i := range *in {\n", nil)
 		sw.Do("(*out)[i] = (*in)[i].DeepCopy()\n", nil)
 		sw.Do("}\n", nil)
-	} else if t.Elem.Kind == types.Builtin || t.Elem.IsAssignable() {
+	} else if t.Elem.Kind == types.Builtin || (!hasPostDeepCopyMethod(t.Elem) && t.Elem.IsAssignable()) {
 		sw.Do("copy(*out, *in)\n", nil)
 	} else {
 		sw.Do("for i := range *in {\n", nil)
@@ -739,6 +764,7 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 	for _, m := range t.Members {
 		t := m.Type
 		hasMethod := hasDeepCopyMethod(t)
+		hasPostDeepCopyMethod := hasPostDeepCopyMethod(t)
 		if t.Kind == types.Alias {
 			copied := *t.Underlying
 			copied.Name = t.Name
@@ -770,7 +796,7 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 		case types.Struct:
 			if hasMethod {
 				sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)
-			} else if t.IsAssignable() {
+			} else if !hasPostDeepCopyMethod && t.IsAssignable() {
 				sw.Do("out.$.name$ = in.$.name$\n", args)
 			} else {
 				sw.Do("in.$.name$.DeepCopyInto(&out.$.name$)\n", args)
@@ -782,6 +808,10 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 		default:
 			sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)
 		}
+	}
+
+	if hasPostDeepCopyMethod(t) {
+		sw.Do("in.postDeepCopy(out)\n", nil)
 	}
 }
 
@@ -795,7 +825,7 @@ func (g *genDeepCopy) doPointer(t *types.Type, sw *generator.SnippetWriter) {
 	if hasDeepCopyMethod(t.Elem) {
 		sw.Do("*out = new($.Elem|raw$)\n", t)
 		sw.Do("**out = (*in).DeepCopy()\n", nil)
-	} else if t.Elem.IsAssignable() {
+	} else if !hasPostDeepCopyMethod(t.Elem) && t.Elem.IsAssignable() {
 		sw.Do("*out = new($.Elem|raw$)\n", t)
 		sw.Do("**out = **in", nil)
 	} else {

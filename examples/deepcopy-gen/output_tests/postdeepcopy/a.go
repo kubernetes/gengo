@@ -16,11 +16,18 @@ limitations under the License.
 
 package postdeepcopy
 
+type Alias_WithPostDeepCopy string
+
 type Struct_WithPostDeepCopy struct {
 	marker int
 }
 
 type Struct_WithPostDeepCopyFields struct {
+	A      Alias_WithPostDeepCopy
+	APtr   *Alias_WithPostDeepCopy
+	ASlice []Alias_WithPostDeepCopy
+	AMap   map[string]Alias_WithPostDeepCopy
+
 	S      Struct_WithPostDeepCopy
 	SPtr   *Struct_WithPostDeepCopy
 	SSlice []Struct_WithPostDeepCopy
@@ -34,6 +41,9 @@ type Struct_WithSkippedFields struct {
 	//
 	// JSON is what json.Unmarshal returns when an interface is passed.
 	JSON interface{}
+}
+
+func (in *Alias_WithPostDeepCopy) postDeepCopy(out *Alias_WithPostDeepCopy) {
 }
 
 func (in *Struct_WithPostDeepCopy) postDeepCopy(out *Struct_WithPostDeepCopy) {

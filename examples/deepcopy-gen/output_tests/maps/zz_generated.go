@@ -33,7 +33,7 @@ func GetGeneratedDeepCopyFuncs() []conversion.GeneratedDeepCopyFunc {
 		{Fn: func(in interface{}, out interface{}, c *conversion.Cloner) error {
 			in.(*Ttest).DeepCopyInto(out.(*Ttest))
 			return nil
-		}, InType: reflect.TypeOf(&Ttest{})},
+		}, InType: reflect.TypeOf(new(Ttest))},
 	}
 }
 

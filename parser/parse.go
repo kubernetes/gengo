@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/golang/glog"
@@ -425,13 +426,20 @@ func (b *Builder) typeCheckPackage(pkgPath importPathString) (*tc.Package, error
 // FindPackages fetches a list of the user-imported packages.
 // Note that you need to call b.FindTypes() first.
 func (b *Builder) FindPackages() []string {
+	// Iterate packages in a predictable order.
+	keys := []string{}
+	for k := range b.typeCheckedPackages {
+		keys = append(keys, string(k))
+	}
+	sort.Strings(keys)
+
 	result := []string{}
-	for pkgPath := range b.typeCheckedPackages {
-		if b.userRequested[pkgPath] {
+	for _, pkgPath := range keys {
+		if b.userRequested[importPathString(pkgPath)] {
 			// Since walkType is recursive, all types that are in packages that
 			// were directly mentioned will be included.  We don't need to
 			// include all types in all transitive packages, though.
-			result = append(result, string(pkgPath))
+			result = append(result, pkgPath)
 		}
 	}
 	return result
@@ -440,16 +448,17 @@ func (b *Builder) FindPackages() []string {
 // FindTypes finalizes the package imports, and searches through all the
 // packages for types.
 func (b *Builder) FindTypes() (types.Universe, error) {
-	u := types.Universe{}
-
 	// Take a snapshot of pkgs to iterate, since this will recursively mutate
-	// b.parsed.
-	keys := []importPathString{}
+	// b.parsed. Iterate in a predictable order.
+	keys := []string{}
 	for pkgPath := range b.parsed {
-		keys = append(keys, pkgPath)
+		keys = append(keys, string(pkgPath))
 	}
+	sort.Strings(keys)
+
+	u := types.Universe{}
 	for _, pkgPath := range keys {
-		if err := b.findTypesIn(pkgPath, &u); err != nil {
+		if err := b.findTypesIn(importPathString(pkgPath), &u); err != nil {
 			return nil, err
 		}
 	}
@@ -526,7 +535,13 @@ func (b *Builder) findTypesIn(pkgPath importPathString, u *types.Universe) error
 			b.addVariable(*u, nil, tv)
 		}
 	}
-	for p := range b.importGraph[pkgPath] {
+
+	keys := []string{}
+	for k := range b.importGraph[pkgPath] {
+		keys = append(keys, string(k))
+	}
+	sort.Strings(keys)
+	for _, p := range keys {
 		u.AddImports(string(pkgPath), p)
 	}
 	return nil

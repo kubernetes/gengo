@@ -42,6 +42,8 @@ limitations under the License.
 package main
 
 import (
+	"flag"
+
 	"k8s.io/gengo/args"
 	"k8s.io/gengo/examples/defaulter-gen/generators"
 
@@ -62,6 +64,11 @@ func main() {
 	pflag.CommandLine.StringSliceVar(&customArgs.ExtraPeerDirs, "extra-peer-dirs", customArgs.ExtraPeerDirs,
 		"Comma-separated list of import paths which are considered, after tag-specified peers, for conversions.")
 	arguments.CustomArgs = customArgs
+
+	// Register default flags.
+	arguments.AddFlags(pflag.CommandLine)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	pflag.Parse()
 
 	// Run it.
 	if err := arguments.Execute(

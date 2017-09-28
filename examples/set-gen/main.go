@@ -25,16 +25,24 @@ limitations under the License.
 package main
 
 import (
+	"flag"
 	"os"
 
 	"k8s.io/gengo/args"
 	"k8s.io/gengo/examples/set-gen/generators"
 
 	"github.com/golang/glog"
+	"github.com/spf13/pflag"
 )
 
 func main() {
 	arguments := args.Default()
+
+	// Register default flags.
+	arguments.AddFlags(pflag.CommandLine)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	pflag.Parse()
+
 	if err := arguments.Execute(
 		generators.NameSystems(),
 		generators.DefaultNameSystem(),

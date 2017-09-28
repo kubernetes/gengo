@@ -57,6 +57,8 @@ limitations under the License.
 package main
 
 import (
+	"flag"
+
 	"k8s.io/gengo/args"
 	"k8s.io/gengo/examples/deepcopy-gen/generators"
 
@@ -75,6 +77,11 @@ func main() {
 	pflag.CommandLine.StringSliceVar(&customArgs.BoundingDirs, "bounding-dirs", customArgs.BoundingDirs,
 		"Comma-separated list of import paths which bound the types for which deep-copies will be generated.")
 	arguments.CustomArgs = customArgs
+
+	// Register default flags.
+	arguments.AddFlags(pflag.CommandLine)
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	pflag.Parse()
 
 	// Run it.
 	if err := arguments.Execute(

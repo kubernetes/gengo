@@ -607,6 +607,8 @@ func (g *genDeepCopy) generateFor(t *types.Type, sw *generator.SnippetWriter) {
 		f = g.doInterface
 	case types.Pointer:
 		f = g.doPointer
+	case types.Alias:
+		// can never happen because we branch on the underlying type which is never an alias
 	default:
 		f = g.doUnknown
 	}
@@ -636,9 +638,12 @@ func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 			sw.Do("for key, val := range *in {\n", nil)
 			sw.Do("(*out)[key] = val\n", nil)
 			sw.Do("}\n", nil)
-		case ut.Elem.Kind == types.Interface: // only call this for non-aliased interfaces
+		case uet.Kind == types.Interface:
 			sw.Do("for key, val := range *in {\n", nil)
 			sw.Do("if val == nil {(*out)[key]=nil} else {\n", nil)
+			// Note: if t.Elem has been an alias "J" of an interface "I" in Go, we will see it
+			// as kind Interface of name "J" here, i.e. generate val.DeepCopyJ(). The golang
+			// parser does not give us the underlying interface name. So we cannot do any better.
 			sw.Do(fmt.Sprintf("(*out)[key] = val.DeepCopy%s()\n", uet.Name.Name), nil)
 			sw.Do("}}\n", nil)
 		default:
@@ -698,8 +703,11 @@ func (g *genDeepCopy) doSlice(t *types.Type, sw *generator.SnippetWriter) {
 			// REVISIT(sttts): the following is removed in master
 			//} else if t.Elem.IsAssignable() {
 			//	sw.Do("(*out)[i] = (*in)[i]\n", nil)
-		} else if ut.Elem.Kind == types.Interface {
+		} else if uet.Kind == types.Interface {
 			sw.Do("if (*in)[i] == nil {(*out)[i]=nil} else {\n", nil)
+			// Note: if t.Elem has been an alias "J" of an interface "I" in Go, we will see it
+			// as kind Interface of name "J" here, i.e. generate val.DeepCopyJ(). The golang
+			// parser does not give us the underlying interface name. So we cannot do any better.
 			sw.Do(fmt.Sprintf("(*out)[i] = (*in)[i].DeepCopy%s()\n", uet.Name.Name), nil)
 			sw.Do("}\n", nil)
 		} else if uet.Kind == types.Pointer {
@@ -729,16 +737,16 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 
 	// Now fix-up fields as needed.
 	for _, m := range ut.Members {
-		t := m.Type
-		uft := underlyingType(t)
+		ft := m.Type
+		uft := underlyingType(ft)
 
 		args := generator.Args{
-			"type": t,
-			"kind": t.Kind,
+			"type": ft,
+			"kind": ft.Kind,
 			"name": m.Name,
 		}
 		switch {
-		case hasDeepCopyMethod(t):
+		case hasDeepCopyMethod(ft):
 			sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)
 		case uft.Kind == types.Builtin:
 			// the initial *out = *in was enough
@@ -746,17 +754,20 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 			// Fixup non-nil reference-semantic types.
 			sw.Do("if in.$.name$ != nil {\n", args)
 			sw.Do("in, out := &in.$.name$, &out.$.name$\n", args)
-			g.generateFor(t, sw)
+			g.generateFor(ft, sw)
 			sw.Do("}\n", nil)
 		case uft.Kind == types.Struct:
-			if t.IsAssignable() {
+			if ft.IsAssignable() {
 				sw.Do("out.$.name$ = in.$.name$\n", args)
 			} else {
 				sw.Do("in.$.name$.DeepCopyInto(&out.$.name$)\n", args)
 			}
-		case t.Kind == types.Interface: // only call this for non-aliased interfaces
+		case uft.Kind == types.Interface:
 			sw.Do("if in.$.name$ == nil {out.$.name$=nil} else {\n", args)
-			sw.Do(fmt.Sprintf("out.$.name$ = in.$.name$.DeepCopy%s()\n", t.Name.Name), args)
+			// Note: if t.Elem has been an alias "J" of an interface "I" in Go, we will see it
+			// as kind Interface of name "J" here, i.e. generate val.DeepCopyJ(). The golang
+			// parser does not give us the underlying interface name. So we cannot do any better.
+			sw.Do(fmt.Sprintf("out.$.name$ = in.$.name$.DeepCopy%s()\n", uft.Name.Name), args)
 			sw.Do("}\n", nil)
 		default:
 			sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)

@@ -19,8 +19,22 @@ limitations under the License.
 // This is a test package.
 package aliases
 
+// Note: the following AliasInterface and AliasAliasInterface +k8s:deepcopy-gen:interfaces tags
+// are necessary because Golang flattens interface alias in the type system. I.e. an alias J of
+// an interface I is actually equivalent to I. So support deepcopies of those aliases, we have
+// to implement all aliases of that interface.
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/examples/deepcopy-gen/output_tests/aliases.Interface
+// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/examples/deepcopy-gen/output_tests/aliases.AliasInterface
+// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/examples/deepcopy-gen/output_tests/aliases.AliasAliasInterface
 type Foo struct {
 	X int
+}
+
+type Interface interface {
+	DeepCopyInterface() Interface
+	DeepCopyAliasInterface() AliasInterface
+	DeepCopyAliasAliasInterface() AliasAliasInterface
 }
 
 type Builtin int
@@ -40,6 +54,11 @@ type AliasSlice Slice
 type AliasPointer Pointer
 type AliasStruct Struct
 type AliasMap Map
+
+type AliasInterface Interface
+type AliasAliasInterface AliasInterface
+type AliasInterfaceMap map[string]AliasInterface
+type AliasInterfaceSlice map[string]AliasInterfaceSlice
 
 // Aliases
 type Ttest struct {
@@ -62,4 +81,9 @@ type Ttest struct {
 	AliasPointer AliasPointer
 	AliasStruct  AliasStruct
 	AliasMap     AliasMap
+
+	AliasInterface      AliasInterface
+	AliasAliasInterface AliasAliasInterface
+	AliasInterfaceMap   AliasInterfaceMap
+	AliasInterfaceSlice AliasInterfaceSlice
 }

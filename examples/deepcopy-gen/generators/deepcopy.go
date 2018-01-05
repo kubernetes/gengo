@@ -603,22 +603,28 @@ func (g *genDeepCopy) generateFor(t *types.Type, sw *generator.SnippetWriter) {
 		f = g.doSlice
 	case types.Struct:
 		f = g.doStruct
-	case types.Interface:
-		f = g.doInterface
 	case types.Pointer:
 		f = g.doPointer
+	case types.Interface:
+		// interfaces are handled in-line in the other cases
+		glog.Fatalf("Hit an interface type %v. This should never happen.", t)
 	case types.Alias:
 		// can never happen because we branch on the underlying type which is never an alias
+		glog.Fatalf("Hit an alias type %v. This should never happen.", t)
 	default:
 		f = g.doUnknown
 	}
 	f(t, sw)
 }
 
+// doBuiltin generates code for a builtin or an alias to a builtin. The generated code is
+// is the same for both cases, i.e. it's the code for the underlying type.
 func (g *genDeepCopy) doBuiltin(t *types.Type, sw *generator.SnippetWriter) {
 	sw.Do("*out = *in\n", nil)
 }
 
+// doMap generates code for a map or an alias to a map. The generated code is
+// is the same for both cases, i.e. it's the code for the underlying type.
 func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 	ut := underlyingType(t)
 	uet := underlyingType(ut.Elem)
@@ -675,6 +681,8 @@ func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 	}
 }
 
+// doSlice generates code for a slice or an alias to a slice. The generated code is
+// is the same for both cases, i.e. it's the code for the underlying type.
 func (g *genDeepCopy) doSlice(t *types.Type, sw *generator.SnippetWriter) {
 	ut := underlyingType(t)
 	uet := underlyingType(ut.Elem)
@@ -724,6 +732,8 @@ func (g *genDeepCopy) doSlice(t *types.Type, sw *generator.SnippetWriter) {
 	}
 }
 
+// doStruct generates code for a struct or an alias to a struct. The generated code is
+// is the same for both cases, i.e. it's the code for the underlying type.
 func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 	ut := underlyingType(t)
 
@@ -775,11 +785,8 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 	}
 }
 
-func (g *genDeepCopy) doInterface(t *types.Type, sw *generator.SnippetWriter) {
-	// TODO: Add support for interfaces.
-	g.doUnknown(t, sw)
-}
-
+// doPointer generates code for a pointer or an alias to a pointer. The generated code is
+// is the same for both cases, i.e. it's the code for the underlying type.
 func (g *genDeepCopy) doPointer(t *types.Type, sw *generator.SnippetWriter) {
 	ut := underlyingType(t)
 	uet := underlyingType(ut.Elem)

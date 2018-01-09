@@ -61,20 +61,24 @@ func SetObjectDefaults_Struct_Slices(in *Struct_Slices) {
 		a := &in.SliceStructPrimitivesField[i]
 		SetObjectDefaults_Struct_Primitives(a)
 	}
-	for i := range in.SlicePointerStructPrimitivesField {
-		a := &in.SlicePointerStructPrimitivesField[i]
-		if a != nil {
-			SetObjectDefaults_Struct_Primitives(a)
+	if in.SlicePointerStructPrimitivesField != nil {
+		for i := range in.SlicePointerStructPrimitivesField {
+			a := in.SlicePointerStructPrimitivesField[i]
+			if a != nil {
+				SetObjectDefaults_Struct_Primitives(a)
+			}
 		}
 	}
 	for i := range in.SliceStructStructPrimitives {
 		a := &in.SliceStructStructPrimitives[i]
 		SetObjectDefaults_Struct_Struct_Primitives(a)
 	}
-	for i := range in.SlicePointerStructStructPrimitives {
-		a := &in.SlicePointerStructStructPrimitives[i]
-		if a != nil {
-			SetObjectDefaults_Struct_Struct_Primitives(a)
+	if in.SlicePointerStructStructPrimitives != nil {
+		for i := range in.SlicePointerStructStructPrimitives {
+			a := in.SlicePointerStructStructPrimitives[i]
+			if a != nil {
+				SetObjectDefaults_Struct_Struct_Primitives(a)
+			}
 		}
 	}
 }

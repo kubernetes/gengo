@@ -46,10 +46,12 @@ func SetObjectDefaults_TtestList(in *TtestList) {
 }
 
 func SetObjectDefaults_TtestPointerList(in *TtestPointerList) {
-	for i := range in.Items {
-		a := &in.Items[i]
-		if a != nil {
-			SetObjectDefaults_Ttest(a)
+	if in.Items != nil {
+		for i := range in.Items {
+			a := in.Items[i]
+			if a != nil {
+				SetObjectDefaults_Ttest(a)
+			}
 		}
 	}
 }

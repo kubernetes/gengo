@@ -299,11 +299,26 @@ func hasDeepCopyMethod(t *types.Type) bool {
 		return false
 	}
 	if len(f.Signature.Parameters) != 0 {
-		return false
+		glog.Fatalf("Type %v: invalid DeepCopy signature, expected no parameters", t)
 	}
-	if len(f.Signature.Results) != 1 || f.Signature.Results[0].Name != t.Name {
-		return false
+	if len(f.Signature.Results) != 1 {
+		glog.Fatalf("Type %v: invalid DeepCopy signature, expected exactly one result", t)
 	}
+
+	ptrResult := f.Signature.Results[0].Kind == types.Pointer && f.Signature.Results[0].Elem.Name == t.Name
+	nonPtrResult := f.Signature.Results[0].Name == t.Name
+
+	if !ptrResult && !nonPtrResult {
+		glog.Fatalf("Type %v: invalid DeepCopy signature, expected to return %s or *%s", t, t.Name.Name, t.Name.Name)
+	}
+
+	ptrRcvr := f.Signature.Receiver != nil && f.Signature.Receiver.Kind == types.Pointer && f.Signature.Receiver.Elem.Name == t.Name
+	nonPtrRcvr := f.Signature.Receiver != nil && f.Signature.Receiver.Name == t.Name
+
+	if ptrResult != ptrRcvr || nonPtrResult != nonPtrRcvr {
+		glog.Fatalf("Type %v: invalid DeepCopy signature, expected a receiver of type %s or *%s matching the result type", t, t.Name.Name, t.Name.Name)
+	}
+
 	return true
 }
 
@@ -320,11 +335,26 @@ func hasDeepCopyIntoMethod(t *types.Type) bool {
 		return false
 	}
 	if len(f.Signature.Parameters) != 1 {
-		return false
+		glog.Fatalf("Type %v: invalid DeepCopy signature, expected exactly one parameter", t)
 	}
 	if len(f.Signature.Results) != 0 {
-		return false
+		glog.Fatalf("Type %v: invalid DeepCopy signature, expected no result type", t)
 	}
+
+	ptrParam := f.Signature.Parameters[0].Kind == types.Pointer && f.Signature.Parameters[0].Elem.Name == t.Name
+
+	if !ptrParam {
+		glog.Fatalf("Type %v: invalid DeepCopy signature, expected parameter of type *%s", t, t.Name.Name)
+	}
+
+	ptrRcvr := f.Signature.Receiver != nil && f.Signature.Receiver.Kind == types.Pointer && f.Signature.Receiver.Elem.Name == t.Name
+	nonPtrRcvr := f.Signature.Receiver != nil && f.Signature.Receiver.Name == t.Name
+
+	if !ptrRcvr && !nonPtrRcvr {
+		// this should never happen
+		glog.Fatalf("Type %v: invalid DeepCopy signature, expected a receiver of type %s or *%s", t, t.Name.Name, t.Name.Name)
+	}
+
 	return true
 }
 

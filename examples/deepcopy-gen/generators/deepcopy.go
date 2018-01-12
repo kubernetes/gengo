@@ -307,7 +307,7 @@ func hasDeepCopyMethod(t *types.Type) bool {
 	return true
 }
 
-// hasDeepCopyIntoMethod returns true if an appropriate DeepCopyInit() method is
+// hasDeepCopyIntoMethod returns true if an appropriate DeepCopyInto() method is
 // defined for the given type.  This allows more efficient deep copy
 // implementations to be defined by the type's author.  The correct signature
 // for a type T is:
@@ -354,6 +354,7 @@ func copyableType(t *types.Type) bool {
 
 	if t.Kind == types.Alias {
 		// if the underlying built-in is not deepcopy-able, deepcopy is opt-in through definition of custom methods.
+		// Note that aliases of builtins, maps, slices can have deepcopy methods.
 		if hasDeepCopyMethod(t) || hasDeepCopyIntoMethod(t) {
 			return true
 		} else {
@@ -369,10 +370,7 @@ func copyableType(t *types.Type) bool {
 }
 
 func underlyingType(t *types.Type) *types.Type {
-	for {
-		if t.Kind != types.Alias {
-			break
-		}
+	for t.Kind == types.Alias {
 		t = t.Underlying
 	}
 	return t

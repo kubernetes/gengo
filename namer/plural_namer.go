@@ -22,6 +22,8 @@ import (
 	"k8s.io/gengo/types"
 )
 
+var consonants = "bcdfghjklmnpqrsttvwxyz"
+
 type pluralNamer struct {
 	// key is the case-sensitive type name, value is the case-insensitive
 	// intended output.
@@ -56,13 +58,61 @@ func (r *pluralNamer) Name(t *types.Type) string {
 	if plural, ok = r.exceptions[singular]; ok {
 		return r.finalize(plural)
 	}
-	switch string(singular[len(singular)-1]) {
-	case "s", "x":
-		plural = singular + "es"
-	case "y":
-		plural = singular[:len(singular)-1] + "ies"
+	if len(singular) < 2 {
+		return r.finalize(plural)
+	}
+
+	switch rune(singular[len(singular)-1]) {
+	case 's', 'x', 'z':
+		plural = esPlural(singular)
+	case 'y':
+		sl := rune(singular[len(singular)-2])
+		if isConsonant(sl) {
+			plural = iesPlural(singular)
+		} else {
+			plural = sPlural(singular)
+		}
+	case 'h':
+		sl := rune(singular[len(singular)-2])
+		if sl == 'c' || sl == 's' {
+			plural = esPlural(singular)
+		} else {
+			plural = sPlural(singular)
+		}
+	case 'n':
+		sl := rune(singular[len(singular)-2])
+		if sl == 'o' {
+			plural = aPlural(singular)
+		} else {
+			plural = sPlural(singular)
+		}
 	default:
-		plural = singular + "s"
+		plural = sPlural(singular)
 	}
 	return r.finalize(plural)
+}
+
+func iesPlural(singular string) string {
+	return singular[:len(singular)-1] + "ies"
+}
+
+func aPlural(singular string) string {
+	return singular[:len(singular)-2] + "a"
+}
+
+func esPlural(singular string) string {
+	return singular + "es"
+}
+
+func sPlural(singular string) string {
+	return singular + "s"
+}
+
+func isConsonant(char rune) bool {
+	for _, c := range consonants {
+		if char == c {
+			return true
+		}
+	}
+	return false
 }

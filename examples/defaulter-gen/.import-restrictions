@@ -5,7 +5,7 @@
       "AllowedPrefixes": [
         "k8s.io/gengo",
         "k8s.io/kubernetes/third_party/forked/golang",
-	"k8s.io/apimachinery/pkg/runtime"
+        "k8s.io/apimachinery/pkg/runtime"
       ]
     }
   ]

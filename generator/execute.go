@@ -214,10 +214,17 @@ func (c *Context) addNameSystems(namers namer.NameSystems) *Context {
 // import path already, this will be appended to 'outDir'.
 func (c *Context) ExecutePackage(outDir string, p Package) error {
 	path := filepath.Join(outDir, p.Path())
-	glog.V(2).Infof("Processing package %q, disk location %q", p.Name(), path)
+	if c.DryRun {
+		glog.V(2).Infof("Processing package %q in dry run mode. No package will be generated or verified.", p.Name())
+	} else {
+		glog.V(2).Infof("Processing package %q, disk location %q", p.Name(), path)
+	}
 	// Filter out any types the *package* doesn't care about.
 	packageContext := c.filteredBy(p.Filter)
-	os.MkdirAll(path, 0755)
+	// If not in dry run mode, make directory if non-exist.
+	if !c.DryRun {
+		os.MkdirAll(path, 0755)
+	}
 	files := map[string]*File{}
 	for _, g := range p.Generators(packageContext) {
 		// Filter out types the *generator* doesn't care about.
@@ -272,25 +279,28 @@ func (c *Context) ExecutePackage(outDir string, p Package) error {
 		}
 	}
 
-	var errors []error
-	for _, f := range files {
-		finalPath := filepath.Join(path, f.Name)
-		assembler, ok := c.FileTypes[f.FileType]
-		if !ok {
-			return fmt.Errorf("the file type %q registered for file %q does not exist in the context", f.FileType, f.Name)
+	// If not in dry run mode, assemble/verify the package.
+	if !c.DryRun {
+		var errors []error
+		for _, f := range files {
+			finalPath := filepath.Join(path, f.Name)
+			assembler, ok := c.FileTypes[f.FileType]
+			if !ok {
+				return fmt.Errorf("the file type %q registered for file %q does not exist in the context", f.FileType, f.Name)
+			}
+			var err error
+			if c.Verify {
+				err = assembler.VerifyFile(f, finalPath)
+			} else {
+				err = assembler.AssembleFile(f, finalPath)
+			}
+			if err != nil {
+				errors = append(errors, err)
+			}
 		}
-		var err error
-		if c.Verify {
-			err = assembler.VerifyFile(f, finalPath)
-		} else {
-			err = assembler.AssembleFile(f, finalPath)
+		if len(errors) > 0 {
+			return fmt.Errorf("errors in package %q:\n%v\n", p.Path(), strings.Join(errs2strings(errors), "\n"))
 		}
-		if err != nil {
-			errors = append(errors, err)
-		}
-	}
-	if len(errors) > 0 {
-		return fmt.Errorf("errors in package %q:\n%v\n", p.Path(), strings.Join(errs2strings(errors), "\n"))
 	}
 	return nil
 }

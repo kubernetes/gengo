@@ -171,6 +171,14 @@ type Context struct {
 	// correct. (You may set this after calling NewContext.)
 	Verify bool
 
+	// If true, Execute* calls will just dry run the generator logic, but
+	// won't write new packages or verify existing outputs. (You may set this after
+	// calling NewContext.)
+	// NOTE: For backwards compatibility we have DryRun mode as a separate boolean.
+	//       Setting it will disable Assemble and Verify modes, no matter if
+	//       Context.Verify is true or false.
+	DryRun bool
+
 	// Allows generators to add packages at runtime.
 	builder *parser.Builder
 }

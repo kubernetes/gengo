@@ -17,9 +17,9 @@ limitations under the License.
 package generator
 
 import (
-	"path/filepath"
 	"strings"
 
+	"github.com/golang/glog"
 	"k8s.io/gengo/namer"
 	"k8s.io/gengo/types"
 )
@@ -37,7 +37,12 @@ func NewImportTracker(typesToAdd ...*types.Type) namer.ImportTracker {
 
 func golangTrackerLocalName(tracker namer.ImportTracker, t types.Name) string {
 	path := t.Package
-	dirs := strings.Split(path, string(filepath.Separator))
+
+	if strings.ContainsRune(path, '\\') {
+		glog.Warningf("Warning: backslash used in import path '%v', this is unsupported.\n", path)
+	}
+
+	dirs := strings.Split(path, "/")
 	for n := len(dirs) - 1; n >= 0; n-- {
 		// TODO: bikeshed about whether it's more readable to have an
 		// _, something else, or nothing between directory names.

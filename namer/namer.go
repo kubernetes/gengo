@@ -187,7 +187,7 @@ var (
 
 // filters out unwanted directory names and sanitizes remaining names.
 func (ns *NameStrategy) filterDirs(path string) []string {
-	allDirs := strings.Split(path, string(filepath.Separator))
+	allDirs := strings.Split(path, "/")
 	dirs := make([]string, 0, len(allDirs))
 	for _, p := range allDirs {
 		if ns.IgnoreWords == nil || !ns.IgnoreWords[p] {

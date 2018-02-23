@@ -40,9 +40,11 @@ type CustomArgs struct {
 
 // This is the comment tag that carries parameters for deep-copy generation.
 const (
-	tagName                     = "k8s:deepcopy-gen"
-	interfacesTagName           = tagName + ":interfaces"
-	interfacesNonPointerTagName = tagName + ":nonpointer-interfaces" // attach the DeepCopy<Interface> methods to the
+	tagName           = "k8s:deepcopy-gen"
+	interfacesTagName = tagName + ":interfaces"
+	// attach the DeepCopy<Interface> methods to the
+	interfacesNonPointerTagName = tagName + ":nonpointer-interfaces"
+	skipFieldTagName            = tagName + ":skip-field"
 )
 
 // Known values for the comment tag.
@@ -172,7 +174,7 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 			for _, t := range pkg.Types {
 				glog.V(5).Infof("  considering type %q", t.Name.String())
 				ttag := extractTag(t.CommentLines)
-				if ttag != nil && ttag.value == "true" {
+				if ttag != nil && tagValueIsTrue(ttag.value) {
 					glog.V(5).Infof("    tag=true")
 					if !copyableType(t) {
 						glog.Fatalf("Type %v requests deepcopy generation but is not copyable", t)
@@ -255,7 +257,7 @@ func (g *genDeepCopy) Filter(c *generator.Context, t *types.Type) bool {
 	enabled := g.allTypes
 	if !enabled {
 		ttag := extractTag(t.CommentLines)
-		if ttag != nil && ttag.value == "true" {
+		if ttag != nil && tagValueIsTrue(ttag.value) {
 			enabled = true
 		}
 	}
@@ -299,6 +301,32 @@ func hasDeepCopyMethod(t *types.Type) bool {
 		}
 		if len(mt.Signature.Results) != 1 || mt.Signature.Results[0].Name != t.Name {
 			return false
+		}
+		return true
+	}
+	return false
+}
+
+// hasDeepCopyMethod returns true if an appropriate postDeepCopy(out *T) method is
+// defined for the given type.  This allows to exclude fields from automatic
+// deepcopy generation via +k8s:deepcopy-gen:skip-field and then to implement
+// custom code for these very fields. It is called after the generated deepcopy is
+// finished.
+//
+//  The correct signature for a type T is:
+//    func (in *T) postDeepCopy(out *T)
+//
+func hasPostDeepCopyMethod(t *types.Type) bool {
+	for mn, mt := range t.Methods {
+		if mn != "postDeepCopy" {
+			continue
+		}
+		if mt.Signature.Receiver.Kind != types.Pointer ||
+			len(mt.Signature.Results) != 0 ||
+			len(mt.Signature.Parameters) != 1 ||
+			mt.Signature.Parameters[0].Kind != types.Pointer ||
+			mt.Signature.Parameters[0].Elem != t {
+			glog.Fatalf("Type %v has a postDeepCopy method of wrong type. Expected: func (in *%v) postDeepCopy(out *%v)", t, t.Name.Name, t.Name.Name)
 		}
 		return true
 	}
@@ -390,6 +418,10 @@ func (g *genDeepCopy) needsGeneration(t *types.Type) bool {
 	return true
 }
 
+func tagValueIsTrue(val string) bool {
+	return val == "true" || val == ""
+}
+
 func extractInterfacesTag(comments []string) []string {
 	var result []string
 	values := types.ExtractCommentTags("+", comments)[interfacesTagName]
@@ -413,10 +445,24 @@ func extractNonPointerInterfaces(comments []string) (bool, error) {
 	if len(values) == 0 {
 		return false, nil
 	}
-	result := values[0] == "true"
+	result := tagValueIsTrue(values[0])
 	for _, v := range values {
-		if v == "true" != result {
+		if tagValueIsTrue(v) != result && values[0] != "" {
 			return false, fmt.Errorf("contradicting %v value %q found to previous value %v", interfacesNonPointerTagName, v, result)
+		}
+	}
+	return result, nil
+}
+
+func extractSkipField(comments []string) (bool, error) {
+	values := types.ExtractCommentTags("+", comments)[skipFieldTagName]
+	if len(values) == 0 {
+		return false, nil
+	}
+	result := tagValueIsTrue(values[0])
+	for _, v := range values {
+		if tagValueIsTrue(v) && values[0] != "" {
+			return false, fmt.Errorf("contradicting %v value %q found to previous value %v", skipFieldTagName, v, result)
 		}
 	}
 	return result, nil
@@ -575,6 +621,7 @@ func (g *genDeepCopy) doBuiltin(t *types.Type, sw *generator.SnippetWriter) {
 
 func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 	sw.Do("*out = make($.|raw$, len(*in))\n", t)
+	elemHasPostDeepCopy := hasPostDeepCopyMethod(t.Elem)
 	if t.Key.IsAssignable() {
 		switch {
 		case hasDeepCopyMethod(t.Elem):
@@ -585,7 +632,7 @@ func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 			sw.Do("for key := range *in {\n", nil)
 			sw.Do("(*out)[key] = struct{}{}\n", nil)
 			sw.Do("}\n", nil)
-		case t.Elem.IsAssignable():
+		case t.Elem.IsAssignable() && !elemHasPostDeepCopy: // we cannot call (private) postDeepCopy from here on val
 			sw.Do("for key, val := range *in {\n", nil)
 			sw.Do("(*out)[key] = val\n", nil)
 			sw.Do("}\n", nil)
@@ -605,7 +652,7 @@ func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 				sw.Do("(*out)[key] = make($.|raw$, len(val))\n", t.Elem)
 				sw.Do("copy((*out)[key], val)\n", nil)
 				sw.Do("}\n", nil)
-			} else if t.Elem.Kind == types.Alias && t.Elem.Underlying.Kind == types.Slice && t.Elem.Underlying.Elem.Kind == types.Builtin {
+			} else if (!hasPostDeepCopyMethod(t.Elem) && t.Elem.Kind == types.Alias) && t.Elem.Underlying.Kind == types.Slice && t.Elem.Underlying.Elem.Kind == types.Builtin {
 				sw.Do("(*out)[key] = make($.|raw$, len(val))\n", t.Elem)
 				sw.Do("copy((*out)[key], val)\n", nil)
 			} else if t.Elem.Kind == types.Pointer {
@@ -637,7 +684,7 @@ func (g *genDeepCopy) doSlice(t *types.Type, sw *generator.SnippetWriter) {
 		sw.Do("for i := range *in {\n", nil)
 		sw.Do("(*out)[i] = (*in)[i].DeepCopy()\n", nil)
 		sw.Do("}\n", nil)
-	} else if t.Elem.Kind == types.Builtin || t.Elem.IsAssignable() {
+	} else if t.Elem.Kind == types.Builtin || (!hasPostDeepCopyMethod(t.Elem) && t.Elem.IsAssignable()) {
 		sw.Do("copy(*out, *in)\n", nil)
 	} else {
 		sw.Do("for i := range *in {\n", nil)
@@ -681,7 +728,17 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 	// Now fix-up fields as needed.
 	for _, m := range t.Members {
 		t := m.Type
+
+		skipField, err := extractSkipField(m.CommentLines)
+		if err != nil {
+			glog.Fatalf("Invalid tag for type %q field %q: %v", t.String(), m.String(), err)
+		}
+		if skipField {
+			continue
+		}
+
 		hasMethod := hasDeepCopyMethod(t)
+		hasPostDeepCopyMethod := hasPostDeepCopyMethod(t)
 		if t.Kind == types.Alias {
 			copied := *t.Underlying
 			copied.Name = t.Name
@@ -713,18 +770,25 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 		case types.Struct:
 			if hasMethod {
 				sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)
-			} else if t.IsAssignable() {
+			} else if !hasPostDeepCopyMethod && t.IsAssignable() {
 				sw.Do("out.$.name$ = in.$.name$\n", args)
 			} else {
 				sw.Do("in.$.name$.DeepCopyInto(&out.$.name$)\n", args)
 			}
 		case types.Interface:
 			sw.Do("if in.$.name$ == nil {out.$.name$=nil} else {\n", args)
+			if t.Name.String() == "interface{}" {
+				glog.Fatalf("Cannot deepcopy %s.%s of type interface{}. Use a +%s tag and implement a method: func (in *%s) postDeepCopy(out *%s).", t.Name.Name, m.Name, skipFieldTagName, t.Name.Name, t.Name.Name)
+			}
 			sw.Do(fmt.Sprintf("out.$.name$ = in.$.name$.DeepCopy%s()\n", t.Name.Name), args)
 			sw.Do("}\n", nil)
 		default:
 			sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)
 		}
+	}
+
+	if hasPostDeepCopyMethod(t) {
+		sw.Do("in.postDeepCopy(out)\n", nil)
 	}
 }
 
@@ -738,7 +802,7 @@ func (g *genDeepCopy) doPointer(t *types.Type, sw *generator.SnippetWriter) {
 	if hasDeepCopyMethod(t.Elem) {
 		sw.Do("*out = new($.Elem|raw$)\n", t)
 		sw.Do("**out = (*in).DeepCopy()\n", nil)
-	} else if t.Elem.IsAssignable() {
+	} else if !hasPostDeepCopyMethod(t.Elem) && t.Elem.IsAssignable() {
 		sw.Do("*out = new($.Elem|raw$)\n", t)
 		sw.Do("**out = **in", nil)
 	} else {

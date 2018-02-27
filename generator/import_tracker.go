@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+
 	"k8s.io/gengo/namer"
 	"k8s.io/gengo/types"
 )

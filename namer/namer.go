@@ -25,7 +25,7 @@ import (
 
 const (
 	// GoSeperator is used to split go import paths.
-	// Forward slash is used intead of filepath.Seperator because it is the
+	// Forward slash is used instead of filepath.Seperator because it is the
 	// only universally-accepted path delimiter and the only delimiter not
 	// potentially forbidden by Go compilers. (In particular gc does not allow
 	// the use of backslashes in import paths.)

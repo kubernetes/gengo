@@ -38,11 +38,13 @@ func NewImportTracker(typesToAdd ...*types.Type) namer.ImportTracker {
 func golangTrackerLocalName(tracker namer.ImportTracker, t types.Name) string {
 	path := t.Package
 
+	// Using backslashes in package names causes gengo to produce Go code which
+	// will not compile with the gc compiler. See the comment on GoSeperator.
 	if strings.ContainsRune(path, '\\') {
 		glog.Warningf("Warning: backslash used in import path '%v', this is unsupported.\n", path)
 	}
 
-	dirs := strings.Split(path, "/")
+	dirs := strings.Split(path, namer.GoSeperator)
 	for n := len(dirs) - 1; n >= 0; n-- {
 		// TODO: bikeshed about whether it's more readable to have an
 		// _, something else, or nothing between directory names.

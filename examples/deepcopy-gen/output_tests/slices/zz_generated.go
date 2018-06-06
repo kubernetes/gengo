@@ -82,11 +82,12 @@ func (in *Ttest) DeepCopyInto(out *Ttest) {
 		in, out := &in.StringPtr, &out.StringPtr
 		*out = make([]*string, len(*in))
 		for i := range *in {
-			if (*in)[i] == nil {
+			if val := (*in)[i]; val == nil {
 				(*out)[i] = nil
 			} else {
-				(*out)[i] = new(string)
-				(*in)[i].DeepCopyInto((*out)[i])
+				x := new(string)
+				(*out)[i] = x
+				*x = *val
 			}
 		}
 	}

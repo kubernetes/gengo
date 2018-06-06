@@ -107,8 +107,9 @@ func (in *Ttest) DeepCopyInto(out *Ttest) {
 			if val == nil {
 				(*out)[key] = nil
 			} else {
-				(*out)[key] = new(string)
-				val.DeepCopyInto((*out)[key])
+				x := new(string)
+				(*out)[key] = x
+				*x = *val
 			}
 		}
 	}

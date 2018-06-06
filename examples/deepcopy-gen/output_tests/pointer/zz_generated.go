@@ -30,8 +30,9 @@ func (in *Ttest) DeepCopyInto(out *Ttest) {
 			if val == nil {
 				(*out)[key] = nil
 			} else {
-				(*out)[key] = new(Ttest)
-				val.DeepCopyInto((*out)[key])
+				x := new(Ttest)
+				(*out)[key] = x
+				val.DeepCopyInto(x)
 			}
 		}
 	}

@@ -760,8 +760,13 @@ func (g *genDeepCopy) doMap(t *types.Type, sw *generator.SnippetWriter) {
 				sw.Do("}\n", nil)
 			} else if uet.Kind == types.Pointer {
 				sw.Do("if val==nil { (*out)[key]=nil } else {\n", nil)
-				sw.Do("(*out)[key] = new($.Elem|raw$)\n", uet)
-				sw.Do("val.DeepCopyInto((*out)[key])\n", nil)
+				sw.Do("x := new($.Elem|raw$)\n", uet)
+				sw.Do("(*out)[key] = x\n", uet)
+				if uet.Elem.Kind == types.Builtin {
+					sw.Do("*x = *val\n", nil)
+				} else {
+					sw.Do("val.DeepCopyInto(x)\n", nil)
+				}
 				sw.Do("}\n", nil)
 			} else {
 				sw.Do("(*out)[key] = *val.DeepCopy()\n", uet)
@@ -810,9 +815,14 @@ func (g *genDeepCopy) doSlice(t *types.Type, sw *generator.SnippetWriter) {
 			sw.Do(fmt.Sprintf("(*out)[i] = (*in)[i].DeepCopy%s()\n", uet.Name.Name), nil)
 			sw.Do("}\n", nil)
 		} else if uet.Kind == types.Pointer {
-			sw.Do("if (*in)[i]==nil { (*out)[i]=nil } else {\n", nil)
-			sw.Do("(*out)[i] = new($.Elem|raw$)\n", uet)
-			sw.Do("(*in)[i].DeepCopyInto((*out)[i])\n", nil)
+			sw.Do("if val := (*in)[i]; val==nil { (*out)[i]=nil } else {\n", nil)
+			sw.Do("x := new($.Elem|raw$)\n", uet)
+			sw.Do("(*out)[i] = x\n", uet)
+			if uet.Elem.Kind == types.Builtin {
+				sw.Do("*x = *val\n", nil)
+			} else {
+				sw.Do("val.DeepCopyInto(x)\n", nil)
+			}
 			sw.Do("}\n", nil)
 		} else if uet.Kind == types.Struct {
 			sw.Do("(*in)[i].DeepCopyInto(&(*out)[i])\n", nil)

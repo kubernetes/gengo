@@ -100,6 +100,18 @@ func (in *Ttest) DeepCopyInto(out *Ttest) {
 			(*out)[key] = val
 		}
 	}
+	if in.StringPtr != nil {
+		in, out := &in.StringPtr, &out.StringPtr
+		*out = make(map[string]*string, len(*in))
+		for key, val := range *in {
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				(*out)[key] = new(string)
+				val.DeepCopyInto((*out)[key])
+			}
+		}
+	}
 	return
 }
 

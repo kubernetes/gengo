@@ -78,6 +78,18 @@ func (in *Ttest) DeepCopyInto(out *Ttest) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.StringPtr != nil {
+		in, out := &in.StringPtr, &out.StringPtr
+		*out = make([]*string, len(*in))
+		for i := range *in {
+			if (*in)[i] == nil {
+				(*out)[i] = nil
+			} else {
+				(*out)[i] = new(string)
+				(*in)[i].DeepCopyInto((*out)[i])
+			}
+		}
+	}
 	return
 }
 

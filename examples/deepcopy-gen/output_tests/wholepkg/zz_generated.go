@@ -109,12 +109,8 @@ func (in *Struct_Embed_Pointer) DeepCopyInto(out *Struct_Embed_Pointer) {
 	*out = *in
 	if in.int != nil {
 		in, out := &in.int, &out.int
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int)
-			**out = **in
-		}
+		*out = new(int)
+		**out = **in
 	}
 	return
 }
@@ -205,58 +201,34 @@ func (in *Struct_Everything) DeepCopyInto(out *Struct_Everything) {
 	out.ManualStructAliasField = in.ManualStructAliasField
 	if in.BoolPtrField != nil {
 		in, out := &in.BoolPtrField, &out.BoolPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.IntPtrField != nil {
 		in, out := &in.IntPtrField, &out.IntPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int)
-			**out = **in
-		}
+		*out = new(int)
+		**out = **in
 	}
 	if in.StringPtrField != nil {
 		in, out := &in.StringPtrField, &out.StringPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(string)
-			**out = **in
-		}
+		*out = new(string)
+		**out = **in
 	}
 	if in.FloatPtrField != nil {
 		in, out := &in.FloatPtrField, &out.FloatPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(float64)
-			**out = **in
-		}
+		*out = new(float64)
+		**out = **in
 	}
 	in.PrimitivePointersField.DeepCopyInto(&out.PrimitivePointersField)
 	if in.ManualStructPtrField != nil {
 		in, out := &in.ManualStructPtrField, &out.ManualStructPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			x := (*in).DeepCopy()
-			*out = &x
-		}
+		x := (*in).DeepCopy()
+		*out = &x
 	}
 	if in.ManualStructAliasPtrField != nil {
 		in, out := &in.ManualStructAliasPtrField, &out.ManualStructAliasPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(ManualStruct_Alias)
-			**out = **in
-		}
+		*out = new(ManualStruct_Alias)
+		**out = **in
 	}
 	if in.SliceBoolField != nil {
 		in, out := &in.SliceBoolField, &out.SliceBoolField
@@ -475,39 +447,23 @@ func (in *Struct_PrimitivePointers) DeepCopyInto(out *Struct_PrimitivePointers) 
 	*out = *in
 	if in.BoolPtrField != nil {
 		in, out := &in.BoolPtrField, &out.BoolPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.IntPtrField != nil {
 		in, out := &in.IntPtrField, &out.IntPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int)
-			**out = **in
-		}
+		*out = new(int)
+		**out = **in
 	}
 	if in.StringPtrField != nil {
 		in, out := &in.StringPtrField, &out.StringPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(string)
-			**out = **in
-		}
+		*out = new(string)
+		**out = **in
 	}
 	if in.FloatPtrField != nil {
 		in, out := &in.FloatPtrField, &out.FloatPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(float64)
-			**out = **in
-		}
+		*out = new(float64)
+		**out = **in
 	}
 	return
 }
@@ -527,39 +483,23 @@ func (in *Struct_PrimitivePointers_Alias) DeepCopyInto(out *Struct_PrimitivePoin
 	*out = *in
 	if in.BoolPtrField != nil {
 		in, out := &in.BoolPtrField, &out.BoolPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(bool)
-			**out = **in
-		}
+		*out = new(bool)
+		**out = **in
 	}
 	if in.IntPtrField != nil {
 		in, out := &in.IntPtrField, &out.IntPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int)
-			**out = **in
-		}
+		*out = new(int)
+		**out = **in
 	}
 	if in.StringPtrField != nil {
 		in, out := &in.StringPtrField, &out.StringPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(string)
-			**out = **in
-		}
+		*out = new(string)
+		**out = **in
 	}
 	if in.FloatPtrField != nil {
 		in, out := &in.FloatPtrField, &out.FloatPtrField
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(float64)
-			**out = **in
-		}
+		*out = new(float64)
+		**out = **in
 	}
 	return
 }
@@ -662,7 +602,9 @@ func (in *Struct_Slices) DeepCopyInto(out *Struct_Slices) {
 		in, out := &in.SliceSliceIntField, &out.SliceSliceIntField
 		*out = make([][]int, len(*in))
 		for i := range *in {
-			if (*in)[i] != nil {
+			if (*in)[i] == nil {
+				(*out)[i] = nil
+			} else {
 				in, out := &(*in)[i], &(*out)[i]
 				*out = make([]int, len(*in))
 				copy(*out, *in)
@@ -746,7 +688,9 @@ func (in *Struct_Slices_Alias) DeepCopyInto(out *Struct_Slices_Alias) {
 		in, out := &in.SliceSliceIntField, &out.SliceSliceIntField
 		*out = make([][]int, len(*in))
 		for i := range *in {
-			if (*in)[i] != nil {
+			if (*in)[i] == nil {
+				(*out)[i] = nil
+			} else {
 				in, out := &(*in)[i], &(*out)[i]
 				*out = make([]int, len(*in))
 				copy(*out, *in)

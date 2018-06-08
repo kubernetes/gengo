@@ -296,21 +296,13 @@ func (in *Ttest) DeepCopyInto(out *Ttest) {
 	}
 	if in.Pointer != nil {
 		in, out := &in.Pointer, &out.Pointer
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int)
-			**out = **in
-		}
+		*out = new(int)
+		**out = **in
 	}
 	if in.PointerAlias != nil {
 		in, out := &in.PointerAlias, &out.PointerAlias
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(Builtin)
-			**out = **in
-		}
+		*out = new(Builtin)
+		**out = **in
 	}
 	out.Struct = in.Struct
 	if in.Map != nil {
@@ -324,7 +316,9 @@ func (in *Ttest) DeepCopyInto(out *Ttest) {
 		in, out := &in.SliceSlice, &out.SliceSlice
 		*out = make([]Slice, len(*in))
 		for i := range *in {
-			if (*in)[i] != nil {
+			if (*in)[i] == nil {
+				(*out)[i] = nil
+			} else {
 				in, out := &(*in)[i], &(*out)[i]
 				*out = make(Slice, len(*in))
 				copy(*out, *in)
@@ -335,12 +329,15 @@ func (in *Ttest) DeepCopyInto(out *Ttest) {
 		in, out := &in.MapSlice, &out.MapSlice
 		*out = make(map[string]Slice, len(*in))
 		for key, val := range *in {
+			var outVal []int
 			if val == nil {
 				(*out)[key] = nil
 			} else {
-				(*out)[key] = make([]int, len(val))
-				copy((*out)[key], val)
+				in, out := &val, &outVal
+				*out = make(Slice, len(*in))
+				copy(*out, *in)
 			}
+			(*out)[key] = outVal
 		}
 	}
 	out.FooAlias = in.FooAlias
@@ -351,12 +348,8 @@ func (in *Ttest) DeepCopyInto(out *Ttest) {
 	}
 	if in.FooPointer != nil {
 		in, out := &in.FooPointer, &out.FooPointer
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(Foo)
-			**out = **in
-		}
+		*out = new(Foo)
+		**out = **in
 	}
 	if in.FooMap != nil {
 		in, out := &in.FooMap, &out.FooMap
@@ -372,12 +365,8 @@ func (in *Ttest) DeepCopyInto(out *Ttest) {
 	}
 	if in.AliasPointer != nil {
 		in, out := &in.AliasPointer, &out.AliasPointer
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int)
-			**out = **in
-		}
+		*out = new(int)
+		**out = **in
 	}
 	out.AliasStruct = in.AliasStruct
 	if in.AliasMap != nil {

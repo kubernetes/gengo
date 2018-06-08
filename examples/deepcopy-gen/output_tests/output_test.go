@@ -65,38 +65,71 @@ func TestWithValueFuzzer(t *testing.T) {
 
 func BenchmarkReflectDeepCopy(b *testing.B) {
 	fourtytwo := "fourtytwo"
+	fourtytwoPtr := &fourtytwo
+	var nilMap map[string]string
+	var nilSlice []string
+	mapPtr := &map[string]string{"0": "fourtytwo", "1": "fourtytwo"}
+	slicePtr := &[]string{"fourtytwo", "fourtytwo", "fourtytwo"}
+	structPtr := &pointer.Ttest{
+		Builtin: &fourtytwo,
+		Ptr:     &fourtytwoPtr,
+	}
 
 	tests := []interface{}{
 		maps.Ttest{
-			Byte:      map[string]byte{"0": 42, "1": 42, "3": 42},
-			Int16:     map[string]int16{"0": 42, "1": 42, "3": 42},
-			Int32:     map[string]int32{"0": 42, "1": 42, "3": 42},
-			Int64:     map[string]int64{"0": 42, "1": 42, "3": 42},
-			Uint8:     map[string]uint8{"0": 42, "1": 42, "3": 42},
-			Uint16:    map[string]uint16{"0": 42, "1": 42, "3": 42},
-			Uint32:    map[string]uint32{"0": 42, "1": 42, "3": 42},
-			Uint64:    map[string]uint64{"0": 42, "1": 42, "3": 42},
-			Float32:   map[string]float32{"0": 42.0, "1": 42.0, "3": 42.0},
-			Float64:   map[string]float64{"0": 42, "1": 42, "3": 42},
-			String:    map[string]string{"0": "fourtytwo", "1": "fourtytwo", "3": "fourtytwo"},
-			StringPtr: map[string]*string{"0": &fourtytwo, "1": &fourtytwo, "3": &fourtytwo},
+			Byte:         map[string]byte{"0": 42, "1": 42, "3": 42},
+			Int16:        map[string]int16{"0": 42, "1": 42, "3": 42},
+			Int32:        map[string]int32{"0": 42, "1": 42, "3": 42},
+			Int64:        map[string]int64{"0": 42, "1": 42, "3": 42},
+			Uint8:        map[string]uint8{"0": 42, "1": 42, "3": 42},
+			Uint16:       map[string]uint16{"0": 42, "1": 42, "3": 42},
+			Uint32:       map[string]uint32{"0": 42, "1": 42, "3": 42},
+			Uint64:       map[string]uint64{"0": 42, "1": 42, "3": 42},
+			Float32:      map[string]float32{"0": 42.0, "1": 42.0, "3": 42.0},
+			Float64:      map[string]float64{"0": 42, "1": 42, "3": 42},
+			String:       map[string]string{"0": "fourtytwo", "1": "fourtytwo", "3": "fourtytwo"},
+			StringPtr:    map[string]*string{"0": &fourtytwo, "1": &fourtytwo, "3": &fourtytwo},
+			StringPtrPtr: map[string]**string{"0": &fourtytwoPtr, "1": &fourtytwoPtr, "3": &fourtytwoPtr},
+			Map:          map[string]map[string]string{"0": nil, "1": {"a": fourtytwo, "b": fourtytwo}, "3": {}},
+			MapPtr:       map[string]*map[string]string{"0": nil, "1": {"a": fourtytwo, "b": fourtytwo}, "3": &nilMap},
+			Slice:        map[string][]string{"0": nil, "1": {"a", "b"}, "2": {}},
+			SlicePtr:     map[string]*[]string{"0": nil, "1": {"a", "b"}, "2": &nilSlice},
+			Struct:       map[string]maps.Ttest{"0": {}, "1": {Byte: map[string]byte{"0": 42, "1": 42, "3": 42}}},
+			StructPtr:    map[string]*maps.Ttest{"0": nil, "1": {}, "2": {Byte: map[string]byte{"0": 42, "1": 42, "3": 42}}},
 		},
 		slices.Ttest{
-			Byte:      []byte{42, 42, 42},
-			Int16:     []int16{42, 42, 42},
-			Int32:     []int32{42, 42, 42},
-			Int64:     []int64{42, 42, 42},
-			Uint8:     []uint8{42, 42, 42},
-			Uint16:    []uint16{42, 42, 42},
-			Uint32:    []uint32{42, 42, 42},
-			Uint64:    []uint64{42, 42, 42},
-			Float32:   []float32{42.0, 42.0, 42.0},
-			Float64:   []float64{42, 42, 42},
-			String:    []string{"fourtytwo", "fourtytwo", "fourtytwo"},
-			StringPtr: []*string{&fourtytwo, &fourtytwo, &fourtytwo},
+			Byte:         []byte{42, 42, 42},
+			Int16:        []int16{42, 42, 42},
+			Int32:        []int32{42, 42, 42},
+			Int64:        []int64{42, 42, 42},
+			Uint8:        []uint8{42, 42, 42},
+			Uint16:       []uint16{42, 42, 42},
+			Uint32:       []uint32{42, 42, 42},
+			Uint64:       []uint64{42, 42, 42},
+			Float32:      []float32{42.0, 42.0, 42.0},
+			Float64:      []float64{42, 42, 42},
+			String:       []string{"fourtytwo", "fourtytwo", "fourtytwo"},
+			StringPtr:    []*string{&fourtytwo, &fourtytwo, &fourtytwo},
+			StringPtrPtr: []**string{&fourtytwoPtr, &fourtytwoPtr, &fourtytwoPtr},
+			Map:          []map[string]string{nil, {"a": fourtytwo, "b": fourtytwo}, {}},
+			MapPtr:       []*map[string]string{nil, {"a": fourtytwo, "b": fourtytwo}, &nilMap},
+			Slice:        [][]string{nil, {"a", "b"}, {}},
+			SlicePtr:     []*[]string{nil, {"a", "b"}, &nilSlice},
+			Struct:       []slices.Ttest{{}, {Byte: []byte{42, 42, 42}}},
+			StructPtr:    []*slices.Ttest{nil, {}, {Byte: []byte{42, 42, 42}}},
 		},
 		pointer.Ttest{
-			Types: map[string]*pointer.Ttest{},
+			Builtin:  &fourtytwo,
+			Ptr:      &fourtytwoPtr,
+			Map:      &map[string]string{"0": "fourtytwo", "1": "fourtytwo"},
+			Slice:    &[]string{"fourtytwo", "fourtytwo", "fourtytwo"},
+			MapPtr:   &mapPtr,
+			SlicePtr: &slicePtr,
+			Struct: &pointer.Ttest{
+				Builtin: &fourtytwo,
+				Ptr:     &fourtytwoPtr,
+			},
+			StructPtr: &structPtr,
 		},
 	}
 

@@ -51,11 +51,11 @@ func (in AliasInterfaceSlice) DeepCopyInto(out *AliasInterfaceSlice) {
 	{
 		in := &in
 		*out = make(AliasInterfaceSlice, len(*in))
-		for key, val := range *in {
-			if val == nil {
-				(*out)[key] = nil
+		for i := range *in {
+			if (*in)[i] == nil {
+				(*out)[i] = nil
 			} else {
-				(*out)[key] = val.DeepCopyAliasInterface()
+				(*out)[i] = (*in)[i].DeepCopyAliasInterface()
 			}
 		}
 		return
@@ -411,11 +411,11 @@ func (in *Ttest) DeepCopyInto(out *Ttest) {
 	if in.AliasInterfaceSlice != nil {
 		in, out := &in.AliasInterfaceSlice, &out.AliasInterfaceSlice
 		*out = make(AliasInterfaceSlice, len(*in))
-		for key, val := range *in {
-			if val == nil {
-				(*out)[key] = nil
+		for i := range *in {
+			if (*in)[i] == nil {
+				(*out)[i] = nil
 			} else {
-				(*out)[key] = val.DeepCopyAliasInterface()
+				(*out)[i] = (*in)[i].DeepCopyAliasInterface()
 			}
 		}
 	}

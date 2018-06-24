@@ -159,7 +159,11 @@ func assembleGolangFile(w io.Writer, f *File) {
 }
 
 func importsWrapper(src []byte) ([]byte, error) {
-	return imports.Process("", src, nil)
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	return imports.Process(dir, src, nil)
 }
 
 func NewGolangFile() *DefaultFileType {

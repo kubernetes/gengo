@@ -721,7 +721,7 @@ func genComment(out io.Writer, lines []string, indent string) {
 	}
 }
 
-func formatProtoFile(source []byte) ([]byte, error) {
+func formatProtoFile(source []byte, pathname string) ([]byte, error) {
 	// TODO; Is there any protobuf formatter?
 	return source, nil
 }

@@ -59,7 +59,9 @@ func (c *Context) ExecutePackages(outDir string, packages Packages) error {
 }
 
 type DefaultFileType struct {
-	Format   func([]byte) ([]byte, error)
+	// Format fixes the formatting of the given byte slice, assuming the given path name. The file at that path name
+	// is not read in any way. It does not have to even exist.
+	Format   func(in []byte, pathname string) ([]byte, error)
 	Assemble func(io.Writer, *File)
 }
 
@@ -77,7 +79,7 @@ func (ft DefaultFileType) AssembleFile(f *File, pathname string) error {
 	if et.Error() != nil {
 		return et.Error()
 	}
-	if formatted, err := ft.Format(b.Bytes()); err != nil {
+	if formatted, err := ft.Format(b.Bytes(), pathname); err != nil {
 		err = fmt.Errorf("unable to format file %q (%v).", pathname, err)
 		// Write the file anyway, so they can see what's going wrong and fix the generator.
 		if _, err2 := destFile.Write(b.Bytes()); err2 != nil {
@@ -99,7 +101,7 @@ func (ft DefaultFileType) VerifyFile(f *File, pathname string) error {
 	if et.Error() != nil {
 		return et.Error()
 	}
-	formatted, err := ft.Format(b.Bytes())
+	formatted, err := ft.Format(b.Bytes(), pathname)
 	if err != nil {
 		return fmt.Errorf("unable to format the output for %q: %v", friendlyName, err)
 	}
@@ -158,8 +160,8 @@ func assembleGolangFile(w io.Writer, f *File) {
 	w.Write(f.Body.Bytes())
 }
 
-func importsWrapper(src []byte) ([]byte, error) {
-	return imports.Process("", src, nil)
+func importsWrapper(src []byte, pathname string) ([]byte, error) {
+	return imports.Process(pathname, src, nil)
 }
 
 func NewGolangFile() *DefaultFileType {

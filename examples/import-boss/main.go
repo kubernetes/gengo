@@ -21,19 +21,24 @@ limitations under the License.
 // recursively searched.
 //
 // If an ".import-restrictions" file is found, then all imports of the package
-// are checked against each "rule" in the file. A rule consists of three parts:
+// are checked against each "rule" in the file. It is accepted if it passes all
+// rules with a matching selector.
+//
+// A rule consists of three parts:
 // * A SelectorRegexp, to select the import paths that the rule applies to.
 // * A list of AllowedPrefixes
 // * A list of ForbiddenPrefixes
-// An import is allowed if it matches at least one allowed prefix and does not
-// match any forbidden prefix. An example file looks like this:
+// An import passes a rule of a matching selector if it matches at least one
+// allowed prefix, but no forbidden prefix.
+//
+// An example file looks like this:
 //
 // {
 //   "Rules": [
 //     {
 //       "SelectorRegexp": "k8s[.]io",
 //       "AllowedPrefixes": [
-//         "k8s.io/gengo",
+//         "k8s.io/gengo/examples",
 //         "k8s.io/kubernetes/third_party"
 //       ],
 //       "ForbiddenPrefixes": [
@@ -51,7 +56,7 @@ limitations under the License.
 //   ]
 // }
 //
-// Note the secound block explicitly matches the unsafe package, and forbids it
+// Note the second block explicitly matches the unsafe package, and forbids it
 // ("" is a prefix of everything).
 package main
 

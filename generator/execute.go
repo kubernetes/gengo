@@ -236,6 +236,7 @@ func (c *Context) ExecutePackage(outDir string, p Package) error {
 				Name:        g.Filename(),
 				FileType:    fileType,
 				PackageName: p.Name(),
+				PackagePath: p.Path(),
 				Header:      p.Header(g.Filename()),
 				Imports:     map[string]struct{}{},
 			}

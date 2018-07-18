@@ -54,6 +54,7 @@ type File struct {
 	FileType    string
 	PackageName string
 	Header      []byte
+	PackagePath string
 	Imports     map[string]struct{}
 	Vars        bytes.Buffer
 	Consts      bytes.Buffer

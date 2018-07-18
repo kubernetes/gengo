@@ -16,13 +16,15 @@ limitations under the License.
 
 // import-boss enforces import restrictions in a given repository.
 //
-// When a directory is verified, import-boss looks for a file called
-// ".import-restrictions". If this file is not found, parent directories will be
-// recursively searched.
+// When a package is verified, import-boss looks for files called
+// ".import-restrictions" in all directories between the package and
+// the $GOPATH/src.
 //
-// If an ".import-restrictions" file is found, then all imports of the package
-// are checked against each "rule" in the file. It is accepted if it passes all
-// rules with a matching selector.
+// All imports of the package are checked against each "rule" in the
+// found restriction files, climbing up the directory tree until the
+// import matches one of the rules.
+//
+// If the import does not match any of the rules, it is accepted.
 //
 // A rule consists of three parts:
 // * A SelectorRegexp, to select the import paths that the rule applies to.

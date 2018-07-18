@@ -99,6 +99,8 @@ type fileFormat struct {
 	CurrentImports []string
 
 	Rules []Rule
+
+	path string
 }
 
 func readFile(path string) (*fileFormat, error) {
@@ -112,6 +114,7 @@ func readFile(path string) (*fileFormat, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't unmarshal %v: %v", path, err)
 	}
+	current.path = path
 	return &current, nil
 }
 
@@ -169,11 +172,14 @@ func removeLastDir(path string) (newPath, removedDir string) {
 }
 
 // Keep going up a directory until we find an .import-restrictions file.
-func recursiveRead(path string) (*fileFormat, string, error) {
+func recursiveRead(path string, next bool) (*fileFormat, string, error) {
 	for {
-		if _, err := os.Stat(path); err == nil {
-			ff, err := readFile(path)
-			return ff, path, err
+		if !next {
+			if _, err := os.Stat(path); err == nil {
+				ff, err := readFile(path)
+				return ff, path, err
+			}
+			next = false
 		}
 
 		nextPath, removedDir := removeLastDir(path)
@@ -185,48 +191,76 @@ func recursiveRead(path string) (*fileFormat, string, error) {
 	return nil, "", nil
 }
 
-func (importRuleFile) VerifyFile(f *generator.File, path string) error {
-	rules, actualPath, err := recursiveRead(path)
-	if err != nil {
-		return fmt.Errorf("error finding rules file: %v", err)
-	}
-
-	if rules == nil {
-		// No restrictions on this directory.
-		return nil
-	}
-
-	for _, r := range rules.Rules {
-		re, err := regexp.Compile(r.SelectorRegexp)
+func (irf importRuleFile) VerifyFile(f *generator.File, path string) error {
+	restrictionFiles := make([]*fileFormat, 0)
+	isFirst := false
+	for {
+		var rules *fileFormat
+		var err error
+		rules, path, err = recursiveRead(path, isFirst)
 		if err != nil {
-			return fmt.Errorf("regexp `%s` in file %q doesn't compile: %v", r.SelectorRegexp, actualPath, err)
+			return fmt.Errorf("error finding rules file: %v", err)
 		}
-		for v := range f.Imports {
-			glog.V(4).Infof("Checking %v matches %v: %v\n", r.SelectorRegexp, v, re.MatchString(v))
-			if !re.MatchString(v) {
-				continue
-			}
-			for _, forbidden := range r.ForbiddenPrefixes {
-				glog.V(4).Infof("Checking %v against %v\n", v, forbidden)
-				if strings.HasPrefix(v, forbidden) {
-					return fmt.Errorf("import %v has forbidden prefix %v", v, forbidden)
-				}
-			}
-			found := false
-			for _, allowed := range r.AllowedPrefixes {
-				glog.V(4).Infof("Checking %v against %v\n", v, allowed)
-				if strings.HasPrefix(v, allowed) {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return fmt.Errorf("import %v did not match any allowed prefix", v)
+		isFirst = true
+
+		if rules == nil {
+			break
+		}
+
+		restrictionFiles = append(restrictionFiles, rules)
+	}
+
+	if err := irf.verifyRules(restrictionFiles, f, path); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (irf importRuleFile) verifyRules(restrictionFiles []*fileFormat, f *generator.File, path string) error {
+	selectors := make([][]*regexp.Regexp, len(restrictionFiles))
+	for i, restrictionFile := range restrictionFiles {
+		for _, r := range restrictionFile.Rules {
+			re, err := regexp.Compile(r.SelectorRegexp)
+			selectors[i] = append(selectors[i], re)
+			if err != nil {
+				return fmt.Errorf("regexp `%s` in file %q doesn't compile: %v", r.SelectorRegexp, restrictionFile.path, err)
 			}
 		}
 	}
-	if len(rules.Rules) > 0 {
-		glog.V(2).Infof("%v passes rules found in %v\n", path, actualPath)
+
+	for v := range f.Imports {
+		explicitlyAllowed := false
+
+	NextRestrictionFiles:
+		for i, rules := range restrictionFiles {
+			for j, r := range rules.Rules {
+				matching := selectors[i][j].MatchString(v)
+				glog.V(5).Infof("Checking %v matches %v: %v\n", r.SelectorRegexp, v, matching)
+				if !matching {
+					continue
+				}
+				for _, forbidden := range r.ForbiddenPrefixes {
+					glog.V(4).Infof("Checking %v against %v\n", v, forbidden)
+					if strings.HasPrefix(v, forbidden) {
+						return fmt.Errorf("import %v has forbidden prefix %v", v, forbidden)
+					}
+				}
+				for _, allowed := range r.AllowedPrefixes {
+					glog.V(4).Infof("Checking %v against %v\n", v, allowed)
+					if strings.HasPrefix(v, allowed) {
+						explicitlyAllowed = true
+						break
+					}
+				}
+				if !explicitlyAllowed {
+					return fmt.Errorf("import %v did not match any allowed prefix", v)
+				}
+
+				glog.V(2).Infof("%v importing %v allowed by %v\n", f.PackagePath, path, restrictionFiles[i].path)
+				break NextRestrictionFiles
+			}
+		}
 	}
 
 	return nil

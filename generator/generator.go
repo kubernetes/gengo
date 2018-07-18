@@ -157,6 +157,12 @@ type Context struct {
 	// All the types, in case you want to look up something.
 	Universe types.Universe
 
+	// Incoming imports, i.e. packages importing the given package.
+	incomingImports map[string][]string
+
+	// Incoming transitive imports, i.e. the transitive closure of IncomingImports
+	incomingTransitiveImports map[string][]string
+
 	// All the user-specified packages.  This is after recursive expansion.
 	Inputs []string
 
@@ -204,11 +210,36 @@ func NewContext(b *parser.Builder, nameSystems namer.NameSystems, canonicalOrder
 	return c, nil
 }
 
+// IncomingImports returns the incoming imports for each package. The map is lazily computed.
+func (ctxt *Context) IncomingImports() map[string][]string {
+	if ctxt.incomingImports == nil {
+		incoming := map[string][]string{}
+		for _, pkg := range ctxt.Universe {
+			for imp := range pkg.Imports {
+				incoming[imp] = append(incoming[imp], pkg.Path)
+			}
+		}
+		ctxt.incomingImports = incoming
+	}
+	return ctxt.incomingImports
+}
+
+// TransitiveIncomingImports returns the transitive closure of the incoming imports for each package.
+// The map is lazily computed.
+func (ctxt *Context) TransitiveIncomingImports() map[string][]string {
+	if ctxt.incomingTransitiveImports == nil {
+		ctxt.incomingTransitiveImports = transitiveClosure(ctxt.IncomingImports())
+	}
+	return ctxt.incomingTransitiveImports
+}
+
 // AddDir adds a Go package to the context. The specified path must be a single
 // go package import path.  GOPATH, GOROOT, and the location of your go binary
 // (`which go`) will all be searched, in the normal Go fashion.
 // Deprecated. Please use AddDirectory.
 func (ctxt *Context) AddDir(path string) error {
+	ctxt.incomingImports = nil
+	ctxt.incomingTransitiveImports = nil
 	return ctxt.builder.AddDirTo(path, &ctxt.Universe)
 }
 
@@ -216,5 +247,7 @@ func (ctxt *Context) AddDir(path string) error {
 // single go package import path.  GOPATH, GOROOT, and the location of your go
 // binary (`which go`) will all be searched, in the normal Go fashion.
 func (ctxt *Context) AddDirectory(path string) (*types.Package, error) {
+	ctxt.incomingImports = nil
+	ctxt.incomingTransitiveImports = nil
 	return ctxt.builder.AddDirectoryTo(path, &ctxt.Universe)
 }

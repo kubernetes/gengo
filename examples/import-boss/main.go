@@ -26,6 +26,12 @@ limitations under the License.
 //
 // If the import does not match any of the rules, it is accepted.
 //
+// In analogy, all incoming imports of the package are checked against each
+// "inverse rule" in the found restriction files, blimbing up the directory
+// tree until the import matches one of the rules.
+//
+// If the incoming import does not match any of the inverse rules, it is accepted.
+//
 // A rule consists of three parts:
 // * A SelectorRegexp, to select the import paths that the rule applies to.
 // * A list of AllowedPrefixes
@@ -55,11 +61,37 @@ limitations under the License.
 //         ""
 //       ]
 //     }
+//   ],
+//   "InverseRules": [{
+//       "SelectorRegexp": "k8s[.]io",
+//       "AllowedPrefixes": [
+//         "k8s.io/same-repo",
+//         "k8s.io/kubernetes/pkg/legacy"
+//       ],
+//       "ForbiddenPrefixes": [
+//         "k8s.io/kubernetes/pkg/legacy/subpkg"
+//       ]
+//     },
+//     {
+//       "SelectorRegexp": "k8s[.]io",
+//       "Transitive": true,
+//       "AllowedPrefixes": [
+//         "k8s.io/
+//       ],
+//       "ForbiddenPrefixes": [
+//         "k8s.io/kubernetes/cmd/kubelet",
+//         "k8s.io/kubernetes/cmd/kubectl"
+//       ],
 //   ]
 // }
 //
-// Note the second block explicitly matches the unsafe package, and forbids it
+// Note the second rule explicitly matches the unsafe package, and forbids it
 // ("" is a prefix of everything).
+//
+// An import from another package passes an inverse rule with a matching selector if
+// it matches at least one allowed prefix, but no forbidden prefix.
+//
+// Note that the second InverseRule is transitive, the first only applies to direct imports.
 package main
 
 import (

@@ -57,7 +57,7 @@ func DefaultNameSystem() string {
 func Packages(c *generator.Context, arguments *args.GeneratorArgs) generator.Packages {
 	pkgs := generator.Packages{}
 	c.FileTypes = map[string]generator.FileType{
-		importBossFileType: importRuleFile{},
+		importBossFileType: importRuleFile{c},
 	}
 
 	for _, p := range c.Universe {
@@ -95,10 +95,17 @@ type Rule struct {
 	ForbiddenPrefixes []string
 }
 
+type InverseRule struct {
+	Rule
+	// True if the rule is to be applied to transitive imports.
+	Transitive bool
+}
+
 type fileFormat struct {
 	CurrentImports []string
 
-	Rules []Rule
+	Rules        []Rule
+	InverseRules []InverseRule
 
 	path string
 }
@@ -133,10 +140,12 @@ func writeFile(path string, ff *fileFormat) error {
 }
 
 // This does the actual checking, since it knows the literal destination file.
-type importRuleFile struct{}
+type importRuleFile struct {
+	context *generator.Context
+}
 
-func (importRuleFile) AssembleFile(f *generator.File, path string) error {
-	return nil
+func (irf importRuleFile) AssembleFile(f *generator.File, path string) error {
+	return irf.VerifyFile(f, path)
 }
 
 // TODO: make a flag to enable this, or expose this information in some other way.
@@ -214,6 +223,10 @@ func (irf importRuleFile) VerifyFile(f *generator.File, path string) error {
 		return err
 	}
 
+	if err := irf.verifyInverseRules(restrictionFiles, f, path); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -258,6 +271,65 @@ func (irf importRuleFile) verifyRules(restrictionFiles []*fileFormat, f *generat
 				}
 
 				glog.V(2).Infof("%v importing %v allowed by %v\n", f.PackagePath, path, restrictionFiles[i].path)
+				break NextRestrictionFiles
+			}
+		}
+	}
+
+	return nil
+}
+
+func (irf importRuleFile) verifyInverseRules(restrictionFiles []*fileFormat, f *generator.File, path string) error {
+	selectors := make([][]*regexp.Regexp, len(restrictionFiles))
+	for i, restrictionFile := range restrictionFiles {
+		for _, r := range restrictionFile.InverseRules {
+			re, err := regexp.Compile(r.SelectorRegexp)
+			selectors[i] = append(selectors[i], re)
+			if err != nil {
+				return fmt.Errorf("regexp `%s` in file %q doesn't compile: %v", r.SelectorRegexp, restrictionFile.path, err)
+			}
+		}
+	}
+
+	directImport := map[string]bool{}
+	for _, imp := range irf.context.IncomingImports()[f.PackagePath] {
+		directImport[imp] = true
+	}
+
+	for _, v := range irf.context.TransitiveIncomingImports()[f.PackagePath] {
+		explicitlyAllowed := false
+
+	NextRestrictionFiles:
+		for i, rules := range restrictionFiles {
+			for j, r := range rules.InverseRules {
+				if !r.Transitive && !directImport[v] {
+					continue
+				}
+
+				re := selectors[i][j]
+				matching := re.MatchString(v)
+				glog.V(4).Infof("Checking %v matches %v (importing %v: %v\n", r.SelectorRegexp, v, f.PackagePath, matching)
+				if !matching {
+					continue
+				}
+				for _, forbidden := range r.ForbiddenPrefixes {
+					glog.V(4).Infof("Checking %v against %v\n", v, forbidden)
+					if strings.HasPrefix(v, forbidden) {
+						return fmt.Errorf("%v importing %v is forbidden by %v", v, f.PackagePath, restrictionFiles[i].path)
+					}
+				}
+				for _, allowed := range r.AllowedPrefixes {
+					glog.V(4).Infof("Checking %v against %v\n", v, allowed)
+					if strings.HasPrefix(v, allowed) {
+						explicitlyAllowed = true
+						break
+					}
+				}
+				if !explicitlyAllowed {
+					return fmt.Errorf("%v importing %v is not allowed by %v", v, f.PackagePath, restrictionFiles[i].path)
+				}
+
+				glog.V(2).Infof("%v importing %v allowed by %v\n", v, f.PackagePath, restrictionFiles[i].path)
 				break NextRestrictionFiles
 			}
 		}

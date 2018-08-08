@@ -55,7 +55,8 @@ type enabledTagValue struct {
 }
 
 func extractEnabledTypeTag(t *types.Type) *enabledTagValue {
-	return extractEnabledTag(t.CommentLines)
+	comments := append(append([]string{}, t.SecondClosestCommentLines...), t.CommentLines...)
+	return extractEnabledTag(comments)
 }
 
 func extractEnabledTag(comments []string) *enabledTagValue {

@@ -116,7 +116,10 @@ func assignGoTypeToProtoPackage(p *protobufPackage, t *types.Type, local, global
 		}
 		return
 	}
-	global[t.Name] = p
+	if len(t.Name.Package) > 0 {
+		// remember named types only with a package
+		global[t.Name] = p
+	}
 	if _, ok := local[t.Name]; ok {
 		return
 	}

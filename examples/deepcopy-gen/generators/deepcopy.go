@@ -326,7 +326,7 @@ func deepCopyMethod(t *types.Type) (*types.Signature, error) {
 	return f.Signature, nil
 }
 
-// deepCopyMethodOrDie returns the signatrue of a DeepCopy method, nil or calls klog.Fatalf
+// deepCopyMethodOrDie returns the signature of a DeepCopy method, nil or calls klog.Fatalf
 // if the type does not match.
 func deepCopyMethodOrDie(t *types.Type) *types.Signature {
 	ret, err := deepCopyMethod(t)

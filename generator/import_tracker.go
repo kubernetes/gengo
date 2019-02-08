@@ -58,7 +58,8 @@ func golangTrackerLocalName(tracker namer.ImportTracker, t types.Name) string {
 			// This name collides with some other package
 			continue
 		}
-		return name
+		// This name can be a reserved identifier or a keyword
+		return "_" + name
 	}
 	panic("can't find import for " + path)
 }

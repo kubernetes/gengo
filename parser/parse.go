@@ -85,11 +85,11 @@ type fileLine struct {
 func New() *Builder {
 	c := build.Default
 	if c.GOROOT == "" {
-		if p, err := exec.Command("which", "go").CombinedOutput(); err == nil {
-			// The returned string will have some/path/bin/go, so remove the last two elements.
-			c.GOROOT = filepath.Dir(filepath.Dir(strings.Trim(string(p), "\n")))
+		if p, err := exec.Command("go", "env", "GOROOT").CombinedOutput(); err == nil {
+			// Strip all leading/trailing whitespace.
+			c.GOROOT = strings.TrimSpace(string(p))
 		} else {
-			klog.Warningf("Warning: $GOROOT not set, and unable to run `which go` to find it: %v\n", err)
+			klog.Warningf("Warning: Unable to determine $GOROOT: %v\n", err)
 		}
 	}
 	// Force this to off, since we don't properly parse CGo.  All symbols must

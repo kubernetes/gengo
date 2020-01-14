@@ -33,6 +33,7 @@ import (
 	"k8s.io/gengo/generator"
 	"k8s.io/gengo/namer"
 	"k8s.io/gengo/types"
+	"sigs.k8s.io/yaml"
 
 	"k8s.io/klog"
 )
@@ -120,7 +121,7 @@ func readFile(path string) (*fileFormat, error) {
 	}
 
 	var current fileFormat
-	err = json.Unmarshal(currentBytes, &current)
+	err = yaml.Unmarshal(currentBytes, &current)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't unmarshal %v: %v", path, err)
 	}

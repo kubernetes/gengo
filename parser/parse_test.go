@@ -364,6 +364,19 @@ func TestParseMethodCommentLines(t *testing.T) {
                     `},
 			expected: []string{"BlahFunc's CommentLines.", "Another line."},
 		},
+		{
+			testFile: file{
+				path: fileName, contents: `
+				    package foo
+
+                    type Blah interface {
+	                    // BlahFunc's CommentLines.
+	                    // Another line.
+	                    BlahFunc()
+                    }
+                    `},
+			expected: []string{"BlahFunc's CommentLines.", "Another line."},
+		},
 	}
 	for _, test := range testCases {
 		_, u, o := construct(t, []file{test.testFile}, namer.NewPublicNamer(0))
@@ -371,7 +384,7 @@ func TestParseMethodCommentLines(t *testing.T) {
 		blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "Blah"})
 		blahM := blahT.Methods["BlahFunc"]
 		if e, a := test.expected, blahM.CommentLines; !reflect.DeepEqual(e, a) {
-			t.Errorf("struct method comment wrong, wanted %q, got %q", e, a)
+			t.Errorf("method comment wrong, wanted %q, got %q", e, a)
 		}
 	}
 }

@@ -36,6 +36,13 @@ func TestImportBuildPackage(t *testing.T) {
 	}
 }
 
+func TestIsErrPackageNotFound(t *testing.T) {
+	b := New()
+	if _, err := b.importBuildPackage("fake/empty"); !isErrPackageNotFound(err) {
+		t.Fatal(err)
+	}
+}
+
 func TestCanonicalizeImportPath(t *testing.T) {
 	tcs := []struct {
 		name   string

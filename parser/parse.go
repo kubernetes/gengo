@@ -649,7 +649,11 @@ func tcNameToName(in string) types.Name {
 func (b *Builder) convertSignature(u types.Universe, t *tc.Signature) *types.Signature {
 	signature := &types.Signature{}
 	for i := 0; i < t.Params().Len(); i++ {
-		signature.Parameters = append(signature.Parameters, b.walkType(u, nil, t.Params().At(i).Type()))
+		param := t.Params().At(i)
+		paramTyp := b.walkType(u, nil, param.Type())
+
+		signature.Parameters = append(signature.Parameters, paramTyp)
+		signature.ParametersWithName = append(signature.ParametersWithName, types.Parameter{Name: param.Name(), Type: paramTyp})
 	}
 	for i := 0; i < t.Results().Len(); i++ {
 		signature.Results = append(signature.Results, b.walkType(u, nil, t.Results().At(i).Type()))

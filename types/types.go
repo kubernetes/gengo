@@ -412,12 +412,11 @@ func (m Member) String() string {
 
 // Signature is a function's signature.
 type Signature struct {
-	// TODO: store the parameter names, not just types.
-
 	// If a method of some type, this is the type it's a member of.
-	Receiver   *Type
-	Parameters []*Type
-	Results    []*Type
+	Receiver           *Type
+	Parameters         []*Type
+	ParametersWithName []Parameter
+	Results            []*Type
 
 	// True if the last in parameter is of the form ...T.
 	Variadic bool
@@ -425,6 +424,16 @@ type Signature struct {
 	// If there are comment lines immediately before this
 	// signature/method/function declaration, they will be recorded here.
 	CommentLines []string
+}
+
+// Parameter is parameter of a function.
+type Parameter struct {
+	// The name of the parameter.
+	// It can be empty with parameter of function's signature in a interface.
+	Name string
+
+	// The type of this parameter.
+	Type *Type
 }
 
 // Built in types.

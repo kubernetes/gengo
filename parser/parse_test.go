@@ -554,3 +554,48 @@ func TestTypeKindParse(t *testing.T) {
 		}
 	}
 }
+
+func TestParseParamtersName(t *testing.T) {
+	const fileName = "base/foo/proto/foo.go"
+	testCases := []struct {
+		testFile file
+		expected []types.Parameter
+	}{
+		{
+			testFile: file{
+				path: fileName, contents: `
+				    package foo
+
+                    type Blah struct {
+                    }
+
+                    // BlahFunc's CommentLines.
+                    // Another line.
+                    func (b *Blah) BlahFunc(param string) {}
+                    `},
+			expected: []types.Parameter{{Name: "param", Type: types.String}},
+		},
+		{
+			testFile: file{
+				path: fileName, contents: `
+				    package foo
+
+                    type Blah interface {
+	                    // BlahFunc's CommentLines.
+	                    // Another line.
+	                    BlahFunc(string)
+                    }
+                    `},
+			expected: []types.Parameter{{Name: "", Type: types.String}},
+		},
+	}
+	for _, test := range testCases {
+		_, u, o := construct(t, []file{test.testFile}, namer.NewPublicNamer(0))
+		t.Logf("%#v", o)
+		blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "Blah"})
+		blahM := blahT.Methods["BlahFunc"]
+		if e, a := test.expected, blahM.Signature.ParametersWithName; !reflect.DeepEqual(e, a) {
+			t.Errorf("method parameters wrong, wanted %v, got %v", e, a)
+		}
+	}
+}

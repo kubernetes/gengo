@@ -559,7 +559,7 @@ func TestParseParamtersName(t *testing.T) {
 	const fileName = "base/foo/proto/foo.go"
 	testCases := []struct {
 		testFile file
-		expected []types.Parameter
+		expected []string
 	}{
 		{
 			testFile: file{
@@ -573,7 +573,7 @@ func TestParseParamtersName(t *testing.T) {
                     // Another line.
                     func (b *Blah) BlahFunc(param string) {}
                     `},
-			expected: []types.Parameter{{Name: "param", Type: types.String}},
+			expected: []string{"param"},
 		},
 		{
 			testFile: file{
@@ -586,7 +586,7 @@ func TestParseParamtersName(t *testing.T) {
 	                    BlahFunc(string)
                     }
                     `},
-			expected: []types.Parameter{{Name: "", Type: types.String}},
+			expected: []string{""},
 		},
 	}
 	for _, test := range testCases {
@@ -594,7 +594,7 @@ func TestParseParamtersName(t *testing.T) {
 		t.Logf("%#v", o)
 		blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "Blah"})
 		blahM := blahT.Methods["BlahFunc"]
-		if e, a := test.expected, blahM.Signature.ParametersWithName; !reflect.DeepEqual(e, a) {
+		if e, a := test.expected, blahM.Signature.ParameterNames; !reflect.DeepEqual(e, a) {
 			t.Errorf("method parameters wrong, wanted %v, got %v", e, a)
 		}
 	}

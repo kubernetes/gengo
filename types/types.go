@@ -445,6 +445,10 @@ var (
 		Name: Name{Name: "int16"},
 		Kind: Builtin,
 	}
+	Int8 = &Type{
+		Name: Name{Name: "int8"},
+		Kind: Builtin,
+	}
 	Int = &Type{
 		Name: Name{Name: "int"},
 		Kind: Builtin,
@@ -459,6 +463,10 @@ var (
 	}
 	Uint16 = &Type{
 		Name: Name{Name: "uint16"},
+		Kind: Builtin,
+	}
+	Uint8 = &Type{
+		Name: Name{Name: "uint8"},
 		Kind: Builtin,
 	}
 	Uint = &Type{
@@ -498,12 +506,12 @@ var (
 			"int64":   Int64,
 			"int32":   Int32,
 			"int16":   Int16,
-			"int8":    Byte,
+			"int8":    Int8,
 			"uint":    Uint,
 			"uint64":  Uint64,
 			"uint32":  Uint32,
 			"uint16":  Uint16,
-			"uint8":   Byte,
+			"uint8":   Uint8,
 			"uintptr": Uintptr,
 			"byte":    Byte,
 			"float":   Float,

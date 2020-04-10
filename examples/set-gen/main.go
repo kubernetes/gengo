@@ -30,7 +30,7 @@ import (
 	"k8s.io/gengo/args"
 	"k8s.io/gengo/examples/set-gen/generators"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 func main() {

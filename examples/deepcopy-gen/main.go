@@ -61,7 +61,7 @@ import (
 	"k8s.io/gengo/examples/deepcopy-gen/generators"
 
 	"github.com/spf13/pflag"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 func main() {

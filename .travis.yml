@@ -1,6 +1,7 @@
 language: go
 go:
-  - "1.10"
+  - "1.13"
+  - "1.14"
   - tip
 
 go_import_path: k8s.io/gengo

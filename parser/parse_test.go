@@ -387,6 +387,54 @@ func TestParseMethodCommentLines(t *testing.T) {
 			t.Errorf("method comment wrong, wanted %q, got %q", e, a)
 		}
 	}
+
+	signatureTestCases := []struct {
+		testFile file
+		expected []string
+	}{
+		{
+			testFile: file{
+				path: fileName, contents: `
+				    package foo
+
+                    type Blah struct {
+	                    a int
+                    }
+
+                    // Method1 CommentLines.
+                    func (b *Blah) Method1(sameArg int) {}
+
+					// Method2 CommentLines.
+                    func (b *Blah) Method2(sameArg int) {}
+                    `},
+		},
+		{
+			testFile: file{
+				path: fileName, contents: `
+				    package foo
+
+                    type Blah interface {
+						// Method1 CommentLines.
+						Method1(sameArg int) error
+
+						// Method2 CommentLines.
+						Method2(sameArg int) error
+                    }
+                    `},
+		},
+	}
+	for _, test := range signatureTestCases {
+		_, u, o := construct(t, []file{test.testFile}, namer.NewPublicNamer(0))
+		t.Logf("%#v", o)
+		blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "Blah"})
+		blahM1 := blahT.Methods["Method1"]
+		blahM2 := blahT.Methods["Method2"]
+		c1 := blahM1.CommentLines
+		c2 := blahM2.CommentLines
+		if reflect.DeepEqual(c1, c2) {
+			t.Errorf("same signature method comment got equal, %v == %v", c1, c2)
+		}
+	}
 }
 
 func TestTypeKindParse(t *testing.T) {

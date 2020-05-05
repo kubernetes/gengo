@@ -39,7 +39,7 @@ func TestImportBuildPackage(t *testing.T) {
 func TestIsErrPackageNotFound(t *testing.T) {
 	b := New()
 	if _, err := b.importBuildPackage("fake/empty"); !isErrPackageNotFound(err) {
-		t.Fatal(err)
+		t.Errorf("expected error like %s, but got %v", regexErrPackageNotFound.String(), err)
 	}
 }
 

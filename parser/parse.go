@@ -335,7 +335,7 @@ func (b *Builder) addDir(dir string, userRequested bool) error {
 	return nil
 }
 
-var regexErrPackageNotFound = regexp.MustCompile(`^unable to import ".*?": cannot find package ".*?" in any of:`)
+var regexErrPackageNotFound = regexp.MustCompile(`^unable to import ".*?": .*? does not contain package .*?`)
 
 func isErrPackageNotFound(err error) bool {
 	return regexErrPackageNotFound.MatchString(err.Error())

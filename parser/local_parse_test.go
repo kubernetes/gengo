@@ -17,10 +17,22 @@ limitations under the License.
 package parser
 
 import (
+	"os"
 	"testing"
 )
 
 func TestImportBuildPackage(t *testing.T) {
+	// get our original dir to restore
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		os.Chdir(dir)
+	}()
+	// switch into the fake dependent module which knows where the fake module is
+	os.Chdir("../testdata/dependent")
+
 	b := New()
 	if _, err := b.importBuildPackage("fake/dep"); err != nil {
 		t.Fatal(err)

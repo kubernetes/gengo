@@ -628,7 +628,7 @@ func tcNameToName(in string) types.Name {
 		strings.HasPrefix(in, "<-chan") ||
 		strings.HasPrefix(in, "chan<-") ||
 		strings.HasPrefix(in, "chan ") ||
-		strings.HasPrefix(in, "func(") ||
+		strings.HasPrefix(in, "func (") ||
 		strings.HasPrefix(in, "*") ||
 		strings.HasPrefix(in, "map[") ||
 		strings.HasPrefix(in, "[") {

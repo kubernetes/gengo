@@ -40,14 +40,14 @@ type CustomArgs struct {
 
 // These are the comment tags that carry parameters for defaulter generation.
 const tagName = "k8s:defaulter-gen"
-const intputTagName = "k8s:defaulter-gen-input"
+const inputTagName = "k8s:defaulter-gen-input"
 
 func extractTag(comments []string) []string {
 	return types.ExtractCommentTags("+", comments)[tagName]
 }
 
 func extractInputTag(comments []string) []string {
-	return types.ExtractCommentTags("+", comments)[intputTagName]
+	return types.ExtractCommentTags("+", comments)[inputTagName]
 }
 
 func checkTag(comments []string, require ...string) bool {

@@ -1,0 +1,39 @@
+name: repo-checks
+on:
+  push:
+    branches: [master]
+  pull_request:
+jobs:
+  main:
+    name: go-lang
+    runs-on: [ self-hosted, zendesk-stable ]
+    env:
+      GOPATH: ${{ github.workspace }}/gopath
+      GOPRIVATE: github.com/zendesk/*
+    strategy:
+      matrix:
+        version:
+        - 1.10
+        - tip
+        include:
+          - stage: Run tests
+            run: |
+              find . -name vendor -prune -o -name Makefile -print | xargs -I% sh -c 'make -C $(dirname %) test'
+              go test -v ./...
+          - stage: Verify examples
+            run: |
+              go run ./examples/import-boss/main.go -i $(go list k8s.io/gengo/... | grep -v import-boss/tests | paste -sd',' -) --verify-only
+    steps:
+      - uses: zendesk/checkout@v2
+        with:
+          path: ${{ github.workspace }}/gopath/src/github.com/zendesk/${{ github.repository }}
+      - uses: zendesk/setup-go@v2
+        with:
+          go-version: ${{matrix.version}}
+      - name: ${{matrix.stage}} go ${{matrix.version}}
+        run: |
+          unset GOPROXY
+          git config --global url."https://${{ secrets.ORG_GITHUB_TOKEN }}:x-oauth-basic@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global url."https://${{ secrets.ORG_GITHUB_TOKEN }}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+          cd $GOPATH/src/github.com/zendesk/${GITHUB_REPOSITORY}
+          ${{matrix.run}}

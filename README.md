@@ -1,9 +1,8 @@
 # gengo
 
-[![Travis Widget]][Travis] [![GoDoc Widget]][GoDoc]  [![GoReport]][GoReportStatus]
+![repo-checks](https://github.com/zendesk/gengo/workflows/repo-checks/badge.svg)
+[![GoDoc Widget]][GoDoc]  [![GoReport]][GoReportStatus]
 
-[Travis]: https://travis-ci.org/kubernetes/gengo
-[Travis Widget]: https://travis-ci.org/kubernetes/gengo.svg?branch=master
 [GoDoc]: https://godoc.org/k8s.io/gengo
 [GoDoc Widget]: https://godoc.org/k8s.io/gengo?status.svg
 [GoReport]: https://goreportcard.com/badge/github.com/kubernetes/gengo

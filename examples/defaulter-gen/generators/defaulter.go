@@ -41,6 +41,7 @@ type CustomArgs struct {
 // These are the comment tags that carry parameters for defaulter generation.
 const tagName = "k8s:defaulter-gen"
 const inputTagName = "k8s:defaulter-gen-input"
+const externalTypesTagName = "k8s:defaulter-gen-external-types"
 
 func extractTag(comments []string) []string {
 	return types.ExtractCommentTags("+", comments)[tagName]
@@ -48,6 +49,10 @@ func extractTag(comments []string) []string {
 
 func extractInputTag(comments []string) []string {
 	return types.ExtractCommentTags("+", comments)[inputTagName]
+}
+
+func extractExternalTypesTag(comments []string) []string {
+	return types.ExtractCommentTags("+", comments)[externalTypesTagName]
 }
 
 func checkTag(comments []string, require ...string) bool {
@@ -290,6 +295,24 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 			typesPkg, err = context.AddDirectory(filepath.Join(pkg.Path, inputTags[0]))
 			if err != nil {
 				klog.Fatalf("cannot import package %s", inputTags[0])
+			}
+			// update context.Order to the latest context.Universe
+			orderer := namer.Orderer{Namer: namer.NewPublicNamer(1)}
+			context.Order = orderer.OrderUniverse(context.Universe)
+		}
+
+		// if the external types are not in the same package where the defaulter functions to be generated
+		externalTypesValues := extractExternalTypesTag(pkg.Comments)
+		if externalTypesValues != nil {
+			if len(externalTypesValues) != 1 {
+				klog.Fatalf("  expect only one value for %q tag, got: %q", externalTypesTagName, externalTypesValues)
+			}
+			externalTypes := externalTypesValues[0]
+			klog.V(5).Infof("  external types tags: %q", externalTypes)
+			var err error
+			typesPkg, err = context.AddDirectory(externalTypes)
+			if err != nil {
+				klog.Fatalf("cannot import package %s", externalTypes)
 			}
 			// update context.Order to the latest context.Universe
 			orderer := namer.Orderer{Namer: namer.NewPublicNamer(1)}

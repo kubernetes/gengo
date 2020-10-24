@@ -38,7 +38,7 @@ import (
 //   +foo=value2
 //   +baz="qux"
 // Then this function will return:
-//   map[string][]string{"foo":{"value1, "value2"}, "bar": {""}, "baz": {"qux"}}
+//   map[string][]string{"foo":{"value1", "value2"}, "bar": {""}, "baz": {"qux"}}
 func ExtractCommentTags(marker string, lines []string) map[string][]string {
 	out := map[string][]string{}
 	for _, line := range lines {

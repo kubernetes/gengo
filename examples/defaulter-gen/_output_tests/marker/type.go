@@ -36,7 +36,7 @@ type Defaulted struct {
 
 	// +default=["foo", "bar"]
 	List []Item
-	// +default={"s": "moo", "i": 5}
+	// +default={"s": "foo", "i": 5}
 	Sub *SubStruct
 
 	// Default is forced to empty struct
@@ -46,7 +46,7 @@ type Defaulted struct {
 	Map map[string]Item
 }
 
-// +default="foo"
+// +default="apple"
 type Item *string
 
 type SubStruct struct {

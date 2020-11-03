@@ -18,6 +18,7 @@ package generators
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -38,9 +39,38 @@ type CustomArgs struct {
 	ExtraPeerDirs []string // Always consider these as last-ditch possibilities for conversions.
 }
 
+var typeZeroValue = map[string]interface{}{
+	"uint":        0.,
+	"uint8":       0.,
+	"uint16":      0.,
+	"uint32":      0.,
+	"uint64":      0.,
+	"int":         0.,
+	"int8":        0.,
+	"int16":       0.,
+	"int32":       0.,
+	"int64":       0.,
+	"byte":        0,
+	"float64":     0.,
+	"float32":     0.,
+	"bool":        false,
+	"time.Time":   "",
+	"string":      "",
+	"integer":     0.,
+	"number":      0.,
+	"boolean":     false,
+	"[]byte":      "", // base64 encoded charactes
+	"interface{}": interface{}(nil),
+}
+
 // These are the comment tags that carry parameters for defaulter generation.
 const tagName = "k8s:defaulter-gen"
 const inputTagName = "k8s:defaulter-gen-input"
+const defaultTagName = "default"
+
+func extractDefaultTag(comments []string) []string {
+	return types.ExtractCommentTags("+", comments)[defaultTagName]
+}
 
 func extractTag(comments []string) []string {
 	return types.ExtractCommentTags("+", comments)[tagName]
@@ -270,6 +300,11 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 			// usually those with TypeMeta).
 			if t.Kind == types.Struct && len(typesWith) > 0 {
 				for _, field := range t.Members {
+					defaultTags := extractDefaultTag(field.CommentLines)
+					if len(defaultTags) > 0 {
+						return true
+					}
+
 					for _, s := range typesWith {
 						if field.Name == s {
 							return true
@@ -401,6 +436,76 @@ func newCallTreeForType(existingDefaulters, newDefaulters defaulterFuncMap) *cal
 	}
 }
 
+func resolveAliasType(t *types.Type) *types.Type {
+	var prev *types.Type
+	for prev != t {
+		prev = t
+		if t.Kind == types.Alias {
+			t = t.Underlying
+		}
+	}
+	return t
+}
+
+func mustEnforceDefault(t *types.Type, omitEmpty bool) (interface{}, error) {
+	switch t.Kind {
+	case types.Pointer, types.Map, types.Slice, types.Array, types.Interface:
+		return nil, nil
+	case types.Struct:
+		return map[string]interface{}{}, nil
+	case types.Builtin:
+		if !omitEmpty {
+			if zero, ok := typeZeroValue[t.String()]; ok {
+				return zero, nil
+			} else {
+				return nil, fmt.Errorf("please add type %v to typeZeroValue struct", t)
+			}
+
+		}
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("not sure how to enforce default for %v", t.Kind)
+	}
+}
+
+func populateDefaultValue(node *callNode, t *types.Type, tags string, commentLines []string) *callNode {
+	t = resolveAliasType(t)
+	defaultMap := extractDefaultTag(commentLines)
+	if len(defaultMap) > 1 {
+		klog.Fatalf("Found more than one default tag for %v", t.Kind)
+	} else if len(defaultMap) == 0 {
+		return node
+	}
+	var defaultValue interface{}
+	if err := json.Unmarshal([]byte(defaultMap[0]), &defaultValue); err != nil {
+		klog.Fatalf("Failed to unmarshal default: %v", err)
+	}
+
+	omitEmpty := strings.Contains(reflect.StructTag(tags).Get("json"), "omitempty")
+	if enforced, err := mustEnforceDefault(t, omitEmpty); err != nil {
+		klog.Fatal(err)
+	} else if enforced != nil {
+		if defaultValue != nil {
+			if reflect.DeepEqual(defaultValue, enforced) {
+				// If the default value annotation matches the default value for the type,
+				// do not generate any defaulting function
+				return node
+			} else {
+				enforcedJSON, _ := json.Marshal(enforced)
+				klog.Fatalf("Invalid default value (%#v) for non-pointer/non-omitempty. If specified, must be: %v", defaultValue, string(enforcedJSON))
+			}
+		}
+	}
+
+	// callNodes are not automatically generated for primitive types. Generate one if the callNode does not exist
+	if node == nil {
+		node = &callNode{}
+	}
+
+	node.defaultValue = defaultMap[0]
+	return node
+}
+
 // build creates a tree of paths to fields (based on how they would be accessed in Go - pointer, elem,
 // slice, or key) and the functions that should be invoked on each field. An in-order traversal of the resulting tree
 // can be used to generate a Go function that invokes each nested function on the appropriate type. The return
@@ -473,12 +578,22 @@ func (c *callTreeForType) build(t *types.Type, root bool) *callNode {
 				child.elem = true
 			}
 			parent.children = append(parent.children, *child)
+		} else if member := populateDefaultValue(nil, t.Elem, "", t.Elem.CommentLines); member != nil {
+			member.index = true
+			member.markerOnly = true
+			parent.children = append(parent.children, *member)
 		}
+
 	case types.Map:
 		if child := c.build(t.Elem, false); child != nil {
 			child.key = true
 			parent.children = append(parent.children, *child)
+		} else if member := populateDefaultValue(nil, t.Elem, "", t.Elem.CommentLines); member != nil {
+			member.key = true
+			member.markerOnly = true
+			parent.children = append(parent.children, *member)
 		}
+
 	case types.Struct:
 		for _, field := range t.Members {
 			name := field.Name
@@ -491,7 +606,14 @@ func (c *callTreeForType) build(t *types.Type, root bool) *callNode {
 			}
 			if child := c.build(field.Type, false); child != nil {
 				child.field = name
+				populateDefaultValue(child, field.Type, field.Tags, field.CommentLines)
 				parent.children = append(parent.children, *child)
+			} else {
+				if member := populateDefaultValue(nil, field.Type, field.Tags, field.CommentLines); member != nil {
+					member.field = name
+					member.markerOnly = true
+					parent.children = append(parent.children, *member)
+				}
 			}
 		}
 	case types.Alias:
@@ -676,6 +798,13 @@ type callNode struct {
 	call []*types.Type
 	// children is the child call nodes that must also be traversed
 	children []callNode
+
+	// defaultValue is the defaultValue of a callNode struct
+	// Only primitive types and pointer types are eligible to have a default value
+	defaultValue string
+
+	// markerOnly is true if the callNode exists solely to fill in a default value
+	markerOnly bool
 }
 
 // CallNodeVisitorFunc is a function for visiting a call tree. ancestors is the list of all parents
@@ -731,6 +860,57 @@ func (n *callNode) writeCalls(varName string, isVarPointer bool, sw *generator.S
 	}
 }
 
+func (n *callNode) writeDefaulter(varName string, index string, isVarPointer bool, sw *generator.SnippetWriter) {
+	if n.defaultValue == "" {
+		return
+	}
+	varPointer := varName
+	if !isVarPointer {
+		varPointer = "&" + varPointer
+	}
+	if n.index {
+		sw.Do("if reflect.ValueOf($.var$[$.index$]).IsZero() {\n", generator.Args{"var": varName, "index": index})
+		sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$[$.index$]); err != nil {\n", generator.Args{
+			"defaultValue": n.defaultValue,
+			"varPointer":   varPointer,
+			"index":        index,
+		})
+		sw.Do("panic(err)\n", nil)
+		sw.Do("}\n", nil)
+	} else if n.key {
+		mapDefaultVar := index + "_default"
+		sw.Do("if reflect.ValueOf($.var$[$.index$]).IsZero() {\n", generator.Args{"var": varName, "index": index})
+		sw.Do("$.mapDefaultVar$ := $.varName$[$.index$]\n", generator.Args{
+			"varName":       varName,
+			"index":         index,
+			"mapDefaultVar": mapDefaultVar,
+		})
+		sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), &$.mapDefaultVar$); err != nil {\n", generator.Args{
+			"defaultValue":  n.defaultValue,
+			"mapDefaultVar": mapDefaultVar,
+		})
+		sw.Do("panic(err)\n", nil)
+		sw.Do("}\n", nil)
+		sw.Do("$.varName$[$.index$] = $.mapDefaultVar$\n", generator.Args{
+			"varName":       varName,
+			"index":         index,
+			"mapDefaultVar": mapDefaultVar,
+		})
+
+	} else {
+		sw.Do("if reflect.ValueOf($.var$).IsZero() {\n", generator.Args{"var": varName})
+		sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$); err != nil {\n", generator.Args{
+			"defaultValue": n.defaultValue,
+			"varPointer":   varPointer,
+		})
+		sw.Do("panic(err)\n", nil)
+		sw.Do("}\n", nil)
+
+	}
+	sw.Do("}\n", nil)
+
+}
+
 // WriteMethod performs an in-order traversal of the calltree, generating loops and if blocks as necessary
 // to correctly turn the call tree into a method body that invokes all calls on all child nodes of the call tree.
 // Depth is used to generate local variables at the proper depth.
@@ -758,19 +938,31 @@ func (n *callNode) WriteMethod(varName string, depth int, ancestors []*callNode,
 	switch {
 	case n.index:
 		sw.Do("for $.index$ := range $.var$ {\n", vars)
-		if n.elem {
-			sw.Do("$.local$ := $.var$[$.index$]\n", vars)
-		} else {
-			sw.Do("$.local$ := &$.var$[$.index$]\n", vars)
+		if !n.markerOnly {
+			if n.elem {
+				sw.Do("$.local$ := $.var$[$.index$]\n", vars)
+			} else {
+				sw.Do("$.local$ := &$.var$[$.index$]\n", vars)
+			}
 		}
 
+		n.writeDefaulter(varName, index, isPointer, sw)
 		n.writeCalls(local, true, sw)
 		for i := range n.children {
 			n.children[i].WriteMethod(local, depth+1, append(ancestors, n), sw)
 		}
 		sw.Do("}\n", nil)
 	case n.key:
+		if n.defaultValue != "" {
+			// Map keys are typed and cannot share the same index variable as arrays and other maps
+			index = index + "_" + ancestors[len(ancestors)-1].field
+			vars["index"] = index
+			sw.Do("for $.index$ := range $.var$ {\n", vars)
+			n.writeDefaulter(varName, index, isPointer, sw)
+			sw.Do("}\n", nil)
+		}
 	default:
+		n.writeDefaulter(varName, index, isPointer, sw)
 		n.writeCalls(varName, isPointer, sw)
 		for i := range n.children {
 			n.children[i].WriteMethod(varName, depth, append(ancestors, n), sw)

@@ -54,3 +54,10 @@ type SubStruct struct {
 	// +default=1
 	I int `json:"I,omitempty"`
 }
+
+type DefaultedWithFunction struct {
+	// +default="default_marker"
+	S1 string `json:"S1,omitempty"`
+	// +default="default_marker"
+	S2 string `json:"S2,omitempty"`
+}

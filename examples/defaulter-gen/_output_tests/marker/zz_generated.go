@@ -32,6 +32,7 @@ import (
 // All generated defaulters are covering - they call all nested defaulters.
 func RegisterDefaults(scheme *runtime.Scheme) error {
 	scheme.AddTypeDefaultingFunc(&Defaulted{}, func(obj interface{}) { SetObjectDefaults_Defaulted(obj.(*Defaulted)) })
+	scheme.AddTypeDefaultingFunc(&DefaultedWithFunction{}, func(obj interface{}) { SetObjectDefaults_DefaultedWithFunction(obj.(*DefaultedWithFunction)) })
 	scheme.AddTypeDefaultingFunc(&SubStruct{}, func(obj interface{}) { SetObjectDefaults_SubStruct(obj.(*SubStruct)) })
 	return nil
 }
@@ -80,6 +81,20 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 				panic(err)
 			}
 			in.Map[i_Map] = i_Map_default
+		}
+	}
+}
+
+func SetObjectDefaults_DefaultedWithFunction(in *DefaultedWithFunction) {
+	SetDefaults_DefaultedWithFunction(in)
+	if reflect.ValueOf(in.S1).IsZero() {
+		if err := json.Unmarshal([]byte(`"default_marker"`), &in.S1); err != nil {
+			panic(err)
+		}
+	}
+	if reflect.ValueOf(in.S2).IsZero() {
+		if err := json.Unmarshal([]byte(`"default_marker"`), &in.S2); err != nil {
+			panic(err)
 		}
 	}
 }

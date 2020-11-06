@@ -300,11 +300,6 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 			// usually those with TypeMeta).
 			if t.Kind == types.Struct && len(typesWith) > 0 {
 				for _, field := range t.Members {
-					defaultTags := extractDefaultTag(field.CommentLines)
-					if len(defaultTags) > 0 {
-						return true
-					}
-
 					for _, s := range typesWith {
 						if field.Name == s {
 							return true
@@ -460,7 +455,6 @@ func mustEnforceDefault(t *types.Type, omitEmpty bool) (interface{}, error) {
 			} else {
 				return nil, fmt.Errorf("please add type %v to typeZeroValue struct", t)
 			}
-
 		}
 		return nil, nil
 	default:
@@ -500,8 +494,10 @@ func populateDefaultValue(node *callNode, t *types.Type, tags string, commentLin
 	// callNodes are not automatically generated for primitive types. Generate one if the callNode does not exist
 	if node == nil {
 		node = &callNode{}
+		node.markerOnly = true
 	}
 
+	node.defaultIsPrimitive = t.IsPrimitive()
 	node.defaultValue = defaultMap[0]
 	return node
 }
@@ -580,17 +576,14 @@ func (c *callTreeForType) build(t *types.Type, root bool) *callNode {
 			parent.children = append(parent.children, *child)
 		} else if member := populateDefaultValue(nil, t.Elem, "", t.Elem.CommentLines); member != nil {
 			member.index = true
-			member.markerOnly = true
 			parent.children = append(parent.children, *member)
 		}
-
 	case types.Map:
 		if child := c.build(t.Elem, false); child != nil {
 			child.key = true
 			parent.children = append(parent.children, *child)
 		} else if member := populateDefaultValue(nil, t.Elem, "", t.Elem.CommentLines); member != nil {
 			member.key = true
-			member.markerOnly = true
 			parent.children = append(parent.children, *member)
 		}
 
@@ -608,12 +601,9 @@ func (c *callTreeForType) build(t *types.Type, root bool) *callNode {
 				child.field = name
 				populateDefaultValue(child, field.Type, field.Tags, field.CommentLines)
 				parent.children = append(parent.children, *child)
-			} else {
-				if member := populateDefaultValue(nil, field.Type, field.Tags, field.CommentLines); member != nil {
-					member.field = name
-					member.markerOnly = true
-					parent.children = append(parent.children, *member)
-				}
+			} else if member := populateDefaultValue(nil, field.Type, field.Tags, field.CommentLines); member != nil {
+				member.field = name
+				parent.children = append(parent.children, *member)
 			}
 		}
 	case types.Alias:
@@ -803,6 +793,10 @@ type callNode struct {
 	// Only primitive types and pointer types are eligible to have a default value
 	defaultValue string
 
+	// defaultIsPrimitive is used to determine how to assign the default value.
+	// Primitive types will be directly assigned while complex types will use JSON unmarshalling
+	defaultIsPrimitive bool
+
 	// markerOnly is true if the callNode exists solely to fill in a default value
 	markerOnly bool
 }
@@ -868,47 +862,48 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 	if !isVarPointer {
 		varPointer = "&" + varPointer
 	}
+
+	args := generator.Args{
+		"defaultValue": n.defaultValue,
+		"varPointer":   varPointer,
+		"varName":      varName,
+		"index":        index,
+	}
+
 	if n.index {
 		sw.Do("if reflect.ValueOf($.var$[$.index$]).IsZero() {\n", generator.Args{"var": varName, "index": index})
-		sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$[$.index$]); err != nil {\n", generator.Args{
-			"defaultValue": n.defaultValue,
-			"varPointer":   varPointer,
-			"index":        index,
-		})
-		sw.Do("panic(err)\n", nil)
-		sw.Do("}\n", nil)
+		if n.defaultIsPrimitive {
+			sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
+		} else {
+			sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$[$.index$]); err != nil {\n", args)
+			sw.Do("panic(err)\n", nil)
+			sw.Do("}\n", nil)
+		}
 	} else if n.key {
 		mapDefaultVar := index + "_default"
+		args["mapDefaultVar"] = mapDefaultVar
 		sw.Do("if reflect.ValueOf($.var$[$.index$]).IsZero() {\n", generator.Args{"var": varName, "index": index})
-		sw.Do("$.mapDefaultVar$ := $.varName$[$.index$]\n", generator.Args{
-			"varName":       varName,
-			"index":         index,
-			"mapDefaultVar": mapDefaultVar,
-		})
-		sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), &$.mapDefaultVar$); err != nil {\n", generator.Args{
-			"defaultValue":  n.defaultValue,
-			"mapDefaultVar": mapDefaultVar,
-		})
-		sw.Do("panic(err)\n", nil)
-		sw.Do("}\n", nil)
-		sw.Do("$.varName$[$.index$] = $.mapDefaultVar$\n", generator.Args{
-			"varName":       varName,
-			"index":         index,
-			"mapDefaultVar": mapDefaultVar,
-		})
 
+		if n.defaultIsPrimitive {
+			sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
+		} else {
+			sw.Do("$.mapDefaultVar$ := $.varName$[$.index$]\n", args)
+			sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), &$.mapDefaultVar$); err != nil {\n", args)
+			sw.Do("panic(err)\n", nil)
+			sw.Do("}\n", nil)
+			sw.Do("$.varName$[$.index$] = $.mapDefaultVar$\n", args)
+		}
 	} else {
 		sw.Do("if reflect.ValueOf($.var$).IsZero() {\n", generator.Args{"var": varName})
-		sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$); err != nil {\n", generator.Args{
-			"defaultValue": n.defaultValue,
-			"varPointer":   varPointer,
-		})
-		sw.Do("panic(err)\n", nil)
-		sw.Do("}\n", nil)
-
+		if n.defaultIsPrimitive {
+			sw.Do("$.varName$ = $.defaultValue$", args)
+		} else {
+			sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$); err != nil {\n", args)
+			sw.Do("panic(err)\n", nil)
+			sw.Do("}\n", nil)
+		}
 	}
 	sw.Do("}\n", nil)
-
 }
 
 // WriteMethod performs an in-order traversal of the calltree, generating loops and if blocks as necessary

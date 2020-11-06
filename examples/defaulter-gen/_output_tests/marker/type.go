@@ -32,6 +32,8 @@ type Defaulted struct {
 	EmptyInt int
 
 	// Default is forced to empty string
+	// Specifying the default is a no-op
+	// +default=""
 	EmptyString string
 
 	// +default=["foo", "bar"]
@@ -56,6 +58,7 @@ type SubStruct struct {
 }
 
 type DefaultedWithFunction struct {
+	empty.TypeMeta
 	// +default="default_marker"
 	S1 string `json:"S1,omitempty"`
 	// +default="default_marker"

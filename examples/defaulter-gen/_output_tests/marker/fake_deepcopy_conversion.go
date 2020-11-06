@@ -42,27 +42,6 @@ func (in *Defaulted) DeepCopyObject() runtime.Object {
 	return nil
 }
 
-func (in *SubStruct) DeepCopy() *SubStruct {
-	if in == nil {
-		return nil
-	}
-	out := new(SubStruct)
-	in.DeepCopyInto(out)
-	return out
-}
-
-func (in *SubStruct) DeepCopyInto(out *SubStruct) {
-	*out = *in
-	return
-}
-
-func (in *SubStruct) DeepCopyObject() runtime.Object {
-	if c := in.DeepCopy(); c != nil {
-		return c
-	}
-	return nil
-}
-
 func (in *DefaultedWithFunction) DeepCopy() *DefaultedWithFunction {
 	if in == nil {
 		return nil
@@ -85,5 +64,4 @@ func (in *DefaultedWithFunction) DeepCopyObject() runtime.Object {
 }
 
 func (obj *Defaulted) GetObjectKind() schema.ObjectKind             { return schema.EmptyObjectKind }
-func (obj *SubStruct) GetObjectKind() schema.ObjectKind             { return schema.EmptyObjectKind }
 func (obj *DefaultedWithFunction) GetObjectKind() schema.ObjectKind { return schema.EmptyObjectKind }

@@ -33,20 +33,15 @@ import (
 func RegisterDefaults(scheme *runtime.Scheme) error {
 	scheme.AddTypeDefaultingFunc(&Defaulted{}, func(obj interface{}) { SetObjectDefaults_Defaulted(obj.(*Defaulted)) })
 	scheme.AddTypeDefaultingFunc(&DefaultedWithFunction{}, func(obj interface{}) { SetObjectDefaults_DefaultedWithFunction(obj.(*DefaultedWithFunction)) })
-	scheme.AddTypeDefaultingFunc(&SubStruct{}, func(obj interface{}) { SetObjectDefaults_SubStruct(obj.(*SubStruct)) })
 	return nil
 }
 
 func SetObjectDefaults_Defaulted(in *Defaulted) {
 	if reflect.ValueOf(in.Field).IsZero() {
-		if err := json.Unmarshal([]byte(`"bar"`), &in.Field); err != nil {
-			panic(err)
-		}
+		in.Field = "bar"
 	}
 	if reflect.ValueOf(in.OtherField).IsZero() {
-		if err := json.Unmarshal([]byte(`0`), &in.OtherField); err != nil {
-			panic(err)
-		}
+		in.OtherField = 0
 	}
 	if reflect.ValueOf(in.List).IsZero() {
 		if err := json.Unmarshal([]byte(`["foo", "bar"]`), &in.List); err != nil {
@@ -66,9 +61,13 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 		}
 	}
 	if in.Sub != nil {
-		SetObjectDefaults_SubStruct(in.Sub)
+		if reflect.ValueOf(in.Sub.I).IsZero() {
+			in.Sub.I = 1
+		}
 	}
-	SetObjectDefaults_SubStruct(&in.OtherSub)
+	if reflect.ValueOf(in.OtherSub.I).IsZero() {
+		in.OtherSub.I = 1
+	}
 	if reflect.ValueOf(in.Map).IsZero() {
 		if err := json.Unmarshal([]byte(`{"foo": "bar"}`), &in.Map); err != nil {
 			panic(err)
@@ -88,21 +87,9 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 func SetObjectDefaults_DefaultedWithFunction(in *DefaultedWithFunction) {
 	SetDefaults_DefaultedWithFunction(in)
 	if reflect.ValueOf(in.S1).IsZero() {
-		if err := json.Unmarshal([]byte(`"default_marker"`), &in.S1); err != nil {
-			panic(err)
-		}
+		in.S1 = "default_marker"
 	}
 	if reflect.ValueOf(in.S2).IsZero() {
-		if err := json.Unmarshal([]byte(`"default_marker"`), &in.S2); err != nil {
-			panic(err)
-		}
-	}
-}
-
-func SetObjectDefaults_SubStruct(in *SubStruct) {
-	if reflect.ValueOf(in.I).IsZero() {
-		if err := json.Unmarshal([]byte(`1`), &in.I); err != nil {
-			panic(err)
-		}
+		in.S2 = "default_marker"
 	}
 }

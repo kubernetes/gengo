@@ -2,7 +2,7 @@ TOOL=defaulter-gen
 
 .PHONY : gen test verify git_verify_clean git_verify_no_change
 test:
-	go test ./...
+	go test ./_output_tests/marker/...
 
 gen:
 	@go build -o /tmp/$(TOOL)

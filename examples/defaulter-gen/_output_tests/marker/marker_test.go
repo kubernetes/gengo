@@ -1,10 +1,24 @@
-package main
+/*
+Copyright 2020 The Kubernetes Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package marker
 
 import (
 	"reflect"
 	"testing"
-
-	"k8s.io/gengo/examples/defaulter-gen/_output_tests/marker"
 )
 
 func getPointerFromString(s string) *string {
@@ -14,118 +28,118 @@ func getPointerFromString(s string) *string {
 func Test_Marker(t *testing.T) {
 	testcases := []struct {
 		name string
-		in   marker.Defaulted
-		out  marker.Defaulted
+		in   Defaulted
+		out  Defaulted
 	}{
 		{
 			name: "default",
-			in:   marker.Defaulted{},
-			out: marker.Defaulted{
+			in:   Defaulted{},
+			out: Defaulted{
 				Field:       "bar",
 				OtherField:  0,
 				EmptyInt:    0,
 				EmptyString: "",
-				List: []marker.Item{
+				List: []Item{
 					getPointerFromString("foo"),
 					getPointerFromString("bar"),
 				},
-				Sub: &marker.SubStruct{
+				Sub: &SubStruct{
 					S: "foo",
 					I: 5,
 				},
-				OtherSub: marker.SubStruct{
+				OtherSub: SubStruct{
 					S: "",
 					I: 1,
 				},
-				Map: map[string]marker.Item{
+				Map: map[string]Item{
 					"foo": getPointerFromString("bar"),
 				},
 			},
 		},
 		{
 			name: "values-omitempty",
-			in: marker.Defaulted{
+			in: Defaulted{
 				Field:      "changed",
 				OtherField: 1,
 			},
-			out: marker.Defaulted{
+			out: Defaulted{
 				Field:       "changed",
 				OtherField:  1,
 				EmptyInt:    0,
 				EmptyString: "",
-				List: []marker.Item{
+				List: []Item{
 					getPointerFromString("foo"),
 					getPointerFromString("bar"),
 				},
-				Sub: &marker.SubStruct{
+				Sub: &SubStruct{
 					S: "foo",
 					I: 5,
 				},
-				OtherSub: marker.SubStruct{
+				OtherSub: SubStruct{
 					S: "",
 					I: 1,
 				},
-				Map: map[string]marker.Item{
+				Map: map[string]Item{
 					"foo": getPointerFromString("bar"),
 				},
 			},
 		},
 		{
 			name: "lists",
-			in: marker.Defaulted{
-				List: []marker.Item{
+			in: Defaulted{
+				List: []Item{
 					nil,
 					getPointerFromString("bar"),
 				},
 			},
-			out: marker.Defaulted{
+			out: Defaulted{
 				Field:       "bar",
 				OtherField:  0,
 				EmptyInt:    0,
 				EmptyString: "",
-				List: []marker.Item{
+				List: []Item{
 					getPointerFromString("apple"),
 					getPointerFromString("bar"),
 				},
-				Sub: &marker.SubStruct{
+				Sub: &SubStruct{
 					S: "foo",
 					I: 5,
 				},
-				OtherSub: marker.SubStruct{
+				OtherSub: SubStruct{
 					S: "",
 					I: 1,
 				},
-				Map: map[string]marker.Item{
+				Map: map[string]Item{
 					"foo": getPointerFromString("bar"),
 				},
 			},
 		},
 		{
 			name: "stringmap",
-			in: marker.Defaulted{
-				Map: map[string]marker.Item{
+			in: Defaulted{
+				Map: map[string]Item{
 					"foo": nil,
 					"bar": getPointerFromString("banana"),
 				},
 			},
-			out: marker.Defaulted{
+			out: Defaulted{
 				Field:       "bar",
 				OtherField:  0,
 				EmptyInt:    0,
 				EmptyString: "",
-				List: []marker.Item{
+				List: []Item{
 					getPointerFromString("foo"),
 					getPointerFromString("bar"),
 				},
-				Sub: &marker.SubStruct{
+				Sub: &SubStruct{
 					S: "foo",
 					I: 5,
 				},
-				OtherSub: marker.SubStruct{
+				OtherSub: SubStruct{
 					S: "",
 					I: 1,
 				},
-				Map: map[string]marker.Item{
+				Map: map[string]Item{
 					"foo": getPointerFromString("apple"),
 					"bar": getPointerFromString("banana"),
 				},
@@ -135,7 +149,7 @@ func Test_Marker(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			marker.SetObjectDefaults_Defaulted(&tc.in)
+			SetObjectDefaults_Defaulted(&tc.in)
 			if !reflect.DeepEqual(tc.in, tc.out) {
 				t.Errorf("Error: Expected and actual output are different \n actual: %+v\n expected: %+v\n", tc.in, tc.out)
 			}
@@ -144,9 +158,9 @@ func Test_Marker(t *testing.T) {
 }
 
 func Test_DefaultingFunction(t *testing.T) {
-	in := marker.DefaultedWithFunction{}
-	marker.SetObjectDefaults_DefaultedWithFunction(&in)
-	out := marker.DefaultedWithFunction{
+	in := DefaultedWithFunction{}
+	SetObjectDefaults_DefaultedWithFunction(&in)
+	out := DefaultedWithFunction{
 		S1: "default_function",
 		S2: "default_marker",
 	}

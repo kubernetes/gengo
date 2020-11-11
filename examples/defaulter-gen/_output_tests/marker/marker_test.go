@@ -51,9 +51,33 @@ func Test_Marker(t *testing.T) {
 					S: "",
 					I: 1,
 				},
+				StructList: []SubStruct{
+					{
+						S: "foo1",
+						I: 1,
+					},
+					{
+						S: "foo2",
+						I: 1,
+					},
+				},
+				PtrStructList: []*SubStruct{
+					{
+						S: "foo1",
+						I: 1,
+					},
+					{
+						S: "foo2",
+						I: 1,
+					},
+				},
+				StringList: []string{
+					"foo",
+				},
 				Map: map[string]Item{
 					"foo": getPointerFromString("bar"),
 				},
+				AliasPtr: getPointerFromString("banana"),
 			},
 		},
 		{
@@ -75,6 +99,29 @@ func Test_Marker(t *testing.T) {
 					S: "foo",
 					I: 5,
 				},
+				StructList: []SubStruct{
+					{
+						S: "foo1",
+						I: 1,
+					},
+					{
+						S: "foo2",
+						I: 1,
+					},
+				},
+				PtrStructList: []*SubStruct{
+					{
+						S: "foo1",
+						I: 1,
+					},
+					{
+						S: "foo2",
+						I: 1,
+					},
+				},
+				StringList: []string{
+					"foo",
+				},
 				OtherSub: SubStruct{
 					S: "",
 					I: 1,
@@ -82,6 +129,7 @@ func Test_Marker(t *testing.T) {
 				Map: map[string]Item{
 					"foo": getPointerFromString("bar"),
 				},
+				AliasPtr: getPointerFromString("banana"),
 			},
 		},
 		{
@@ -105,6 +153,29 @@ func Test_Marker(t *testing.T) {
 					S: "foo",
 					I: 5,
 				},
+				StructList: []SubStruct{
+					{
+						S: "foo1",
+						I: 1,
+					},
+					{
+						S: "foo2",
+						I: 1,
+					},
+				},
+				PtrStructList: []*SubStruct{
+					{
+						S: "foo1",
+						I: 1,
+					},
+					{
+						S: "foo2",
+						I: 1,
+					},
+				},
+				StringList: []string{
+					"foo",
+				},
 				OtherSub: SubStruct{
 					S: "",
 					I: 1,
@@ -112,6 +183,7 @@ func Test_Marker(t *testing.T) {
 				Map: map[string]Item{
 					"foo": getPointerFromString("bar"),
 				},
+				AliasPtr: getPointerFromString("banana"),
 			},
 		},
 		{
@@ -135,6 +207,29 @@ func Test_Marker(t *testing.T) {
 					S: "foo",
 					I: 5,
 				},
+				StructList: []SubStruct{
+					{
+						S: "foo1",
+						I: 1,
+					},
+					{
+						S: "foo2",
+						I: 1,
+					},
+				},
+				PtrStructList: []*SubStruct{
+					{
+						S: "foo1",
+						I: 1,
+					},
+					{
+						S: "foo2",
+						I: 1,
+					},
+				},
+				StringList: []string{
+					"foo",
+				},
 				OtherSub: SubStruct{
 					S: "",
 					I: 1,
@@ -143,6 +238,7 @@ func Test_Marker(t *testing.T) {
 					"foo": getPointerFromString("apple"),
 					"bar": getPointerFromString("banana"),
 				},
+				AliasPtr: getPointerFromString("banana"),
 			},
 		},
 	}

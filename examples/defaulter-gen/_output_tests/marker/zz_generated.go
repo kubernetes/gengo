@@ -50,9 +50,9 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 	}
 	for i := range in.List {
 		if reflect.ValueOf(in.List[i]).IsZero() {
-			if err := json.Unmarshal([]byte(`"apple"`), &in.List[i]); err != nil {
-				panic(err)
-			}
+			var ptrVar1 string = "apple"
+			ptrVar0 := &ptrVar1
+			in.List[i] = ptrVar0
 		}
 	}
 	if reflect.ValueOf(in.Sub).IsZero() {
@@ -65,6 +65,35 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 			in.Sub.I = 1
 		}
 	}
+	if reflect.ValueOf(in.StructList).IsZero() {
+		if err := json.Unmarshal([]byte(`[{"s": "foo1", "i": 1}, {"s": "foo2"}]`), &in.StructList); err != nil {
+			panic(err)
+		}
+	}
+	for i := range in.StructList {
+		a := &in.StructList[i]
+		if reflect.ValueOf(a.I).IsZero() {
+			a.I = 1
+		}
+	}
+	if reflect.ValueOf(in.PtrStructList).IsZero() {
+		if err := json.Unmarshal([]byte(`[{"s": "foo1", "i": 1}, {"s": "foo2"}]`), &in.PtrStructList); err != nil {
+			panic(err)
+		}
+	}
+	for i := range in.PtrStructList {
+		a := in.PtrStructList[i]
+		if a != nil {
+			if reflect.ValueOf(a.I).IsZero() {
+				a.I = 1
+			}
+		}
+	}
+	if reflect.ValueOf(in.StringList).IsZero() {
+		if err := json.Unmarshal([]byte(`["foo"]`), &in.StringList); err != nil {
+			panic(err)
+		}
+	}
 	if reflect.ValueOf(in.OtherSub.I).IsZero() {
 		in.OtherSub.I = 1
 	}
@@ -75,12 +104,15 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 	}
 	for i_Map := range in.Map {
 		if reflect.ValueOf(in.Map[i_Map]).IsZero() {
-			i_Map_default := in.Map[i_Map]
-			if err := json.Unmarshal([]byte(`"apple"`), &i_Map_default); err != nil {
-				panic(err)
-			}
-			in.Map[i_Map] = i_Map_default
+			var ptrVar1 string = "apple"
+			ptrVar0 := &ptrVar1
+			in.Map[i_Map] = ptrVar0
 		}
+	}
+	if reflect.ValueOf(in.AliasPtr).IsZero() {
+		var ptrVar1 string = "banana"
+		ptrVar0 := &ptrVar1
+		in.AliasPtr = ptrVar0
 	}
 }
 

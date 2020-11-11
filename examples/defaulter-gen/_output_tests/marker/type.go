@@ -41,11 +41,24 @@ type Defaulted struct {
 	// +default={"s": "foo", "i": 5}
 	Sub *SubStruct
 
+	//+default=[{"s": "foo1", "i": 1}, {"s": "foo2"}]
+	StructList []SubStruct
+
+	//+default=[{"s": "foo1", "i": 1}, {"s": "foo2"}]
+	PtrStructList []*SubStruct
+
+	//+default=["foo"]
+	StringList []string
+
 	// Default is forced to empty struct
 	OtherSub SubStruct
 
 	// +default={"foo": "bar"}
 	Map map[string]Item
+
+	// A default specified here overrides the default for the Item type
+	// +default="banana"
+	AliasPtr Item
 }
 
 // +default="apple"

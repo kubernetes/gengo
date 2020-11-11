@@ -59,7 +59,7 @@ var typeZeroValue = map[string]interface{}{
 	"integer":     0.,
 	"number":      0.,
 	"boolean":     false,
-	"[]byte":      "", // base64 encoded charactes
+	"[]byte":      "", // base64 encoded characters
 	"interface{}": interface{}(nil),
 }
 
@@ -431,18 +431,43 @@ func newCallTreeForType(existingDefaulters, newDefaulters defaulterFuncMap) *cal
 	}
 }
 
-func resolveAliasType(t *types.Type) *types.Type {
+func resolveTypeAndDepth(t *types.Type) (*types.Type, int) {
 	var prev *types.Type
+	depth := 0
 	for prev != t {
 		prev = t
 		if t.Kind == types.Alias {
 			t = t.Underlying
+		} else if t.Kind == types.Pointer {
+			t = t.Elem
+			depth += 1
 		}
 	}
-	return t
+	return t, depth
 }
 
-func mustEnforceDefault(t *types.Type, omitEmpty bool) (interface{}, error) {
+// getNestedDefault returns the first default value when resolving alias types
+func getNestedDefault(t *types.Type) string {
+	var prev *types.Type
+	for prev != t {
+		prev = t
+		defaultMap := extractDefaultTag(t.CommentLines)
+		if len(defaultMap) == 1 && defaultMap[0] != "" {
+			return defaultMap[0]
+		}
+		if t.Kind == types.Alias {
+			t = t.Underlying
+		} else if t.Kind == types.Pointer {
+			t = t.Elem
+		}
+	}
+	return ""
+}
+
+func mustEnforceDefault(t *types.Type, depth int, omitEmpty bool) (interface{}, error) {
+	if depth > 0 {
+		return nil, nil
+	}
 	switch t.Kind {
 	case types.Pointer, types.Map, types.Slice, types.Array, types.Interface:
 		return nil, nil
@@ -463,20 +488,28 @@ func mustEnforceDefault(t *types.Type, omitEmpty bool) (interface{}, error) {
 }
 
 func populateDefaultValue(node *callNode, t *types.Type, tags string, commentLines []string) *callNode {
-	t = resolveAliasType(t)
 	defaultMap := extractDefaultTag(commentLines)
+	var defaultString string
+	if len(defaultMap) == 1 {
+		defaultString = defaultMap[0]
+	}
+
+	t, depth := resolveTypeAndDepth(t)
+	if depth > 0 && defaultString == "" {
+		defaultString = getNestedDefault(t)
+	}
 	if len(defaultMap) > 1 {
 		klog.Fatalf("Found more than one default tag for %v", t.Kind)
 	} else if len(defaultMap) == 0 {
 		return node
 	}
 	var defaultValue interface{}
-	if err := json.Unmarshal([]byte(defaultMap[0]), &defaultValue); err != nil {
+	if err := json.Unmarshal([]byte(defaultString), &defaultValue); err != nil {
 		klog.Fatalf("Failed to unmarshal default: %v", err)
 	}
 
 	omitEmpty := strings.Contains(reflect.StructTag(tags).Get("json"), "omitempty")
-	if enforced, err := mustEnforceDefault(t, omitEmpty); err != nil {
+	if enforced, err := mustEnforceDefault(t, depth, omitEmpty); err != nil {
 		klog.Fatal(err)
 	} else if enforced != nil {
 		if defaultValue != nil {
@@ -498,7 +531,9 @@ func populateDefaultValue(node *callNode, t *types.Type, tags string, commentLin
 	}
 
 	node.defaultIsPrimitive = t.IsPrimitive()
-	node.defaultValue = defaultMap[0]
+	node.defaultType = t.String()
+	node.defaultValue = defaultString
+	node.defaultDepth = depth
 	return node
 }
 
@@ -799,6 +834,16 @@ type callNode struct {
 
 	// markerOnly is true if the callNode exists solely to fill in a default value
 	markerOnly bool
+
+	// defaultDepth is used to determine pointer level of the default value
+	// For example 1 corresponds to setting a default value and taking its pointer while
+	// 2 corresponds to setting a default value and taking its pointer's pointer
+	// 0 implies that no pointers are used
+	defaultDepth int
+
+	// defaultType is the type of the default value.
+	// Only populated if defaultIsPrimitive is true
+	defaultType string
 }
 
 // CallNodeVisitorFunc is a function for visiting a call tree. ancestors is the list of all parents
@@ -868,12 +913,22 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 		"varPointer":   varPointer,
 		"varName":      varName,
 		"index":        index,
+		"varDepth":     n.defaultDepth,
+		"varType":      n.defaultType,
 	}
 
 	if n.index {
 		sw.Do("if reflect.ValueOf($.var$[$.index$]).IsZero() {\n", generator.Args{"var": varName, "index": index})
 		if n.defaultIsPrimitive {
-			sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
+			if n.defaultDepth > 0 {
+				sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
+				for i := n.defaultDepth; i > 0; i-- {
+					sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
+				}
+				sw.Do("$.varName$[$.index$] = ptrVar0", args)
+			} else {
+				sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
+			}
 		} else {
 			sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$[$.index$]); err != nil {\n", args)
 			sw.Do("panic(err)\n", nil)
@@ -885,7 +940,15 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 		sw.Do("if reflect.ValueOf($.var$[$.index$]).IsZero() {\n", generator.Args{"var": varName, "index": index})
 
 		if n.defaultIsPrimitive {
-			sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
+			if n.defaultDepth > 0 {
+				sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
+				for i := n.defaultDepth; i > 0; i-- {
+					sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
+				}
+				sw.Do("$.varName$[$.index$] = ptrVar0", args)
+			} else {
+				sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
+			}
 		} else {
 			sw.Do("$.mapDefaultVar$ := $.varName$[$.index$]\n", args)
 			sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), &$.mapDefaultVar$); err != nil {\n", args)
@@ -895,8 +958,17 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 		}
 	} else {
 		sw.Do("if reflect.ValueOf($.var$).IsZero() {\n", generator.Args{"var": varName})
+
 		if n.defaultIsPrimitive {
-			sw.Do("$.varName$ = $.defaultValue$", args)
+			if n.defaultDepth > 0 {
+				sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
+				for i := n.defaultDepth; i > 0; i-- {
+					sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
+				}
+				sw.Do("$.varName$ = ptrVar0", args)
+			} else {
+				sw.Do("$.varName$ = $.defaultValue$", args)
+			}
 		} else {
 			sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$); err != nil {\n", args)
 			sw.Do("panic(err)\n", nil)

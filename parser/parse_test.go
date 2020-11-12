@@ -24,7 +24,9 @@ import (
 	"testing"
 	"text/template"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"k8s.io/gengo/args"
 	"k8s.io/gengo/namer"
@@ -157,10 +159,24 @@ func TestBuilder(t *testing.T) {
 	                AnotherVar = Frobber{}
                 )
 
-				type Enumeration string
-				const (
-					EnumSymbol Enumeration = "enumSymbol"
-				)
+		type Enumeration string
+		const (
+			EnumSymbol Enumeration = "enumSymbolValue"
+		)
+
+		type Degrees int
+		const (
+			FirstDegree Degrees = iota
+			SecondDegree
+			ThirdDegree
+		)
+
+		const ConstNineNine = 99
+		const ConstHundred = ConstNineNine + 1
+
+		const ConstExpr = 1 - 0.707i * 9.3
+		const ConstFloat = float64(7.8)
+		const ConstString = "constant string"
                 `,
 		},
 	}
@@ -179,7 +195,7 @@ package o
 {{define "Var"}}{{$t := .Underlying}}var {{Name .}} {{Raw $t}} = {{Raw .}}
 
 {{end}}
-{{define "Const"}}{{$t := .Underlying}}const {{Name .}} {{Raw $t}} = {{Raw .}}
+{{define "Const"}}{{$t := .Underlying}}const {{Name .}} {{Raw $t}} = {{Raw .}}({{ .ConstValue }})
 
 {{end}}
 {{range $t := .}}{{if eq $t.Kind "Struct"}}{{template "Struct" $t}}{{end}}{{end}}
@@ -228,7 +244,13 @@ var FooAVar proto.Frobber = proto.AVar
 var FooAnotherVar proto.Frobber = proto.AnotherVar
 
 
-const FooEnumSymbol proto.Enumeration = proto.EnumSymbol
+const FooEnumSymbol proto.Enumeration = proto.EnumSymbol(enumSymbolValue)
+
+const FooFirstDegree proto.Degrees = proto.FirstDegree(0)
+
+const FooSecondDegree proto.Degrees = proto.SecondDegree(1)
+
+const FooThirdDegree proto.Degrees = proto.ThirdDegree(2)
 
 `
 	testNamer := namer.NewPublicNamer(1, "proto")
@@ -252,6 +274,68 @@ const FooEnumSymbol proto.Enumeration = proto.EnumSymbol
 	}
 	if p := u.Package("base/foo/proto"); !p.HasImport("base/common/proto") {
 		t.Errorf("Unexpected lack of import line: %#v", p.Imports)
+	}
+
+	strPtr := func(s string) *string { return &s }
+
+	expectedConst := map[string]*types.Type{
+		"EnumSymbol": &types.Type{
+			Name:       types.Name{Package: "base/foo/proto", Name: "EnumSymbol"},
+			Kind:       types.DeclarationOf,
+			ConstValue: strPtr("enumSymbolValue"),
+		},
+		"FirstDegree": &types.Type{
+			Name:       types.Name{Package: "base/foo/proto", Name: "FirstDegree"},
+			Kind:       types.DeclarationOf,
+			ConstValue: strPtr("0"),
+		},
+		"SecondDegree": &types.Type{
+			Name:       types.Name{Package: "base/foo/proto", Name: "SecondDegree"},
+			Kind:       types.DeclarationOf,
+			ConstValue: strPtr("1"),
+		},
+		"ThirdDegree": &types.Type{
+			Name:       types.Name{Package: "base/foo/proto", Name: "ThirdDegree"},
+			Kind:       types.DeclarationOf,
+			ConstValue: strPtr("2"),
+		},
+		"ConstNineNine": &types.Type{
+			Name:       types.Name{Package: "base/foo/proto", Name: "ConstNineNine"},
+			Kind:       types.DeclarationOf,
+			ConstValue: strPtr("99"),
+		},
+		"ConstHundred": &types.Type{
+			Name:       types.Name{Package: "base/foo/proto", Name: "ConstHundred"},
+			Kind:       types.DeclarationOf,
+			ConstValue: strPtr("100"),
+		},
+		"ConstFloat": &types.Type{
+			Name:       types.Name{Package: "base/foo/proto", Name: "ConstFloat"},
+			Kind:       types.DeclarationOf,
+			ConstValue: strPtr("7.8"),
+		},
+		"ConstExpr": &types.Type{
+			Name:       types.Name{Package: "base/foo/proto", Name: "ConstExpr"},
+			Kind:       types.DeclarationOf,
+			ConstValue: strPtr("(1 + -6.5751i)"),
+		},
+		"ConstString": &types.Type{
+			Name:       types.Name{Package: "base/foo/proto", Name: "ConstString"},
+			Kind:       types.DeclarationOf,
+			ConstValue: strPtr("constant string"),
+		},
+	}
+
+	if diff := cmp.Diff(
+		u.Package("base/foo/proto").Constants, expectedConst,
+		cmpopts.IgnoreFields(types.Type{}, "Underlying"),
+	); diff != "" {
+		t.Errorf("Constant mismatch: %s", diff)
+	}
+
+	if len(u.Package("base/foo/proto").Constants) != len(expectedConst) {
+		t.Errorf("Wanted %d constants, got: %s",
+			len(expectedConst), spew.Sdump(u.Package("base/foo/proto").Constants))
 	}
 }
 

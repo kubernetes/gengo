@@ -36,14 +36,19 @@ func RegisterDefaults(scheme *runtime.Scheme) error {
 }
 
 func SetObjectDefaults_Defaulted(in *Defaulted) {
-	if in.Field == "" {
-		in.Field = "bar"
+	if in.StringDefault == "" {
+		in.StringDefault = "bar"
 	}
-	if in.OtherField == 0 {
-		in.OtherField = 0
+	if in.StringPointer == nil {
+		var ptrVar1 string = "default"
+		ptrVar0 := &ptrVar1
+		in.StringPointer = ptrVar0
 	}
-	if in.DefaultedFloat == 0 {
-		in.DefaultedFloat = 0.5
+	if in.IntDefault == 0 {
+		in.IntDefault = 1
+	}
+	if in.FloatDefault == 0 {
+		in.FloatDefault = 0.5
 	}
 	if in.List == nil {
 		if err := json.Unmarshal([]byte(`["foo", "bar"]`), &in.List); err != nil {

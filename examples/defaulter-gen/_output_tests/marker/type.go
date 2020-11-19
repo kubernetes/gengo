@@ -24,20 +24,35 @@ type Defaulted struct {
 	empty.TypeMeta
 
 	// +default="bar"
-	Field string `json:"Field,omitempty"`
-	// +default=0
-	OtherField int `json:"OtherField,omitempty"`
-
-	// Default is forced to 0
-	EmptyInt int
-
-	// +default=0.5
-	DefaultedFloat float64 `json:"DefaultedFloat,omitempty"`
+	StringDefault string `json:"omitempty"`
 
 	// Default is forced to empty string
 	// Specifying the default is a no-op
 	// +default=""
-	EmptyString string
+	StringEmptyDefault string
+
+	// Not specifying a default still defaults for non-omitempty
+	StringEmpty string
+
+	// +default="default"
+	StringPointer *string
+
+	// +default=1
+	IntDefault int `json:"omitempty"`
+
+	// +default=0
+	IntEmptyDefault int
+
+	// Default is forced to 0
+	IntEmpty int
+
+	// +default=0.5
+	FloatDefault float64 `json:"omitempty"`
+
+	// +default=0.0
+	FloatEmptyDefault float64
+
+	FloatEmpty float64
 
 	// +default=["foo", "bar"]
 	List []Item

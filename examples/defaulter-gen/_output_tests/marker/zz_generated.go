@@ -43,6 +43,9 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 	if reflect.ValueOf(in.OtherField).IsZero() {
 		in.OtherField = 0
 	}
+	if reflect.ValueOf(in.DefaultedFloat).IsZero() {
+		in.DefaultedFloat = 0.5
+	}
 	if reflect.ValueOf(in.List).IsZero() {
 		if err := json.Unmarshal([]byte(`["foo", "bar"]`), &in.List); err != nil {
 			panic(err)

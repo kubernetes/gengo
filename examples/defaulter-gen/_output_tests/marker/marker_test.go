@@ -35,10 +35,11 @@ func Test_Marker(t *testing.T) {
 			name: "default",
 			in:   Defaulted{},
 			out: Defaulted{
-				Field:       "bar",
-				OtherField:  0,
-				EmptyInt:    0,
-				EmptyString: "",
+				Field:          "bar",
+				OtherField:     0,
+				DefaultedFloat: 0.5,
+				EmptyInt:       0,
+				EmptyString:    "",
 				List: []Item{
 					getPointerFromString("foo"),
 					getPointerFromString("bar"),
@@ -87,10 +88,11 @@ func Test_Marker(t *testing.T) {
 				OtherField: 1,
 			},
 			out: Defaulted{
-				Field:       "changed",
-				OtherField:  1,
-				EmptyInt:    0,
-				EmptyString: "",
+				Field:          "changed",
+				OtherField:     1,
+				DefaultedFloat: 0.5,
+				EmptyInt:       0,
+				EmptyString:    "",
 				List: []Item{
 					getPointerFromString("foo"),
 					getPointerFromString("bar"),
@@ -141,10 +143,11 @@ func Test_Marker(t *testing.T) {
 				},
 			},
 			out: Defaulted{
-				Field:       "bar",
-				OtherField:  0,
-				EmptyInt:    0,
-				EmptyString: "",
+				Field:          "bar",
+				OtherField:     0,
+				DefaultedFloat: 0.5,
+				EmptyInt:       0,
+				EmptyString:    "",
 				List: []Item{
 					getPointerFromString("apple"),
 					getPointerFromString("bar"),
@@ -195,10 +198,11 @@ func Test_Marker(t *testing.T) {
 				},
 			},
 			out: Defaulted{
-				Field:       "bar",
-				OtherField:  0,
-				EmptyInt:    0,
-				EmptyString: "",
+				Field:          "bar",
+				OtherField:     0,
+				DefaultedFloat: 0.5,
+				EmptyInt:       0,
+				EmptyString:    "",
 				List: []Item{
 					getPointerFromString("foo"),
 					getPointerFromString("bar"),

@@ -31,6 +31,9 @@ type Defaulted struct {
 	// Default is forced to 0
 	EmptyInt int
 
+	// +default=0.5
+	DefaultedFloat float64 `json:"DefaultedFloat,omitempty"`
+
 	// Default is forced to empty string
 	// Specifying the default is a no-op
 	// +default=""

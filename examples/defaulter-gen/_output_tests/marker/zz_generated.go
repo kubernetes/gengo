@@ -22,7 +22,6 @@ package marker
 
 import (
 	"encoding/json"
-	"reflect"
 
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -37,49 +36,49 @@ func RegisterDefaults(scheme *runtime.Scheme) error {
 }
 
 func SetObjectDefaults_Defaulted(in *Defaulted) {
-	if reflect.ValueOf(in.Field).IsZero() {
+	if in.Field == "" {
 		in.Field = "bar"
 	}
-	if reflect.ValueOf(in.OtherField).IsZero() {
+	if in.OtherField == 0 {
 		in.OtherField = 0
 	}
-	if reflect.ValueOf(in.DefaultedFloat).IsZero() {
+	if in.DefaultedFloat == 0 {
 		in.DefaultedFloat = 0.5
 	}
-	if reflect.ValueOf(in.List).IsZero() {
+	if in.List == nil {
 		if err := json.Unmarshal([]byte(`["foo", "bar"]`), &in.List); err != nil {
 			panic(err)
 		}
 	}
 	for i := range in.List {
-		if reflect.ValueOf(in.List[i]).IsZero() {
+		if in.List[i] == nil {
 			var ptrVar1 string = "apple"
 			ptrVar0 := &ptrVar1
 			in.List[i] = ptrVar0
 		}
 	}
-	if reflect.ValueOf(in.Sub).IsZero() {
+	if in.Sub == nil {
 		if err := json.Unmarshal([]byte(`{"s": "foo", "i": 5}`), &in.Sub); err != nil {
 			panic(err)
 		}
 	}
 	if in.Sub != nil {
-		if reflect.ValueOf(in.Sub.I).IsZero() {
+		if in.Sub.I == 0 {
 			in.Sub.I = 1
 		}
 	}
-	if reflect.ValueOf(in.StructList).IsZero() {
+	if in.StructList == nil {
 		if err := json.Unmarshal([]byte(`[{"s": "foo1", "i": 1}, {"s": "foo2"}]`), &in.StructList); err != nil {
 			panic(err)
 		}
 	}
 	for i := range in.StructList {
 		a := &in.StructList[i]
-		if reflect.ValueOf(a.I).IsZero() {
+		if a.I == 0 {
 			a.I = 1
 		}
 	}
-	if reflect.ValueOf(in.PtrStructList).IsZero() {
+	if in.PtrStructList == nil {
 		if err := json.Unmarshal([]byte(`[{"s": "foo1", "i": 1}, {"s": "foo2"}]`), &in.PtrStructList); err != nil {
 			panic(err)
 		}
@@ -87,32 +86,32 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 	for i := range in.PtrStructList {
 		a := in.PtrStructList[i]
 		if a != nil {
-			if reflect.ValueOf(a.I).IsZero() {
+			if a.I == 0 {
 				a.I = 1
 			}
 		}
 	}
-	if reflect.ValueOf(in.StringList).IsZero() {
+	if in.StringList == nil {
 		if err := json.Unmarshal([]byte(`["foo"]`), &in.StringList); err != nil {
 			panic(err)
 		}
 	}
-	if reflect.ValueOf(in.OtherSub.I).IsZero() {
+	if in.OtherSub.I == 0 {
 		in.OtherSub.I = 1
 	}
-	if reflect.ValueOf(in.Map).IsZero() {
+	if in.Map == nil {
 		if err := json.Unmarshal([]byte(`{"foo": "bar"}`), &in.Map); err != nil {
 			panic(err)
 		}
 	}
 	for i_Map := range in.Map {
-		if reflect.ValueOf(in.Map[i_Map]).IsZero() {
+		if in.Map[i_Map] == nil {
 			var ptrVar1 string = "apple"
 			ptrVar0 := &ptrVar1
 			in.Map[i_Map] = ptrVar0
 		}
 	}
-	if reflect.ValueOf(in.AliasPtr).IsZero() {
+	if in.AliasPtr == nil {
 		var ptrVar1 string = "banana"
 		ptrVar0 := &ptrVar1
 		in.AliasPtr = ptrVar0
@@ -121,10 +120,10 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 
 func SetObjectDefaults_DefaultedWithFunction(in *DefaultedWithFunction) {
 	SetDefaults_DefaultedWithFunction(in)
-	if reflect.ValueOf(in.S1).IsZero() {
+	if in.S1 == "" {
 		in.S1 = "default_marker"
 	}
-	if reflect.ValueOf(in.S2).IsZero() {
+	if in.S2 == "" {
 		in.S2 = "default_marker"
 	}
 }

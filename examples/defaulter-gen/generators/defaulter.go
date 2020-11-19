@@ -23,6 +23,7 @@ import (
 	"io"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"k8s.io/gengo/args"
@@ -40,16 +41,16 @@ type CustomArgs struct {
 }
 
 var typeZeroValue = map[string]interface{}{
-	"uint":        0.,
-	"uint8":       0.,
-	"uint16":      0.,
-	"uint32":      0.,
-	"uint64":      0.,
-	"int":         0.,
-	"int8":        0.,
-	"int16":       0.,
-	"int32":       0.,
-	"int64":       0.,
+	"uint":        0,
+	"uint8":       0,
+	"uint16":      0,
+	"uint32":      0,
+	"uint64":      0,
+	"int":         0,
+	"int8":        0,
+	"int16":       0,
+	"int32":       0,
+	"int64":       0,
 	"byte":        0,
 	"float64":     0.,
 	"float32":     0.,
@@ -839,6 +840,12 @@ type callNode struct {
 	// For example 1 corresponds to setting a default value and taking its pointer while
 	// 2 corresponds to setting a default value and taking its pointer's pointer
 	// 0 implies that no pointers are used
+	// This is used in situations where a field is a pointer to a primitive value rather than a primitive value itself.
+	//
+	//     type A {
+	//       +default="foo"
+	//       Field *string
+	//     }
 	defaultDepth int
 
 	// defaultType is the type of the default value.
@@ -899,6 +906,19 @@ func (n *callNode) writeCalls(varName string, isVarPointer bool, sw *generator.S
 	}
 }
 
+func getTypeZeroValue(t string) (interface{}, error) {
+	defaultZero, ok := typeZeroValue[t]
+	if !ok {
+		return nil, fmt.Errorf("Cannot find zero value for type %v in typeZeroValue", t)
+	}
+
+	// To generate the code for empty string, they must be quoted
+	if defaultZero == "" {
+		defaultZero = strconv.Quote(defaultZero.(string))
+	}
+	return defaultZero, nil
+}
+
 func (n *callNode) writeDefaulter(varName string, index string, isVarPointer bool, sw *generator.SnippetWriter) {
 	if n.defaultValue == "" {
 		return
@@ -917,19 +937,29 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 		"varType":      n.defaultType,
 	}
 
+	if n.defaultIsPrimitive {
+		defaultZero, err := getTypeZeroValue(n.defaultType)
+		if err != nil {
+			klog.Error(err)
+		}
+		args["defaultZero"] = defaultZero
+	}
+
 	if n.index {
-		sw.Do("if reflect.ValueOf($.var$[$.index$]).IsZero() {\n", generator.Args{"var": varName, "index": index})
 		if n.defaultIsPrimitive {
 			if n.defaultDepth > 0 {
+				sw.Do("if $.varName$[$.index$] == nil {\n", args)
 				sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
 				for i := n.defaultDepth; i > 0; i-- {
 					sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
 				}
 				sw.Do("$.varName$[$.index$] = ptrVar0", args)
 			} else {
+				sw.Do("if $.varName$[$.index$] == $.defaultZero$ {\n", args)
 				sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
 			}
 		} else {
+			sw.Do("if $.varName$[$.index$] == nil {\n", args)
 			sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$[$.index$]); err != nil {\n", args)
 			sw.Do("panic(err)\n", nil)
 			sw.Do("}\n", nil)
@@ -937,19 +967,20 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 	} else if n.key {
 		mapDefaultVar := index + "_default"
 		args["mapDefaultVar"] = mapDefaultVar
-		sw.Do("if reflect.ValueOf($.var$[$.index$]).IsZero() {\n", generator.Args{"var": varName, "index": index})
-
 		if n.defaultIsPrimitive {
 			if n.defaultDepth > 0 {
+				sw.Do("if $.varName$[$.index$] == nil {\n", args)
 				sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
 				for i := n.defaultDepth; i > 0; i-- {
 					sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
 				}
 				sw.Do("$.varName$[$.index$] = ptrVar0", args)
 			} else {
+				sw.Do("if $.varName$[$.index$] == $.defaultZero$ {\n", args)
 				sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
 			}
 		} else {
+			sw.Do("if $.varName$[$.index$] == nil {\n", args)
 			sw.Do("$.mapDefaultVar$ := $.varName$[$.index$]\n", args)
 			sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), &$.mapDefaultVar$); err != nil {\n", args)
 			sw.Do("panic(err)\n", nil)
@@ -957,19 +988,20 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 			sw.Do("$.varName$[$.index$] = $.mapDefaultVar$\n", args)
 		}
 	} else {
-		sw.Do("if reflect.ValueOf($.var$).IsZero() {\n", generator.Args{"var": varName})
-
 		if n.defaultIsPrimitive {
 			if n.defaultDepth > 0 {
+				sw.Do("if $.varName$ == nil {\n", args)
 				sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
 				for i := n.defaultDepth; i > 0; i-- {
 					sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
 				}
 				sw.Do("$.varName$ = ptrVar0", args)
 			} else {
+				sw.Do("if $.varName$ == $.defaultZero$ {\n", args)
 				sw.Do("$.varName$ = $.defaultValue$", args)
 			}
 		} else {
+			sw.Do("if $.varName$ == nil {\n", args)
 			sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$); err != nil {\n", args)
 			sw.Do("panic(err)\n", nil)
 			sw.Do("}\n", nil)

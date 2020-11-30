@@ -919,91 +919,12 @@ func getTypeZeroValue(t string) (interface{}, error) {
 	return defaultZero, nil
 }
 
-func (n *callNode) writeDefaulterArray(args generator.Args, sw *generator.SnippetWriter) {
-	if n.defaultIsPrimitive {
-		if n.defaultDepth > 0 {
-			sw.Do("if $.varName$[$.index$] == nil {\n", args)
-			sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
-			for i := n.defaultDepth; i > 1; i-- {
-				sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
-			}
-			sw.Do("$.varName$[$.index$] = &ptrVar1", args)
-		} else {
-			sw.Do("if $.varName$[$.index$] == $.defaultZero$ {\n", args)
-			sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
-		}
-	} else {
-		sw.Do("if $.varName$[$.index$] == nil {\n", args)
-		sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$[$.index$]); err != nil {\n", args)
-		sw.Do("panic(err)\n", nil)
-		sw.Do("}\n", nil)
-	}
-	sw.Do("}\n", nil)
-}
-
-func (n *callNode) writeDefaulterMap(args generator.Args, sw *generator.SnippetWriter) {
-	mapDefaultVar := args["index"].(string) + "_default"
-	args["mapDefaultVar"] = mapDefaultVar
-
-	if n.defaultIsPrimitive {
-		if n.defaultDepth > 0 {
-			sw.Do("if $.varName$[$.index$] == nil {\n", args)
-			sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
-			for i := n.defaultDepth; i > 1; i-- {
-				sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
-			}
-			sw.Do("$.varName$[$.index$] = &ptrVar1", args)
-		} else {
-			sw.Do("if $.varName$[$.index$] == $.defaultZero$ {\n", args)
-			sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
-		}
-	} else {
-		sw.Do("if $.varName$[$.index$] == nil {\n", args)
-		sw.Do("$.mapDefaultVar$ := $.varName$[$.index$]\n", args)
-		sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), &$.mapDefaultVar$); err != nil {\n", args)
-		sw.Do("panic(err)\n", nil)
-		sw.Do("}\n", nil)
-		sw.Do("$.varName$[$.index$] = $.mapDefaultVar$\n", args)
-	}
-	sw.Do("}\n", nil)
-}
-
-func (n *callNode) writeDefaulterPrimitive(args generator.Args, sw *generator.SnippetWriter) {
-	if n.defaultIsPrimitive {
-		if n.defaultDepth > 0 {
-			sw.Do("if $.varName$ == nil {\n", args)
-			sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
-			// We iterate until a depth of 1 instead of 0 because the following line
-			// `if $.varName$ == $.defaultZero$` accounts for 1 level already
-			for i := n.defaultDepth; i > 1; i-- {
-				sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
-			}
-			sw.Do("$.varName$ = &ptrVar1", args)
-		} else {
-			sw.Do("if $.varName$ == $.defaultZero$ {\n", args)
-			sw.Do("$.varName$ = $.defaultValue$", args)
-		}
-	} else {
-		sw.Do("if $.varName$ == nil {\n", args)
-		sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), $.varPointer$); err != nil {\n", args)
-		sw.Do("panic(err)\n", nil)
-		sw.Do("}\n", nil)
-	}
-	sw.Do("}\n", nil)
-}
-
 func (n *callNode) writeDefaulter(varName string, index string, isVarPointer bool, sw *generator.SnippetWriter) {
 	if n.defaultValue == "" {
 		return
 	}
-	varPointer := varName
-	if !isVarPointer {
-		varPointer = "&" + varPointer
-	}
-
 	args := generator.Args{
 		"defaultValue": n.defaultValue,
-		"varPointer":   varPointer,
 		"varName":      varName,
 		"index":        index,
 		"varDepth":     n.defaultDepth,
@@ -1018,13 +939,59 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 		args["defaultZero"] = defaultZero
 	}
 
+	variablePlaceholder := ""
+
 	if n.index {
-		n.writeDefaulterArray(args, sw)
+		// Defaulting for array
+		variablePlaceholder = "$.varName$[$.index$]"
 	} else if n.key {
-		n.writeDefaulterMap(args, sw)
+		// Defaulting for map
+		variablePlaceholder = "$.varName$[$.index$]"
+		mapDefaultVar := args["index"].(string) + "_default"
+		args["mapDefaultVar"] = mapDefaultVar
 	} else {
-		n.writeDefaulterPrimitive(args, sw)
+		// Defaulting for primitive type
+		variablePlaceholder = "$.varName$"
 	}
+
+	variablePointer := variablePlaceholder
+	if !isVarPointer {
+		variablePointer = "&" + variablePointer
+	}
+
+	if n.defaultIsPrimitive {
+		// If the default value is a primitive when the assigned type is a pointer
+		// keep using the address-of operator on the primitive value until the types match
+		if n.defaultDepth > 0 {
+			sw.Do(fmt.Sprintf("if %s == nil {\n", variablePlaceholder), args)
+			sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
+			// We iterate until a depth of 1 instead of 0 because the following line
+			// `if $.varName$ == &ptrVar1` accounts for 1 level already
+			for i := n.defaultDepth; i > 1; i-- {
+				sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
+			}
+			sw.Do(fmt.Sprintf("%s = &ptrVar1", variablePlaceholder), args)
+		} else {
+			// For primitive types, nil checks cannot be used and the zero value must be determined
+			sw.Do(fmt.Sprintf("if %s == $.defaultZero$ {\n", variablePlaceholder), args)
+			sw.Do(fmt.Sprintf("%s = $.defaultValue$", variablePlaceholder), args)
+		}
+	} else {
+		sw.Do(fmt.Sprintf("if %s == nil {\n", variablePlaceholder), args)
+		// Map values are not directly addressable and we need a temporary variablePlaceholder to do json unmarshalling
+		if n.key {
+			sw.Do("$.mapDefaultVar$ := $.varName$[$.index$]\n", args)
+			sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), &$.mapDefaultVar$); err != nil {\n", args)
+		} else {
+			sw.Do(fmt.Sprintf("if err := json.Unmarshal([]byte(`$.defaultValue$`), %s); err != nil {\n", variablePointer), args)
+		}
+		sw.Do("panic(err)\n", nil)
+		sw.Do("}\n", nil)
+		if n.key {
+			sw.Do("$.varName$[$.index$] = $.mapDefaultVar$\n", args)
+		}
+	}
+	sw.Do("}\n", nil)
 }
 
 // WriteMethod performs an in-order traversal of the calltree, generating loops and if blocks as necessary

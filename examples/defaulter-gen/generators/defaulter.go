@@ -924,10 +924,10 @@ func (n *callNode) writeDefaulterArray(args generator.Args, sw *generator.Snippe
 		if n.defaultDepth > 0 {
 			sw.Do("if $.varName$[$.index$] == nil {\n", args)
 			sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
-			for i := n.defaultDepth; i > 0; i-- {
+			for i := n.defaultDepth; i > 1; i-- {
 				sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
 			}
-			sw.Do("$.varName$[$.index$] = ptrVar0", args)
+			sw.Do("$.varName$[$.index$] = &ptrVar1", args)
 		} else {
 			sw.Do("if $.varName$[$.index$] == $.defaultZero$ {\n", args)
 			sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
@@ -949,10 +949,10 @@ func (n *callNode) writeDefaulterMap(args generator.Args, sw *generator.SnippetW
 		if n.defaultDepth > 0 {
 			sw.Do("if $.varName$[$.index$] == nil {\n", args)
 			sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
-			for i := n.defaultDepth; i > 0; i-- {
+			for i := n.defaultDepth; i > 1; i-- {
 				sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
 			}
-			sw.Do("$.varName$[$.index$] = ptrVar0", args)
+			sw.Do("$.varName$[$.index$] = &ptrVar1", args)
 		} else {
 			sw.Do("if $.varName$[$.index$] == $.defaultZero$ {\n", args)
 			sw.Do("$.varName$[$.index$] = $.defaultValue$", args)
@@ -973,10 +973,12 @@ func (n *callNode) writeDefaulterPrimitive(args generator.Args, sw *generator.Sn
 		if n.defaultDepth > 0 {
 			sw.Do("if $.varName$ == nil {\n", args)
 			sw.Do("var ptrVar$.varDepth$ $.varType$ = $.defaultValue$\n", args)
-			for i := n.defaultDepth; i > 0; i-- {
+			// We iterate until a depth of 1 instead of 0 because the following line
+			// `if $.varName$ == $.defaultZero$` accounts for 1 level already
+			for i := n.defaultDepth; i > 1; i-- {
 				sw.Do("ptrVar$.ptri$ := &ptrVar$.i$\n", generator.Args{"i": fmt.Sprintf("%d", i), "ptri": fmt.Sprintf("%d", (i - 1))})
 			}
-			sw.Do("$.varName$ = ptrVar0", args)
+			sw.Do("$.varName$ = &ptrVar1", args)
 		} else {
 			sw.Do("if $.varName$ == $.defaultZero$ {\n", args)
 			sw.Do("$.varName$ = $.defaultValue$", args)

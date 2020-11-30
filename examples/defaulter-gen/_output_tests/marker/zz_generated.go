@@ -41,8 +41,7 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 	}
 	if in.StringPointer == nil {
 		var ptrVar1 string = "default"
-		ptrVar0 := &ptrVar1
-		in.StringPointer = ptrVar0
+		in.StringPointer = &ptrVar1
 	}
 	if in.IntDefault == 0 {
 		in.IntDefault = 1
@@ -58,8 +57,7 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 	for i := range in.List {
 		if in.List[i] == nil {
 			var ptrVar1 string = "apple"
-			ptrVar0 := &ptrVar1
-			in.List[i] = ptrVar0
+			in.List[i] = &ptrVar1
 		}
 	}
 	if in.Sub == nil {
@@ -112,14 +110,12 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 	for i_Map := range in.Map {
 		if in.Map[i_Map] == nil {
 			var ptrVar1 string = "apple"
-			ptrVar0 := &ptrVar1
-			in.Map[i_Map] = ptrVar0
+			in.Map[i_Map] = &ptrVar1
 		}
 	}
 	if in.AliasPtr == nil {
 		var ptrVar1 string = "banana"
-		ptrVar0 := &ptrVar1
-		in.AliasPtr = ptrVar0
+		in.AliasPtr = &ptrVar1
 	}
 }
 

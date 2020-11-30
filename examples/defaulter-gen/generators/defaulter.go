@@ -931,14 +931,6 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 		"varType":      n.defaultType,
 	}
 
-	if n.defaultIsPrimitive {
-		defaultZero, err := getTypeZeroValue(n.defaultType)
-		if err != nil {
-			klog.Error(err)
-		}
-		args["defaultZero"] = defaultZero
-	}
-
 	variablePlaceholder := ""
 
 	if n.index {
@@ -954,11 +946,9 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 		variablePlaceholder = "$.varName$"
 	}
 
-	variablePointer := variablePlaceholder
-	if !isVarPointer {
-		variablePointer = "&" + variablePointer
-	}
-
+	// defaultIsPrimitive is true if the type or underlying type (in an array/map) is primitive
+	// or is a pointer to a primitive type
+	// (Eg: int, map[string]*string, []int)
 	if n.defaultIsPrimitive {
 		// If the default value is a primitive when the assigned type is a pointer
 		// keep using the address-of operator on the primitive value until the types match
@@ -973,16 +963,27 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 			sw.Do(fmt.Sprintf("%s = &ptrVar1", variablePlaceholder), args)
 		} else {
 			// For primitive types, nil checks cannot be used and the zero value must be determined
+			defaultZero, err := getTypeZeroValue(n.defaultType)
+			if err != nil {
+				klog.Error(err)
+			}
+			args["defaultZero"] = defaultZero
+
 			sw.Do(fmt.Sprintf("if %s == $.defaultZero$ {\n", variablePlaceholder), args)
 			sw.Do(fmt.Sprintf("%s = $.defaultValue$", variablePlaceholder), args)
 		}
 	} else {
 		sw.Do(fmt.Sprintf("if %s == nil {\n", variablePlaceholder), args)
-		// Map values are not directly addressable and we need a temporary variablePlaceholder to do json unmarshalling
+		// Map values are not directly addressable and we need a temporary variable to do json unmarshalling
+		// This applies to maps with non-primitive values (eg: map[string]SubStruct)
 		if n.key {
 			sw.Do("$.mapDefaultVar$ := $.varName$[$.index$]\n", args)
 			sw.Do("if err := json.Unmarshal([]byte(`$.defaultValue$`), &$.mapDefaultVar$); err != nil {\n", args)
 		} else {
+			variablePointer := variablePlaceholder
+			if !isVarPointer {
+				variablePointer = "&" + variablePointer
+			}
 			sw.Do(fmt.Sprintf("if err := json.Unmarshal([]byte(`$.defaultValue$`), %s); err != nil {\n", variablePointer), args)
 		}
 		sw.Do("panic(err)\n", nil)

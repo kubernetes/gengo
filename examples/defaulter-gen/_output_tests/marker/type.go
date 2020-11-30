@@ -74,6 +74,12 @@ type Defaulted struct {
 	// +default={"foo": "bar"}
 	Map map[string]Item
 
+	// +default={"foo": {"S": "string", "I": 1}}
+	StructMap map[string]SubStruct
+
+	// +default={"foo": {"S": "string", "I": 1}}
+	PtrStructMap map[string]*SubStruct
+
 	// A default specified here overrides the default for the Item type
 	// +default="banana"
 	AliasPtr Item

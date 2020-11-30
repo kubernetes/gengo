@@ -113,6 +113,16 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 			in.Map[i_Map] = &ptrVar1
 		}
 	}
+	if in.StructMap == nil {
+		if err := json.Unmarshal([]byte(`{"foo": {"S": "string", "I": 1}}`), &in.StructMap); err != nil {
+			panic(err)
+		}
+	}
+	if in.PtrStructMap == nil {
+		if err := json.Unmarshal([]byte(`{"foo": {"S": "string", "I": 1}}`), &in.PtrStructMap); err != nil {
+			panic(err)
+		}
+	}
 	if in.AliasPtr == nil {
 		var ptrVar1 string = "banana"
 		in.AliasPtr = &ptrVar1

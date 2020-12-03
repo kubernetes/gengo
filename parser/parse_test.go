@@ -329,6 +329,8 @@ const FooThirdDegree proto.Degrees = proto.ThirdDegree(2)
 	if diff := cmp.Diff(
 		u.Package("base/foo/proto").Constants, expectedConst,
 		cmpopts.IgnoreFields(types.Type{}, "Underlying"),
+		cmpopts.IgnoreFields(types.Type{}, "CommentLines"),
+		cmpopts.IgnoreFields(types.Type{}, "SecondClosestCommentLines"),
 	); diff != "" {
 		t.Errorf("Constant mismatch: %s", diff)
 	}
@@ -519,6 +521,47 @@ func TestParseMethodCommentLines(t *testing.T) {
 			t.Errorf("same signature method comment got equal, %v == %v", c1, c2)
 		}
 	}
+}
+
+func TestParseConstantCommentLines(t *testing.T) {
+	testFile := file{
+		path: "base/foo/proto/foo.go",
+		contents: `
+package foo
+
+// FooString is a string of foo.
+type FooString string
+
+// FooStringOne is one foo.
+const FooStringOne FooString = "One"
+
+// An important integer.
+// This one is nine.
+const OtherInt = 9
+`,
+	}
+
+	expectComment := func(obj *types.Type, lines []string) {
+		t.Helper()
+		if !reflect.DeepEqual(obj.CommentLines, lines) {
+			t.Errorf("wrong const comment for %q: wanted %q, got %q",
+				obj.Name,
+				lines, obj.CommentLines,
+			)
+		}
+	}
+
+	_, u, _ := construct(t, []file{testFile}, namer.NewPublicNamer(0))
+
+	expectComment(
+		u.Constant(types.Name{Package: "base/foo/proto", Name: "FooStringOne"}),
+		[]string{"FooStringOne is one foo."},
+	)
+
+	expectComment(
+		u.Constant(types.Name{Package: "base/foo/proto", Name: "OtherInt"}),
+		[]string{"An important integer.", "This one is nine."},
+	)
 }
 
 func TestTypeKindParse(t *testing.T) {

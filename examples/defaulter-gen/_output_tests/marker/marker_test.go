@@ -35,10 +35,16 @@ func Test_Marker(t *testing.T) {
 			name: "default",
 			in:   Defaulted{},
 			out: Defaulted{
-				Field:       "bar",
-				OtherField:  0,
-				EmptyInt:    0,
-				EmptyString: "",
+				StringDefault:      "bar",
+				StringEmptyDefault: "",
+				StringEmpty:        "",
+				StringPointer:      getPointerFromString("default"),
+				IntDefault:         1,
+				IntEmptyDefault:    0,
+				IntEmpty:           0,
+				FloatDefault:       0.5,
+				FloatEmptyDefault:  0.0,
+				FloatEmpty:         0.0,
 				List: []Item{
 					getPointerFromString("foo"),
 					getPointerFromString("bar"),
@@ -76,6 +82,18 @@ func Test_Marker(t *testing.T) {
 				},
 				Map: map[string]Item{
 					"foo": getPointerFromString("bar"),
+				},
+				StructMap: map[string]SubStruct{
+					"foo": SubStruct{
+						S: "string",
+						I: 1,
+					},
+				},
+				PtrStructMap: map[string]*SubStruct{
+					"foo": &SubStruct{
+						S: "string",
+						I: 1,
+					},
 				},
 				AliasPtr: getPointerFromString("banana"),
 			},
@@ -83,14 +101,20 @@ func Test_Marker(t *testing.T) {
 		{
 			name: "values-omitempty",
 			in: Defaulted{
-				Field:      "changed",
-				OtherField: 1,
+				StringDefault: "changed",
+				IntDefault:    5,
 			},
 			out: Defaulted{
-				Field:       "changed",
-				OtherField:  1,
-				EmptyInt:    0,
-				EmptyString: "",
+				StringDefault:      "changed",
+				StringEmptyDefault: "",
+				StringEmpty:        "",
+				StringPointer:      getPointerFromString("default"),
+				IntDefault:         5,
+				IntEmptyDefault:    0,
+				IntEmpty:           0,
+				FloatDefault:       0.5,
+				FloatEmptyDefault:  0.0,
+				FloatEmpty:         0.0,
 				List: []Item{
 					getPointerFromString("foo"),
 					getPointerFromString("bar"),
@@ -128,6 +152,18 @@ func Test_Marker(t *testing.T) {
 				},
 				Map: map[string]Item{
 					"foo": getPointerFromString("bar"),
+				},
+				StructMap: map[string]SubStruct{
+					"foo": SubStruct{
+						S: "string",
+						I: 1,
+					},
+				},
+				PtrStructMap: map[string]*SubStruct{
+					"foo": &SubStruct{
+						S: "string",
+						I: 1,
+					},
 				},
 				AliasPtr: getPointerFromString("banana"),
 			},
@@ -141,10 +177,16 @@ func Test_Marker(t *testing.T) {
 				},
 			},
 			out: Defaulted{
-				Field:       "bar",
-				OtherField:  0,
-				EmptyInt:    0,
-				EmptyString: "",
+				StringDefault:      "bar",
+				StringEmptyDefault: "",
+				StringEmpty:        "",
+				StringPointer:      getPointerFromString("default"),
+				IntDefault:         1,
+				IntEmptyDefault:    0,
+				IntEmpty:           0,
+				FloatDefault:       0.5,
+				FloatEmptyDefault:  0.0,
+				FloatEmpty:         0.0,
 				List: []Item{
 					getPointerFromString("apple"),
 					getPointerFromString("bar"),
@@ -183,6 +225,18 @@ func Test_Marker(t *testing.T) {
 				Map: map[string]Item{
 					"foo": getPointerFromString("bar"),
 				},
+				StructMap: map[string]SubStruct{
+					"foo": SubStruct{
+						S: "string",
+						I: 1,
+					},
+				},
+				PtrStructMap: map[string]*SubStruct{
+					"foo": &SubStruct{
+						S: "string",
+						I: 1,
+					},
+				},
 				AliasPtr: getPointerFromString("banana"),
 			},
 		},
@@ -195,10 +249,16 @@ func Test_Marker(t *testing.T) {
 				},
 			},
 			out: Defaulted{
-				Field:       "bar",
-				OtherField:  0,
-				EmptyInt:    0,
-				EmptyString: "",
+				StringDefault:      "bar",
+				StringEmptyDefault: "",
+				StringEmpty:        "",
+				StringPointer:      getPointerFromString("default"),
+				IntDefault:         1,
+				IntEmptyDefault:    0,
+				IntEmpty:           0,
+				FloatDefault:       0.5,
+				FloatEmptyDefault:  0.0,
+				FloatEmpty:         0.0,
 				List: []Item{
 					getPointerFromString("foo"),
 					getPointerFromString("bar"),
@@ -237,6 +297,18 @@ func Test_Marker(t *testing.T) {
 				Map: map[string]Item{
 					"foo": getPointerFromString("apple"),
 					"bar": getPointerFromString("banana"),
+				},
+				StructMap: map[string]SubStruct{
+					"foo": SubStruct{
+						S: "string",
+						I: 1,
+					},
+				},
+				PtrStructMap: map[string]*SubStruct{
+					"foo": &SubStruct{
+						S: "string",
+						I: 1,
+					},
 				},
 				AliasPtr: getPointerFromString("banana"),
 			},

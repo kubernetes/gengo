@@ -12,7 +12,7 @@
 A package for generating things based on go files. This mechanism was first used
 in Kubernetes and is split out here for ease of reuse and maintainability.
 
-`go get k8s.io/gengo`
+`go get k8s.io/gengo/...`
 
 ## Examples
 

@@ -18,6 +18,7 @@ package generator
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	"k8s.io/gengo/namer"
@@ -241,6 +242,9 @@ func (ctxt *Context) TransitiveIncomingImports() map[string][]string {
 // (`which go`) will all be searched, in the normal Go fashion.
 // Deprecated. Please use AddDirectory.
 func (ctxt *Context) AddDir(path string) error {
+	if len(path) == 0 {
+		return fmt.Errorf("Can not add a empty package")
+	}
 	ctxt.incomingImports = nil
 	ctxt.incomingTransitiveImports = nil
 	return ctxt.builder.AddDirTo(path, &ctxt.Universe)
@@ -250,6 +254,9 @@ func (ctxt *Context) AddDir(path string) error {
 // single go package import path.  GOPATH, GOROOT, and the location of your go
 // binary (`which go`) will all be searched, in the normal Go fashion.
 func (ctxt *Context) AddDirectory(path string) (*types.Package, error) {
+	if len(path) == 0 {
+		return nil, fmt.Errorf("Can not add a empty directory")
+	}
 	ctxt.incomingImports = nil
 	ctxt.incomingTransitiveImports = nil
 	return ctxt.builder.AddDirectoryTo(path, &ctxt.Universe)

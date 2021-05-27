@@ -533,7 +533,7 @@ package foo
 type FooString string
 
 // FooStringOne is one foo.
-const FooStringOne FooString = "One"
+const FooStringOne FooString = "One" // trailing comments here 
 
 // An important integer.
 // This one is nine.
@@ -551,11 +551,26 @@ const OtherInt = 9
 		}
 	}
 
+	expectTrailingComment := func(obj *types.Type, lines []string) {
+		t.Helper()
+		if !reflect.DeepEqual(obj.TrailingCommentLines, lines) {
+			t.Errorf("wrong const trailing comment for %q: wanted %q, got %q",
+				obj.Name,
+				lines, obj.TrailingCommentLines,
+			)
+		}
+	}
+
 	_, u, _ := construct(t, []file{testFile}, namer.NewPublicNamer(0))
 
 	expectComment(
 		u.Constant(types.Name{Package: "base/foo/proto", Name: "FooStringOne"}),
 		[]string{"FooStringOne is one foo."},
+	)
+
+	expectTrailingComment(
+		u.Constant(types.Name{Package: "base/foo/proto", Name: "FooStringOne"}),
+		[]string{"trailing comments here"},
 	)
 
 	expectComment(

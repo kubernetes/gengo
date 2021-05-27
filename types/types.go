@@ -320,6 +320,10 @@ type Type struct {
 	// ---
 	SecondClosestCommentLines []string
 
+	// If there are comment lines immediately after the type / field definition or const value,
+	// they will be recorded here.
+	TrailingCommentLines []string
+
 	// If Kind == Struct
 	Members []Member
 

@@ -594,6 +594,11 @@ func TestTypeKindParse(t *testing.T) {
             func (t Test) Method(a, b string) (c, d string) { return t(a, b) }
             type Interface interface{Method(a, b string) (c, d string)}
             `},
+		{path: "h/foo.go", contents: `
+            package h
+            import "a"
+            type Test [1]a.Test
+            `},
 	}
 
 	// Check that the right types are found, and the namers give the expected names.
@@ -634,6 +639,10 @@ func TestTypeKindParse(t *testing.T) {
 		{
 			Package: "g", Name: "Interface", k: types.Interface,
 			names: []string{"Interface", "GInterface", "interface", "gInterface", "g.Interface"},
+		},
+		{
+			Package: "h", Name: "Test", k: types.Array,
+			names: []string{"Test", "HTest", "test", "hTest", "h.Test"},
 		},
 		{
 			Package: "", Name: "string", k: types.Builtin,

@@ -167,7 +167,7 @@ func (b *Builder) AddFileForTest(pkg string, path string, src []byte) error {
 	if err := b.addFile(importPathString(pkg), path, src, true); err != nil {
 		return err
 	}
-	if _, err := b.typeCheckPackage(importPathString(pkg)); err != nil {
+	if _, err := b.typeCheckPackage(importPathString(pkg), true); err != nil {
 		return err
 	}
 	return nil
@@ -388,13 +388,13 @@ func (b *Builder) importPackage(dir string, userRequested bool) (*tc.Package, er
 	// Run the type checker.  We may end up doing this to pkgs that are already
 	// done, or are in the queue to be done later, but it will short-circuit,
 	// and we can't miss pkgs that are only depended on.
-	pkg, err := b.typeCheckPackage(pkgPath)
+	pkg, err := b.typeCheckPackage(pkgPath, !ignoreError)
 	if err != nil {
 		switch {
 		case ignoreError && pkg != nil:
-			klog.V(2).Infof("type checking encountered some issues in %q, but ignoring.\n", pkgPath)
+			klog.V(4).Infof("type checking encountered some issues in %q, but ignoring.\n", pkgPath)
 		case !ignoreError && pkg != nil:
-			klog.V(2).Infof("type checking encountered some errors in %q\n", pkgPath)
+			klog.V(3).Infof("type checking encountered some errors in %q\n", pkgPath)
 			return nil, err
 		default:
 			return nil, err
@@ -415,7 +415,7 @@ func (a importAdapter) Import(path string) (*tc.Package, error) {
 // typeCheckPackage will attempt to return the package even if there are some
 // errors, so you may check whether the package is nil or not even if you get
 // an error.
-func (b *Builder) typeCheckPackage(pkgPath importPathString) (*tc.Package, error) {
+func (b *Builder) typeCheckPackage(pkgPath importPathString, logErr bool) (*tc.Package, error) {
 	klog.V(5).Infof("typeCheckPackage %s", pkgPath)
 	if pkg, ok := b.typeCheckedPackages[pkgPath]; ok {
 		if pkg != nil {
@@ -443,7 +443,11 @@ func (b *Builder) typeCheckPackage(pkgPath importPathString) (*tc.Package, error
 		// method. So there can't be cycles in the import graph.
 		Importer: importAdapter{b},
 		Error: func(err error) {
-			klog.V(2).Infof("type checker: %v\n", err)
+			if logErr {
+				klog.V(2).Infof("type checker: %v\n", err)
+			} else {
+				klog.V(3).Infof("type checker: %v\n", err)
+			}
 		},
 	}
 	pkg, err := c.Check(string(pkgPath), b.fset, files, nil)

@@ -50,6 +50,11 @@ func TestNameStrategy(t *testing.T) {
 	tmp.Kind = types.Chan
 	tmp.Elem = base
 
+	tmp = u.Type(types.Name{Package: "", Name: "[4]Baz"})
+	tmp.Kind = types.Array
+	tmp.Elem = base
+	tmp.Len = 4
+
 	u.Type(types.Name{Package: "", Name: "string"})
 
 	o := Orderer{NewPublicNamer(0)}
@@ -58,7 +63,7 @@ func TestNameStrategy(t *testing.T) {
 	for i, t := range order {
 		orderedNames[i] = o.Name(t)
 	}
-	expect := []string{"Baz", "Baz", "ChanBaz", "MapStringToBaz", "SliceBaz", "String"}
+	expect := []string{"Array4Baz", "Baz", "Baz", "ChanBaz", "MapStringToBaz", "SliceBaz", "String"}
 	if e, a := expect, orderedNames; !reflect.DeepEqual(e, a) {
 		t.Errorf("Wanted %#v, got %#v", e, a)
 	}
@@ -70,7 +75,7 @@ func TestNameStrategy(t *testing.T) {
 		orderedNames[i] = o.Name(t)
 	}
 
-	expect = []string{"[]bar.Baz", "bar.Baz", "chan bar.Baz", "map[string]bar.Baz", "other.Baz", "string"}
+	expect = []string{"[4]bar.Baz", "[]bar.Baz", "bar.Baz", "chan bar.Baz", "map[string]bar.Baz", "other.Baz", "string"}
 	if e, a := expect, orderedNames; !reflect.DeepEqual(e, a) {
 		t.Errorf("Wanted %#v, got %#v", e, a)
 	}
@@ -82,7 +87,7 @@ func TestNameStrategy(t *testing.T) {
 		orderedNames[i] = o.Name(t)
 	}
 
-	expect = []string{"Baz", "[]Baz", "chan Baz", "map[string]Baz", "other.Baz", "string"}
+	expect = []string{"Baz", "[4]Baz", "[]Baz", "chan Baz", "map[string]Baz", "other.Baz", "string"}
 	if e, a := expect, orderedNames; !reflect.DeepEqual(e, a) {
 		t.Errorf("Wanted %#v, got %#v", e, a)
 	}
@@ -93,7 +98,7 @@ func TestNameStrategy(t *testing.T) {
 	for i, t := range order {
 		orderedNames[i] = o.Name(t)
 	}
-	expect = []string{"BarBaz", "ChanBarBaz", "MapStringToBarBaz", "OtherBaz", "SliceBarBaz", "String"}
+	expect = []string{"Array4BarBaz", "BarBaz", "ChanBarBaz", "MapStringToBarBaz", "OtherBaz", "SliceBarBaz", "String"}
 	if e, a := expect, orderedNames; !reflect.DeepEqual(e, a) {
 		t.Errorf("Wanted %#v, got %#v", e, a)
 	}

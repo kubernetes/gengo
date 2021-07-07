@@ -110,6 +110,11 @@ func TestPluralNamer(t *testing.T) {
 			"leaves",
 			"Leaves",
 		},
+		{
+			"Metadata",
+			"metadatas",
+			"Metadatas",
+		},
 	}
 	for _, c := range cases {
 		testType := &types.Type{Name: types.Name{Name: c.typeName}}

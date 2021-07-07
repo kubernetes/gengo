@@ -280,6 +280,10 @@ func (b *Builder) AddDirTo(dir string, u *types.Universe) error {
 func (b *Builder) AddDirectoryTo(dir string, u *types.Universe) (*types.Package, error) {
 	// We want all types from this package, as if they were directly added
 	// by the user.  They WERE added by the user, in effect.
+	if len(dir) == 0 {
+		return nil, fmt.Errorf("Can not add a empty directory")
+	}
+
 	if _, err := b.importPackage(dir, true); err != nil {
 		return nil, err
 	}
@@ -293,6 +297,9 @@ func (b *Builder) AddDirectoryTo(dir string, u *types.Universe) (*types.Package,
 // The implementation of AddDir. A flag indicates whether this directory was
 // user-requested or just from following the import graph.
 func (b *Builder) addDir(dir string, userRequested bool) error {
+	if len(dir) == 0 {
+		return fmt.Errorf("Can not add a empty directory")
+	}
 	klog.V(5).Infof("addDir %s", dir)
 	buildPkg, err := b.importBuildPackage(dir)
 	if err != nil {

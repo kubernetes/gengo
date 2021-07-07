@@ -180,7 +180,8 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 				if ttag != nil && ttag.value == "true" {
 					klog.V(5).Infof("    tag=true")
 					if !copyableType(t) {
-						klog.Fatalf("Type %v requests deepcopy generation but is not copyable", t)
+						klog.V(1).Infof("Type %v requests deepcopy generation but is not copyable", t)
+						continue
 					}
 					pkgNeedsGeneration = true
 					break
@@ -268,7 +269,7 @@ func (g *genDeepCopy) Filter(c *generator.Context, t *types.Type) bool {
 		return false
 	}
 	if !copyableType(t) {
-		klog.V(2).Infof("Type %v is not copyable", t)
+		klog.V(1).Infof("Type %v is not copyable", t)
 		return false
 	}
 	klog.V(4).Infof("Type %v is copyable", t)

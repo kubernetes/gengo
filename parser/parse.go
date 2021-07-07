@@ -70,6 +70,9 @@ type Builder struct {
 	// All comments from everywhere in every parsed file.
 	endLineToCommentGroup map[fileLine]*ast.CommentGroup
 
+	// All trailing comments from everywhere in every parsed file.
+	endLineToTrailingCommentGroup map[fileLine]*ast.CommentGroup
+
 	// map of package to list of packages it imports.
 	importGraph map[importPathString]map[string]struct{}
 }
@@ -101,15 +104,16 @@ func New() *Builder {
 	// have non-CGo equivalents.
 	c.CgoEnabled = false
 	return &Builder{
-		context:               &c,
-		buildPackages:         map[string]*build.Package{},
-		typeCheckedPackages:   map[importPathString]*tc.Package{},
-		fset:                  token.NewFileSet(),
-		parsed:                map[importPathString][]parsedFile{},
-		absPaths:              map[importPathString]string{},
-		userRequested:         map[importPathString]bool{},
-		endLineToCommentGroup: map[fileLine]*ast.CommentGroup{},
-		importGraph:           map[importPathString]map[string]struct{}{},
+		context:                       &c,
+		buildPackages:                 map[string]*build.Package{},
+		typeCheckedPackages:           map[importPathString]*tc.Package{},
+		fset:                          token.NewFileSet(),
+		parsed:                        map[importPathString][]parsedFile{},
+		absPaths:                      map[importPathString]string{},
+		userRequested:                 map[importPathString]bool{},
+		endLineToCommentGroup:         map[fileLine]*ast.CommentGroup{},
+		endLineToTrailingCommentGroup: map[fileLine]*ast.CommentGroup{},
+		importGraph:                   map[importPathString]map[string]struct{}{},
 	}
 }
 
@@ -195,6 +199,26 @@ func (b *Builder) addFile(pkgPath importPathString, path string, src []byte, use
 	b.userRequested[pkgPath] = userRequested || b.userRequested[pkgPath]
 
 	b.parsed[pkgPath] = append(b.parsed[pkgPath], parsedFile{path, p})
+
+	ast.Inspect(p, func(node ast.Node) bool {
+		collectTrailingCommentGroup := func(c *ast.CommentGroup) {
+			if c != nil {
+				position := b.fset.Position(c.End())
+				b.endLineToTrailingCommentGroup[fileLine{position.Filename, position.Line}] = c
+			}
+		}
+		switch n := node.(type) {
+		case *ast.ValueSpec:
+			collectTrailingCommentGroup(n.Comment)
+		case *ast.ImportSpec:
+			collectTrailingCommentGroup(n.Comment)
+		case *ast.TypeSpec:
+			collectTrailingCommentGroup(n.Comment)
+		case *ast.Field:
+			collectTrailingCommentGroup(n.Comment)
+		}
+		return true
+	})
 	for _, c := range p.Comments {
 		position := b.fset.Position(c.End())
 		b.endLineToCommentGroup[fileLine{position.Filename, position.Line}] = c
@@ -504,6 +528,12 @@ func (b *Builder) addCommentsToType(obj tc.Object, t *types.Type) {
 	} else {
 		t.SecondClosestCommentLines = splitLines(b.priorCommentLines(c1.List[0].Slash, 2).Text())
 	}
+	// trailing comments should be in same line
+	c2 := b.priorCommentLines(obj.Pos(), 0)
+	// c2.Text() is safe if c2 is nil
+	if txt := c2.Text(); txt != "" {
+		t.TrailingCommentLines = splitLines(txt)
+	}
 }
 
 // findTypesIn finalizes the package import and searches through the package
@@ -603,6 +633,13 @@ func (b *Builder) importWithMode(dir string, mode build.ImportMode) (*build.Pack
 func (b *Builder) priorCommentLines(pos token.Pos, lines int) *ast.CommentGroup {
 	position := b.fset.Position(pos)
 	key := fileLine{position.Filename, position.Line - lines}
+	// should ignore trailing comments
+	// when lines eq 0 means find trailing comments
+	if lines != 0 {
+		if _, ok := b.endLineToTrailingCommentGroup[key]; ok {
+			return nil
+		}
+	}
 	return b.endLineToCommentGroup[key]
 }
 

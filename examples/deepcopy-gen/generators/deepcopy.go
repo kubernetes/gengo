@@ -530,7 +530,7 @@ func (g *genDeepCopy) deepCopyableInterfacesInner(c *generator.Context, t *types
 	var ts []*types.Type
 	for _, intf := range intfs {
 		t := types.ParseFullyQualifiedName(intf)
-		err := c.AddDir(t.Package)
+		_, err := c.AddDirectory(t.Package)
 		if err != nil {
 			return nil, err
 		}

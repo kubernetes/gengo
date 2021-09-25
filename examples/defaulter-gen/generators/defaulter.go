@@ -271,7 +271,7 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 		}
 		// Make sure our peer-packages are added and fully parsed.
 		for _, pp := range peerPkgs {
-			context.AddDir(pp)
+			context.AddDirectory(pp)
 			getManualDefaultingFunctions(context, context.Universe[pp], existingDefaulters)
 		}
 

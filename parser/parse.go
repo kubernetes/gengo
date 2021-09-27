@@ -230,18 +230,34 @@ func (b *Builder) addFile(pkgPath importPathString, path string, src []byte, use
 	return nil
 }
 
-// AddDir adds an entire directory, scanning it for go files. 'dir' should have
-// a single go package in it. GOPATH, GOROOT, and the location of your go
-// binary (`which go`) will all be searched if dir doesn't literally resolve.
-func (b *Builder) AddDir(dir string) error {
-	_, err := b.importPackage(dir, true)
+// AddPackagePatterns adds the specified patterns,
+// which may be individual import paths as used in import directives,
+// or recursive paths like `example.com/...`.
+func (b *Builder) AddPackagePatterns(patterns ...string) error {
+	for _, d := range patterns {
+		var err error
+		if strings.HasSuffix(d, "/...") {
+			err = b.addPackageRecursive(strings.TrimSuffix(d, "/..."))
+		} else {
+			err = b.addPackage(d)
+		}
+		if err != nil {
+			return fmt.Errorf("unable to add directory %q: %v", d, err)
+		}
+	}
+	return nil
+}
+
+// addPackage adds an entire package, scanning it for go files.
+func (b *Builder) addPackage(importPackage string) error {
+	_, err := b.importPackage(importPackage, true)
 	return err
 }
 
-// AddDirRecursive is just like AddDir, but it also recursively adds
-// subdirectories; it returns an error only if the path couldn't be resolved;
+// addPackageRecursive is just like addPackage, but it also recursively adds
+// subpackages; it returns an error only if the path couldn't be resolved;
 // any directories recursed into without go source are ignored.
-func (b *Builder) AddDirRecursive(dir string) error {
+func (b *Builder) addPackageRecursive(dir string) error {
 	// Add the root.
 	if _, err := b.importPackage(dir, true); err != nil {
 		klog.Warningf("Ignoring directory %v: %v", dir, err)

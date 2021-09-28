@@ -35,7 +35,7 @@ import (
 // the comments:
 //   +foo=value1
 //   +bar
-//   +foo=value2
+//   +foo=value2 value3
 //   +baz="qux"
 // Then this function will return:
 //   map[string][]string{"foo":{"value1, "value2"}, "bar": {""}, "baz": {"qux"}}
@@ -49,10 +49,10 @@ func ExtractCommentTags(marker string, lines []string) map[string][]string {
 		if !strings.HasPrefix(line, marker) {
 			continue
 		}
-		// TODO: we could support multiple values per key if we split on spaces
 		kv := strings.SplitN(line[len(marker):], "=", 2)
 		if len(kv) == 2 {
-			out[kv[0]] = append(out[kv[0]], kv[1])
+			values := strings.Split(kv[1], " ")
+			out[kv[0]] = append(out[kv[0]], values...)
 		} else if len(kv) == 1 {
 			out[kv[0]] = append(out[kv[0]], "")
 		}

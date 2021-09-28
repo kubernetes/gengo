@@ -27,13 +27,13 @@ func TestExtractCommentTags(t *testing.T) {
 		"Human comment that is ignored.",
 		"+foo=value1",
 		"+bar",
-		"+foo=value2",
+		"+foo=value2 value3",
 		"+baz=qux,zrb=true",
 	}
 
 	a := ExtractCommentTags("+", commentLines)
 	e := map[string][]string{
-		"foo": {"value1", "value2"},
+		"foo": {"value1", "value2", "value3"},
 		"bar": {""},
 		"baz": {"qux,zrb=true"},
 	}

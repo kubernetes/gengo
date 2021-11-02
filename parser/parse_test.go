@@ -429,6 +429,84 @@ func TestParseSecondClosestCommentLines(t *testing.T) {
 	}
 }
 
+func TestParseMethodParameterAndResultNames(t *testing.T) {
+	const fileName = "base/foo/proto/foo.go"
+	testCases := []struct {
+		testFile            file
+		expectedParamNames  map[string][]string
+		expectedResultNames map[string][]string
+	}{
+		{
+			testFile: file{
+				path: fileName, contents: `
+				    package foo
+
+					type bar struct{} 
+
+                    func (b *bar) SingleParam(param1 int) {}
+                    func (b *bar) MultipleParams(param1, param2 int) {}
+                    func (b *bar) SingleParamSingleResult(param1 int) (out1 bool) {}
+                    func (b *bar) MultipleParamsMultipleResults(param1 bool, param2 int) (out1 bool, out2 string) {}
+					func (b *bar) NoParamsMultipleResults() (out1 bool, out2 string) {}
+					func (b *bar) NoParamsSingleResults() (out1 bool) {}
+					func (b *bar) NoParamsNoResults() {}
+					func (b *bar) UnnamedSingleParamNoResults(int) {}
+					func (b *bar) UnnamedMultipleParamsNoResult(int, bool) {}
+					func (b *bar) NoParamsSingleUnnamedResults() int {}
+					func (b *bar) NoParamsMultipleUnnamedResults() (int, string) {}
+                    `},
+			expectedParamNames: map[string][]string{
+				"SingleParam":                    {"param1"},
+				"MultipleParams":                 {"param1", "param2"},
+				"SingleParamSingleResult":        {"param1"},
+				"MultipleParamsMultipleResults":  {"param1", "param2"},
+				"NoParamsMultipleResults":        nil,
+				"NoParamsSingleResults":          nil,
+				"NoParamsNoResults":              nil,
+				"UnnamedSingleParamNoResults":    {""},
+				"UnnamedMultipleParamsNoResult":  {"", ""},
+				"NoParamsSingleUnnamedResults":   nil,
+				"NoParamsMultipleUnnamedResults": nil,
+			},
+			expectedResultNames: map[string][]string{
+				"SingleParam":                    nil,
+				"MultipleParams":                 nil,
+				"SingleParamSingleResult":        {"out1"},
+				"MultipleParamsMultipleResults":  {"out1", "out2"},
+				"NoParamsMultipleResults":        {"out1", "out2"},
+				"NoParamsSingleResults":          {"out1"},
+				"NoParamsNoResults":              nil,
+				"UnnamedSingleParamNoResults":    nil,
+				"UnnamedMultipleParamsNoResult":  nil,
+				"NoParamsSingleUnnamedResults":   {""},
+				"NoParamsMultipleUnnamedResults": {"", ""},
+			},
+		},
+	}
+	for _, test := range testCases {
+		_, u, o := construct(t, []file{test.testFile}, namer.NewPublicNamer(0))
+		t.Logf("%#v", o)
+		blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "bar"})
+
+		for methodName, methodType := range blahT.Methods {
+			expectedParamNames := test.expectedParamNames[methodName]
+			actualParamNames := methodType.Signature.ParameterNames
+			if !reflect.DeepEqual(expectedParamNames, actualParamNames) {
+				t.Errorf("%s param names parsed incorrectly wrong, wanted %v, got %v", methodName, expectedParamNames,
+					actualParamNames)
+			}
+
+			expectedResultNames := test.expectedResultNames[methodName]
+			actualResultNames := methodType.Signature.ResultNames
+			if !reflect.DeepEqual(expectedResultNames, actualResultNames) {
+				t.Errorf("%s result names parsed incorrectly wrong, wanted %v, got %v", methodName, expectedResultNames,
+					actualResultNames)
+			}
+		}
+
+	}
+}
+
 func TestParseMethodCommentLines(t *testing.T) {
 	const fileName = "base/foo/proto/foo.go"
 	testCases := []struct {

@@ -665,9 +665,11 @@ func (b *Builder) convertSignature(u types.Universe, t *tc.Signature) *types.Sig
 	signature := &types.Signature{}
 	for i := 0; i < t.Params().Len(); i++ {
 		signature.Parameters = append(signature.Parameters, b.walkType(u, nil, t.Params().At(i).Type()))
+		signature.ParameterNames = append(signature.ParameterNames, t.Params().At(i).Name())
 	}
 	for i := 0; i < t.Results().Len(); i++ {
 		signature.Results = append(signature.Results, b.walkType(u, nil, t.Results().At(i).Type()))
+		signature.ResultNames = append(signature.ResultNames, t.Results().At(i).Name())
 	}
 	if r := t.Recv(); r != nil {
 		signature.Receiver = b.walkType(u, nil, r.Type())

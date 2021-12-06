@@ -568,7 +568,7 @@ func (b *Builder) findTypesIn(pkgPath importPathString, u *types.Universe) error
 	u.Package(string(pkgPath)).SourcePath = b.absPaths[pkgPath]
 
 	for _, f := range b.parsed[pkgPath] {
-		if _, fileName := filepath.Split(f.name); fileName == "doc.go" {
+		if _, fileName := filepath.Split(f.name); fileName == "doc.go" || fileName == "groupversion_info.go" {
 			tp := u.Package(string(pkgPath))
 			// findTypesIn might be called multiple times. Clean up tp.Comments
 			// to avoid repeatedly fill same comments to it.

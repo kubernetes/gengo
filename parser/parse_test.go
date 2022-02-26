@@ -35,13 +35,14 @@ import (
 )
 
 func TestRecursive(t *testing.T) {
+	dir := "k8s.io/gengo/testdata/a"
 	d := args.Default()
-	d.InputDirs = []string{"k8s.io/gengo/testdata/a/..."}
+	d.InputDirs = []string{dir + "/..."}
 	b, err := d.NewBuilder()
 	if err != nil {
 		t.Fatalf("Fail making builder: %v", err)
 	}
-	_, err = b.FindTypes()
+	findTypes, err := b.FindTypes()
 	if err != nil {
 		t.Fatalf("Fail finding types: %v", err)
 	}
@@ -61,6 +62,14 @@ func TestRecursive(t *testing.T) {
 	}
 	if foundC {
 		t.Error("Did not expect to find package c")
+	}
+	if name := findTypes[dir].Types["AA"].Methods["AFunc"].Name.Name;
+		name != "func (*k8s.io/gengo/testdata/a.AA).AFunc(i *int, j int) (*k8s.io/gengo/testdata/a.A, k8s.io/gengo/testdata/a/b.ITest, error)" {
+		t.Errorf("Parse method type error, got name: %s", name)
+	}
+	// only has three package: package "a", package "b", and package "" for all
+	if len(findTypes) != 3 {
+		t.Error("Parse type error, and take type path as package")
 	}
 }
 

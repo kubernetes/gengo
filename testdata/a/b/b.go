@@ -18,3 +18,8 @@ package b
 
 // B is a type for testing
 type B string
+
+// ITest is an interface for testing.
+type ITest interface {
+	Test()
+}

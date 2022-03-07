@@ -16,5 +16,17 @@ limitations under the License.
 
 package a
 
+import "k8s.io/gengo/testdata/a/b"
+
 // A is a type for testing.
 type A string
+
+// AA is a struct type for testing.
+type AA struct {
+	FieldA string
+}
+
+// AFunc is a member function for testing.
+func (a *AA) AFunc(i *int, j int) (*A, b.ITest, error) {
+	return nil, nil, nil
+}

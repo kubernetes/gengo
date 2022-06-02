@@ -189,7 +189,7 @@ func Packages(context *generator.Context, arguments *args.GeneratorArgs) generat
 				}
 			}
 			if len(uncopyable) > 0 {
-				klog.Fatalf("Types requested deepcopy generation but are not not copyable: %s",
+				klog.Fatalf("Types requested deepcopy generation but are not copyable: %s",
 					strings.Join(uncopyable, ", "))
 			}
 		}

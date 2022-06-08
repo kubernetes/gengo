@@ -10,7 +10,7 @@
 [GoReportStatus]: https://goreportcard.com/report/github.com/kubernetes/gengo
 
 A package for generating things based on go files. This mechanism was first used
-in Kubernetes and is split out here for ease of reuse and maintainability.
+in [Kubernetes code-generator](https://github.com/kubernetes/kubernetes/tree/master/staging/src/k8s.io/code-generator) and is split out here for ease of reuse and maintainability.
 
 `go get k8s.io/gengo/...`
 

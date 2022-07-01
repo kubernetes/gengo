@@ -1,0 +1,28 @@
+---
+name: CI
+
+'on':
+  - push
+  - pull_request
+
+env:
+  GOPROXY: https://proxy.golang.org
+
+jobs:
+  verify:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Set up go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18.1
+
+      - uses: actions/checkout@v3
+
+      - name: go test
+        run: |
+          go test -v ./...
+
+      - name: verify examples
+        run: |
+          go run ./examples/import-boss/main.go -i $(go list k8s.io/gengo/... | grep -v import-boss/tests | paste -sd',' -) --verify-only

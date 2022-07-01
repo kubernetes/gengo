@@ -208,12 +208,15 @@ func (c *Context) addNameSystems(namers namer.NameSystems) *Context {
 	return &c2
 }
 
-// ExecutePackage executes a single package. 'outDir' is the base directory in
-// which to place the package; it should be a physical path on disk, not an
-// import path. e.g.: '/path/to/home/path/to/gopath/src/' The package knows its
-// import path already, this will be appended to 'outDir'.
-func (c *Context) ExecutePackage(outDir string, p Package) error {
+// outputPathForPackage computes the on-disk location where we should write files
+// for the specified go package.
+func (c *Context) outputPathForPackage(outDir string, p Package) string {
 	path := filepath.Join(outDir, p.Path())
+
+	filepathSeparator := string(filepath.Separator)
+	if !strings.HasSuffix(path, filepathSeparator) {
+		path += string(filepathSeparator)
+	}
 
 	// When working outside of GOPATH, we typically won't want to generate the
 	// full path for a package. For example, if our current project's root/base
@@ -222,13 +225,21 @@ func (c *Context) ExecutePackage(outDir string, p Package) error {
 	// The following will trim a path prefix (github.com/foo/bar) from p.Path() to arrive at
 	// a relative path that works with projects not in GOPATH.
 	if c.TrimPathPrefix != "" {
-		separator := string(filepath.Separator)
-		if !strings.HasSuffix(c.TrimPathPrefix, separator) {
-			c.TrimPathPrefix += separator
+		if !strings.HasSuffix(c.TrimPathPrefix, filepathSeparator) {
+			c.TrimPathPrefix += filepathSeparator
 		}
 
 		path = strings.TrimPrefix(path, c.TrimPathPrefix)
 	}
+	return path
+}
+
+// ExecutePackage executes a single package. 'outDir' is the base directory in
+// which to place the package; it should be a physical path on disk, not an
+// import path. e.g.: '/path/to/home/path/to/gopath/src/' The package knows its
+// import path already, this will be appended to 'outDir'.
+func (c *Context) ExecutePackage(outDir string, p Package) error {
+	path := c.outputPathForPackage(outDir, p)
 	klog.V(5).Infof("Processing package %q, disk location %q", p.Name(), path)
 	// Filter out any types the *package* doesn't care about.
 	packageContext := c.filteredBy(p.Filter)

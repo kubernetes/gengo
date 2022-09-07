@@ -503,7 +503,7 @@ var refREIdentIndex = refRE.SubexpIndex("reference")
 
 // parseAsRef looks for strings that match one of the following:
 //   - ref(Ident)
-//   - ref("pkgpath".Ident)
+//   - ref(pkgpath.Ident)
 //     If the input string matches either of these, it will return the (optional)
 //     pkgpath, the Ident, and true.  Otherwise it will return empty strings and
 //     false.

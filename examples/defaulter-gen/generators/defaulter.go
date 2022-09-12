@@ -909,7 +909,7 @@ type callNode struct {
 }
 
 type defaultValue struct {
-	// The value was written directlyin the marker comment and
+	// The value was written directly in the marker comment and
 	// has been parsed as JSON
 	InlineConstant string
 	// The name of the symbol relative to the parsed package path

@@ -913,7 +913,7 @@ type defaultValue struct {
 	// has been parsed as JSON
 	InlineConstant string
 	// The name of the symbol relative to the parsed package path
-	// i.e. k8s.io/pkg.apis.v1.Foo if from another package of simply `Foo`
+	// i.e. k8s.io/pkg.apis.v1.Foo if from another package or simply `Foo`
 	// if within the same package.
 	SymbolReference string
 }

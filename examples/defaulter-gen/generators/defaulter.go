@@ -796,7 +796,7 @@ func (g *genDefaulter) GenerateType(c *generator.Context, t *types.Type, w io.Wr
 	callTree.VisitInOrder(func(ancestors []*callNode, current *callNode) {
 		if len(current.defaultValue.SymbolReference) > 0 {
 			// If the defaultValue was a reference to a symbol instead of a constant,
-			// make sure to add it to imports and resolve and name of the symbol
+			// make sure to add it to imports and resolve the name of the symbol
 			// before generating the defaults.
 			parsedName := types.ParseFullyQualifiedName(current.defaultValue.SymbolReference)
 			g.imports.AddSymbol(parsedName)

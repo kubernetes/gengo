@@ -19,6 +19,9 @@ package marker
 import (
 	"reflect"
 	"testing"
+
+	external1 "k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external"
+	external2 "k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external/external"
 )
 
 func getPointerFromString(s string) *string {
@@ -95,7 +98,11 @@ func Test_Marker(t *testing.T) {
 						I: 1,
 					},
 				},
-				AliasPtr: getPointerFromString("banana"),
+				AliasPtr:                        getPointerFromString("banana"),
+				SymbolReference:                 SomeDefault,
+				QualifiedSymbolReference:        "/dev/termination-log",
+				SameNamePackageSymbolReference1: external1.AConstant,
+				SameNamePackageSymbolReference2: external2.AnotherConstant,
 			},
 		},
 		{
@@ -165,7 +172,11 @@ func Test_Marker(t *testing.T) {
 						I: 1,
 					},
 				},
-				AliasPtr: getPointerFromString("banana"),
+				AliasPtr:                        getPointerFromString("banana"),
+				SymbolReference:                 SomeDefault,
+				QualifiedSymbolReference:        "/dev/termination-log",
+				SameNamePackageSymbolReference1: external1.AConstant,
+				SameNamePackageSymbolReference2: external2.AnotherConstant,
 			},
 		},
 		{
@@ -237,7 +248,11 @@ func Test_Marker(t *testing.T) {
 						I: 1,
 					},
 				},
-				AliasPtr: getPointerFromString("banana"),
+				AliasPtr:                        getPointerFromString("banana"),
+				SymbolReference:                 SomeDefault,
+				QualifiedSymbolReference:        "/dev/termination-log",
+				SameNamePackageSymbolReference1: external1.AConstant,
+				SameNamePackageSymbolReference2: external2.AnotherConstant,
 			},
 		},
 		{
@@ -310,7 +325,11 @@ func Test_Marker(t *testing.T) {
 						I: 1,
 					},
 				},
-				AliasPtr: getPointerFromString("banana"),
+				AliasPtr:                        getPointerFromString("banana"),
+				SymbolReference:                 SomeDefault,
+				QualifiedSymbolReference:        "/dev/termination-log",
+				SameNamePackageSymbolReference1: external1.AConstant,
+				SameNamePackageSymbolReference2: external2.AnotherConstant,
 			},
 		},
 	}

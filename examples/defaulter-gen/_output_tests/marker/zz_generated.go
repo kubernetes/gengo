@@ -23,7 +23,10 @@ package marker
 import (
 	"encoding/json"
 
+	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	external "k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external"
+	externalexternal "k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external/external"
 )
 
 // RegisterDefaults adds defaulters functions to the given scheme.
@@ -126,6 +129,18 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 	if in.AliasPtr == nil {
 		var ptrVar1 string = "banana"
 		in.AliasPtr = &ptrVar1
+	}
+	if in.SymbolReference == "" {
+		in.SymbolReference = SomeDefault
+	}
+	if in.QualifiedSymbolReference == "" {
+		in.QualifiedSymbolReference = v1.TerminationMessagePathDefault
+	}
+	if in.SameNamePackageSymbolReference1 == "" {
+		in.SameNamePackageSymbolReference1 = external.AConstant
+	}
+	if in.SameNamePackageSymbolReference2 == "" {
+		in.SameNamePackageSymbolReference2 = externalexternal.AnotherConstant
 	}
 }
 

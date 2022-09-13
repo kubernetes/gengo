@@ -83,7 +83,21 @@ type Defaulted struct {
 	// A default specified here overrides the default for the Item type
 	// +default="banana"
 	AliasPtr Item
+
+	// +default=ref(SomeDefault)
+	SymbolReference string
+
+	// +default=ref(k8s.io/api/core/v1.TerminationMessagePathDefault)
+	QualifiedSymbolReference string
+
+	// +default=ref(k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external.AConstant)
+	SameNamePackageSymbolReference1 string
+
+	// +default=ref(k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external/external.AnotherConstant)
+	SameNamePackageSymbolReference2 string
 }
+
+const SomeDefault = "ACoolConstant"
 
 // +default="apple"
 type Item *string

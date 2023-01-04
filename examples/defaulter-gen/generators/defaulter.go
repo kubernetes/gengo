@@ -144,6 +144,9 @@ type defaulterFuncMap map[*types.Type]defaults
 
 // Returns all manually-defined defaulting functions in the package.
 func getManualDefaultingFunctions(context *generator.Context, pkg *types.Package, manualMap defaulterFuncMap) {
+	if pkg == nil {
+		return
+	}
 	buffer := &bytes.Buffer{}
 	sw := generator.NewSnippetWriter(buffer, context, "$", "$")
 

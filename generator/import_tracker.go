@@ -29,7 +29,7 @@ import (
 func NewImportTracker(typesToAdd ...*types.Type) *namer.DefaultImportTracker {
 	tracker := namer.NewDefaultImportTracker(types.Name{})
 	tracker.IsInvalidType = func(*types.Type) bool { return false }
-	tracker.LocalName = func(name types.Name) string { return golangTrackerLocalName(&tracker, name) }
+	tracker.LocalName = func(name types.Name) string { return GolangTrackerLocalName(&tracker, name) }
 	tracker.PrintImport = func(path, name string) string { return name + " \"" + path + "\"" }
 
 	tracker.AddTypes(typesToAdd...)
@@ -37,7 +37,7 @@ func NewImportTracker(typesToAdd ...*types.Type) *namer.DefaultImportTracker {
 
 }
 
-func golangTrackerLocalName(tracker namer.ImportTracker, t types.Name) string {
+func GolangTrackerLocalName(tracker namer.ImportTracker, t types.Name) string {
 	path := t.Package
 
 	// Using backslashes in package names causes gengo to produce Go code which

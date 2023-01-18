@@ -142,6 +142,10 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 	if in.SameNamePackageSymbolReference2 == "" {
 		in.SameNamePackageSymbolReference2 = externalexternal.AnotherConstant
 	}
+	if in.AliasSymbolReference == nil {
+		var ptrVar1 external.AStringType = external.Foo
+		in.AliasSymbolReference = &ptrVar1
+	}
 }
 
 func SetObjectDefaults_DefaultedWithFunction(in *DefaultedWithFunction) {

@@ -447,9 +447,7 @@ func resolveTypeAndDepth(t *types.Type) (*types.Type, int) {
 	depth := 0
 	for prev != t {
 		prev = t
-		if t.Kind == types.Alias {
-			t = t.Underlying
-		} else if t.Kind == types.Pointer {
+		if t.Kind == types.Pointer {
 			t = t.Elem
 			depth += 1
 		}
@@ -466,9 +464,7 @@ func getNestedDefault(t *types.Type) string {
 		if len(defaultMap) == 1 && defaultMap[0] != "" {
 			return defaultMap[0]
 		}
-		if t.Kind == types.Alias {
-			t = t.Underlying
-		} else if t.Kind == types.Pointer {
+		if t.Kind == types.Pointer {
 			t = t.Elem
 		}
 	}
@@ -480,7 +476,7 @@ func mustEnforceDefault(t *types.Type, depth int, omitEmpty bool) (interface{}, 
 		return nil, nil
 	}
 	switch t.Kind {
-	case types.Pointer, types.Map, types.Slice, types.Array, types.Interface:
+	case types.Pointer, types.Map, types.Slice, types.Array, types.Interface, types.Alias:
 		return nil, nil
 	case types.Struct:
 		return map[string]interface{}{}, nil
@@ -562,8 +558,20 @@ func populateDefaultValue(node *callNode, t *types.Type, tags string, commentLin
 		node.markerOnly = true
 	}
 
-	node.defaultIsPrimitive = t.IsPrimitive()
 	node.defaultType = t.String()
+	if t.Kind == types.Alias {
+		parsedName := types.ParseFullyQualifiedName(t.Name.String())
+		tracker := namer.NewDefaultImportTracker(types.Name{})
+		localPackage := generator.GolangTrackerLocalName(&tracker, t.Name)
+		if len(localPackage) > 0 {
+			node.defaultType = localPackage + "." + parsedName.Name
+		} else {
+			node.defaultType = parsedName.Name
+		}
+		node.underlying = t.Underlying
+	}
+
+	node.defaultIsPrimitive = t.IsPrimitive()
 	node.defaultValue.InlineConstant = defaultString
 	node.defaultValue.SymbolReference = symbolReference
 	node.defaultDepth = depth
@@ -874,6 +882,8 @@ type callNode struct {
 	index bool
 	// elem is true if the previous elements refer to a pointer (typically just field)
 	elem bool
+	// underlying is the underlying type if this is an alias
+	underlying *types.Type
 
 	// call is all of the functions that must be invoked on this particular node, in order
 	call []*types.Type
@@ -1040,7 +1050,13 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 			sw.Do(fmt.Sprintf("%s = &ptrVar1", variablePlaceholder), args)
 		} else {
 			// For primitive types, nil checks cannot be used and the zero value must be determined
-			defaultZero, err := getTypeZeroValue(n.defaultType)
+			var zeroTypeValueFor string
+			if n.underlying != nil {
+				zeroTypeValueFor = n.underlying.String()
+			} else {
+				zeroTypeValueFor = n.defaultType
+			}
+			defaultZero, err := getTypeZeroValue(zeroTypeValueFor)
 			if err != nil {
 				klog.Error(err)
 			}

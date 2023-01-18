@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external"
 	external1 "k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external"
 	external2 "k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external/external"
 )
@@ -29,6 +30,8 @@ func getPointerFromString(s string) *string {
 }
 
 func Test_Marker(t *testing.T) {
+	foo := external.Foo
+
 	testcases := []struct {
 		name string
 		in   Defaulted
@@ -103,6 +106,7 @@ func Test_Marker(t *testing.T) {
 				QualifiedSymbolReference:        "/dev/termination-log",
 				SameNamePackageSymbolReference1: external1.AConstant,
 				SameNamePackageSymbolReference2: external2.AnotherConstant,
+				AliasSymbolReference:            &foo,
 			},
 		},
 		{
@@ -177,6 +181,7 @@ func Test_Marker(t *testing.T) {
 				QualifiedSymbolReference:        "/dev/termination-log",
 				SameNamePackageSymbolReference1: external1.AConstant,
 				SameNamePackageSymbolReference2: external2.AnotherConstant,
+				AliasSymbolReference:            &foo,
 			},
 		},
 		{
@@ -253,6 +258,7 @@ func Test_Marker(t *testing.T) {
 				QualifiedSymbolReference:        "/dev/termination-log",
 				SameNamePackageSymbolReference1: external1.AConstant,
 				SameNamePackageSymbolReference2: external2.AnotherConstant,
+				AliasSymbolReference:            &foo,
 			},
 		},
 		{
@@ -330,6 +336,7 @@ func Test_Marker(t *testing.T) {
 				QualifiedSymbolReference:        "/dev/termination-log",
 				SameNamePackageSymbolReference1: external1.AConstant,
 				SameNamePackageSymbolReference2: external2.AnotherConstant,
+				AliasSymbolReference:            &foo,
 			},
 		},
 	}

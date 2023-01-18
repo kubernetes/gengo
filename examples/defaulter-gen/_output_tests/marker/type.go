@@ -18,6 +18,7 @@ package marker
 
 import (
 	"k8s.io/gengo/examples/defaulter-gen/_output_tests/empty"
+	"k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external"
 )
 
 type Defaulted struct {
@@ -95,6 +96,9 @@ type Defaulted struct {
 
 	// +default=ref(k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external/external.AnotherConstant)
 	SameNamePackageSymbolReference2 string
+
+	// +default=ref(k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external.Foo)
+	AliasSymbolReference *external.AStringType
 }
 
 const SomeDefault = "ACoolConstant"

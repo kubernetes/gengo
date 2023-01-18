@@ -2,11 +2,11 @@ TOOL=defaulter-gen
 
 .PHONY : gen test verify git_verify_clean git_verify_no_change
 test:
-	go test ./_output_tests/marker/...
+	go test ./output_tests/marker/...
 
 gen:
 	@go build -o /tmp/$(TOOL)
-	@PKGS=$$(cd _output_tests; go list ./...  | paste -sd' ' -); \
+	@PKGS=$$(cd output_tests; go list ./...  | paste -sd' ' -); \
 	/tmp/$(TOOL) --logtostderr --v=4 -i $$(echo $$PKGS | sed 's/ /,/g') -O zz_generated
 
 git_verify_clean:

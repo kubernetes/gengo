@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2020 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,24 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package slices
+// +k8s:defaulter-gen=TypeMeta
 
-import (
-	"k8s.io/gengo/examples/defaulter-gen/_output_tests/empty"
-)
-
-// Only test
-type Ttest struct {
-	empty.TypeMeta
-	BoolField *bool
-}
-
-type TtestList struct {
-	empty.TypeMeta
-	Items []Ttest
-}
-
-type TtestPointerList struct {
-	empty.TypeMeta
-	Items []*Ttest
-}
+// This is a test package.
+package marker // import "k8s.io/gengo/examples/defaulter-gen/output_tests/marker"

@@ -14,7 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +k8s:defaulter-gen=TypeMeta
+package slices
 
-// This is a test package.
-package wholepkg // import "k8s.io/gengo/examples/defaulter-gen/_output_tests/wholepkg"
+import (
+	"k8s.io/gengo/examples/defaulter-gen/output_tests/empty"
+)
+
+// Only test
+type Ttest struct {
+	empty.TypeMeta
+	BoolField *bool
+}
+
+type TtestList struct {
+	empty.TypeMeta
+	Items []Ttest
+}
+
+type TtestPointerList struct {
+	empty.TypeMeta
+	Items []*Ttest
+}

@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Kubernetes Authors.
+Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,4 +17,4 @@ limitations under the License.
 // +k8s:defaulter-gen=TypeMeta
 
 // This is a test package.
-package marker // import "k8s.io/gengo/examples/defaulter-gen/_output_tests/marker"
+package slices // import "k8s.io/gengo/examples/defaulter-gen/output_tests/slices"

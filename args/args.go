@@ -121,6 +121,8 @@ func (g *GeneratorArgs) LoadGoBoilerplate() ([]byte, error) {
 			b = append(b, byte('\n'))
 		}
 		generatorName := filepath.Base(os.Args[0])
+		// Strip the extension from the name to normalize output between *nix and Windows.
+		generatorName = generatorName[:len(generatorName)-len(filepath.Ext(generatorName))]
 		generatedByComment := strings.Replace(g.GeneratedByCommentTemplate, "GENERATOR_NAME", generatorName, -1)
 		s := fmt.Sprintf("%s\n\n", generatedByComment)
 		b = append(b, []byte(s)...)

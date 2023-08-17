@@ -37,6 +37,12 @@ type Defaulted struct {
 	// +default="default"
 	StringPointer *string
 
+	// +default=64
+	Int64 *int64
+
+	// +default=32
+	Int32 *int32
+
 	// +default=1
 	IntDefault int `json:",omitempty"`
 

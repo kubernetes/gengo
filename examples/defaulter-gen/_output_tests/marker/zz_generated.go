@@ -47,6 +47,14 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 		var ptrVar1 string = "default"
 		in.StringPointer = &ptrVar1
 	}
+	if in.Int64 == nil {
+		var ptrVar1 int64 = 64
+		in.Int64 = &ptrVar1
+	}
+	if in.Int32 == nil {
+		var ptrVar1 int32 = 32
+		in.Int32 = &ptrVar1
+	}
 	if in.IntDefault == 0 {
 		in.IntDefault = 1
 	}

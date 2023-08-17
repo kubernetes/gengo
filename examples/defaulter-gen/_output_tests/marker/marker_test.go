@@ -28,6 +28,11 @@ func getPointerFromString(s string) *string {
 	return &s
 }
 
+var (
+	defaultInt32 int32 = 32
+	defaultInt64 int64 = 64
+)
+
 func Test_Marker(t *testing.T) {
 	testcases := []struct {
 		name string
@@ -42,6 +47,8 @@ func Test_Marker(t *testing.T) {
 				StringEmptyDefault: "",
 				StringEmpty:        "",
 				StringPointer:      getPointerFromString("default"),
+				Int64:              &defaultInt64,
+				Int32:              &defaultInt32,
 				IntDefault:         1,
 				IntEmptyDefault:    0,
 				IntEmpty:           0,
@@ -116,6 +123,8 @@ func Test_Marker(t *testing.T) {
 				StringEmptyDefault: "",
 				StringEmpty:        "",
 				StringPointer:      getPointerFromString("default"),
+				Int64:              &defaultInt64,
+				Int32:              &defaultInt32,
 				IntDefault:         5,
 				IntEmptyDefault:    0,
 				IntEmpty:           0,
@@ -192,6 +201,8 @@ func Test_Marker(t *testing.T) {
 				StringEmptyDefault: "",
 				StringEmpty:        "",
 				StringPointer:      getPointerFromString("default"),
+				Int64:              &defaultInt64,
+				Int32:              &defaultInt32,
 				IntDefault:         1,
 				IntEmptyDefault:    0,
 				IntEmpty:           0,
@@ -268,6 +279,8 @@ func Test_Marker(t *testing.T) {
 				StringEmptyDefault: "",
 				StringEmpty:        "",
 				StringPointer:      getPointerFromString("default"),
+				Int64:              &defaultInt64,
+				Int32:              &defaultInt32,
 				IntDefault:         1,
 				IntEmptyDefault:    0,
 				IntEmpty:           0,

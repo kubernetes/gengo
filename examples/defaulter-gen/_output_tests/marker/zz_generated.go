@@ -27,6 +27,7 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	external "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external"
 	externalexternal "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external/external"
+	external2 "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external2"
 )
 
 // RegisterDefaults adds defaulters functions to the given scheme.
@@ -153,61 +154,69 @@ func SetObjectDefaults_DefaultedWithFunction(in *DefaultedWithFunction) {
 
 func SetObjectDefaults_DefaultedWithReference(in *DefaultedWithReference) {
 	if in.AliasConvertDefaultPointer == nil {
-		var ptrVar1 string = SomeValue
+		ptrVar1 := DefaultedValueItem(SomeValue)
 		in.AliasConvertDefaultPointer = &ptrVar1
 	}
+	if in.PointerAliasDefault == nil {
+		var ptrVar1 string = "apple"
+		in.PointerAliasDefault = &ptrVar1
+	}
 	if in.AliasPointerInside == nil {
-		var ptrVar1 string = SomeDefault
+		ptrVar1 := string(SomeDefault)
 		in.AliasPointerInside = &ptrVar1
 	}
 	if in.AliasOverride == nil {
-		var ptrVar1 string = SomeDefault
+		ptrVar1 := string(SomeDefault)
 		in.AliasOverride = &ptrVar1
 	}
+	if in.AliasPointerDefault == nil {
+		ptrVar1 := DefaultedValueItem(SomeValue)
+		in.AliasPointerDefault = &ptrVar1
+	}
 	if in.AliasNonPointer == "" {
-		in.AliasNonPointer = SomeValue
+		in.AliasNonPointer = ValueItem(SomeValue)
 	}
 	if in.AliasPointer == nil {
-		var ptrVar1 string = SomeValue
+		ptrVar1 := ValueItem(SomeValue)
 		in.AliasPointer = &ptrVar1
 	}
 	if in.SymbolReference == "" {
-		in.SymbolReference = SomeDefault
+		in.SymbolReference = string(SomeDefault)
 	}
 	if in.SameNamePackageSymbolReference1 == "" {
-		in.SameNamePackageSymbolReference1 = external.AConstant
+		in.SameNamePackageSymbolReference1 = string(external.AConstant)
 	}
 	if in.SameNamePackageSymbolReference2 == "" {
-		in.SameNamePackageSymbolReference2 = externalexternal.AnotherConstant
+		in.SameNamePackageSymbolReference2 = string(externalexternal.AnotherConstant)
 	}
 	if in.PointerConversion == nil {
-		var ptrVar9 string = SomeValue
+		ptrVar9 := string(SomeValue)
 		ptrVar8 := &ptrVar9
-		ptrVar7 := &ptrVar8
-		ptrVar6 := &ptrVar7
+		ptrVar7 := (*B1)(&ptrVar8)
+		ptrVar6 := (*B2)(&ptrVar7)
 		ptrVar5 := &ptrVar6
 		ptrVar4 := &ptrVar5
 		ptrVar3 := &ptrVar4
-		ptrVar2 := &ptrVar3
+		ptrVar2 := (*B3)(&ptrVar3)
 		ptrVar1 := &ptrVar2
-		in.PointerConversion = &ptrVar1
+		in.PointerConversion = (*B4)(&ptrVar1)
 	}
 	if in.PointerConversionValue == nil {
-		var ptrVar8 string = SomeValue
+		ptrVar8 := string(SomeValue)
 		ptrVar7 := &ptrVar8
-		ptrVar6 := &ptrVar7
-		ptrVar5 := &ptrVar6
+		ptrVar6 := (*B1)(&ptrVar7)
+		ptrVar5 := (*B2)(&ptrVar6)
 		ptrVar4 := &ptrVar5
 		ptrVar3 := &ptrVar4
 		ptrVar2 := &ptrVar3
-		ptrVar1 := &ptrVar2
+		ptrVar1 := (*B3)(&ptrVar2)
 		in.PointerConversionValue = &ptrVar1
 	}
 	if in.FullyQualifiedLocalSymbol == "" {
-		in.FullyQualifiedLocalSymbol = SomeValue
+		in.FullyQualifiedLocalSymbol = string(SomeValue)
 	}
 	if in.ImportFromAliasCast == nil {
-		var ptrVar1 string = SomeValue
+		ptrVar1 := external2.String(SomeValue)
 		in.ImportFromAliasCast = &ptrVar1
 	}
 }

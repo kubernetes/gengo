@@ -501,21 +501,27 @@ func mustEnforceDefault(t *types.Type, depth int, omitEmpty bool) (interface{}, 
 var refRE = regexp.MustCompile(`^ref\((?P<reference>[^"]+)\)$`)
 var refREIdentIndex = refRE.SubexpIndex("reference")
 
-// parseAsRef looks for strings that match one of the following:
+// ParseSymbolReference looks for strings that match one of the following:
 //   - ref(Ident)
 //   - ref(pkgpath.Ident)
 //     If the input string matches either of these, it will return the (optional)
 //     pkgpath, the Ident, and true.  Otherwise it will return empty strings and
 //     false.
-func parseAsRef(s string) (string, bool) {
+func ParseSymbolReference(s, sourcePackage string) (types.Name, bool) {
 	matches := refRE.FindStringSubmatch(s)
 	if len(matches) < refREIdentIndex || matches[refREIdentIndex] == "" {
-		return "", false
+		return types.Name{}, false
 	}
-	return matches[refREIdentIndex], true
+
+	contents := matches[refREIdentIndex]
+	name := types.ParseFullyQualifiedName(contents)
+	if len(name.Package) == 0 {
+		name.Package = sourcePackage
+	}
+	return name, true
 }
 
-func populateDefaultValue(node *callNode, t *types.Type, tags string, commentLines []string) *callNode {
+func populateDefaultValue(node *callNode, t *types.Type, tags string, commentLines []string, commentPackage string) *callNode {
 	defaultMap := extractDefaultTag(commentLines)
 	var defaultString string
 	if len(defaultMap) == 1 {
@@ -531,9 +537,9 @@ func populateDefaultValue(node *callNode, t *types.Type, tags string, commentLin
 	} else if len(defaultMap) == 0 {
 		return node
 	}
-	var symbolReference string
+	var symbolReference types.Name
 	var defaultValue interface{}
-	if id, ok := parseAsRef(defaultString); ok {
+	if id, ok := ParseSymbolReference(defaultString, commentPackage); ok {
 		symbolReference = id
 		defaultString = ""
 	} else if err := json.Unmarshal([]byte(defaultString), &defaultValue); err != nil {
@@ -642,7 +648,7 @@ func (c *callTreeForType) build(t *types.Type, root bool) *callNode {
 				child.elem = true
 			}
 			parent.children = append(parent.children, *child)
-		} else if member := populateDefaultValue(nil, t.Elem, "", t.Elem.CommentLines); member != nil {
+		} else if member := populateDefaultValue(nil, t.Elem, "", t.Elem.CommentLines, t.Elem.Name.Package); member != nil {
 			member.index = true
 			parent.children = append(parent.children, *member)
 		}
@@ -650,7 +656,7 @@ func (c *callTreeForType) build(t *types.Type, root bool) *callNode {
 		if child := c.build(t.Elem, false); child != nil {
 			child.key = true
 			parent.children = append(parent.children, *child)
-		} else if member := populateDefaultValue(nil, t.Elem, "", t.Elem.CommentLines); member != nil {
+		} else if member := populateDefaultValue(nil, t.Elem, "", t.Elem.CommentLines, t.Elem.Name.Package); member != nil {
 			member.key = true
 			parent.children = append(parent.children, *member)
 		}
@@ -667,9 +673,9 @@ func (c *callTreeForType) build(t *types.Type, root bool) *callNode {
 			}
 			if child := c.build(field.Type, false); child != nil {
 				child.field = name
-				populateDefaultValue(child, field.Type, field.Tags, field.CommentLines)
+				populateDefaultValue(child, field.Type, field.Tags, field.CommentLines, field.Type.Name.Package)
 				parent.children = append(parent.children, *child)
-			} else if member := populateDefaultValue(nil, field.Type, field.Tags, field.CommentLines); member != nil {
+			} else if member := populateDefaultValue(nil, field.Type, field.Tags, field.CommentLines, t.Name.Package); member != nil {
 				member.field = name
 				parent.children = append(parent.children, *member)
 			}
@@ -794,22 +800,20 @@ func (g *genDefaulter) GenerateType(c *generator.Context, t *types.Type, w io.Wr
 	}
 	i := 0
 	callTree.VisitInOrder(func(ancestors []*callNode, current *callNode) {
-		if len(current.defaultValue.SymbolReference) > 0 {
-			// If the defaultValue was a reference to a symbol instead of a constant,
-			// make sure to add it to imports and resolve the name of the symbol
-			// before generating the defaults.
-			parsedName := types.ParseFullyQualifiedName(current.defaultValue.SymbolReference)
-			g.imports.AddSymbol(parsedName)
+		if ref := &current.defaultValue.SymbolReference; len(ref.Name) > 0 {
+			// Ensure package for symbol is imported in output generation
+			g.imports.AddSymbol(*ref)
 
 			// Rewrite the fully qualified name using the local package name
 			// from the imports
-			localPackage := g.imports.LocalNameOf(parsedName.Package)
-			if len(localPackage) > 0 {
-				current.defaultValue.SymbolReference = localPackage + "." + parsedName.Name
+			//
+			// Can't just directly assign g.imports.LocalNameOf since the
+			// import tracker actually has no knowledge of the current package
+			if g.isOtherPackage(ref.Package) {
+				ref.Package = g.imports.LocalNameOf(ref.Package)
 			} else {
-				current.defaultValue.SymbolReference = parsedName.Name
+				ref.Package = ""
 			}
-
 		}
 
 		if len(current.call) == 0 {
@@ -915,7 +919,7 @@ type defaultValue struct {
 	// The name of the symbol relative to the parsed package path
 	// i.e. k8s.io/pkg.apis.v1.Foo if from another package or simply `Foo`
 	// if within the same package.
-	SymbolReference string
+	SymbolReference types.Name
 }
 
 func (d defaultValue) IsEmpty() bool {
@@ -927,7 +931,7 @@ func (d defaultValue) Resolved() string {
 	if len(d.InlineConstant) > 0 {
 		return d.InlineConstant
 	}
-	return d.SymbolReference
+	return d.SymbolReference.String()
 }
 
 // CallNodeVisitorFunc is a function for visiting a call tree. ancestors is the list of all parents

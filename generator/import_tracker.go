@@ -26,15 +26,18 @@ import (
 	"k8s.io/gengo/types"
 )
 
-func NewImportTracker(typesToAdd ...*types.Type) *namer.DefaultImportTracker {
-	tracker := namer.NewDefaultImportTracker(types.Name{})
+func NewImportTrackerForPackage(local string, typesToAdd ...*types.Type) *namer.DefaultImportTracker {
+	tracker := namer.NewDefaultImportTracker(types.Name{Package: local})
 	tracker.IsInvalidType = func(*types.Type) bool { return false }
 	tracker.LocalName = func(name types.Name) string { return golangTrackerLocalName(&tracker, name) }
 	tracker.PrintImport = func(path, name string) string { return name + " \"" + path + "\"" }
 
 	tracker.AddTypes(typesToAdd...)
 	return &tracker
+}
 
+func NewImportTracker(typesToAdd ...*types.Type) *namer.DefaultImportTracker {
+	return NewImportTrackerForPackage("", typesToAdd...)
 }
 
 func golangTrackerLocalName(tracker namer.ImportTracker, t types.Name) string {

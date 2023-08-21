@@ -26,6 +26,22 @@ import (
 	"k8s.io/gengo/types"
 )
 
+// NewImportTrackerForPackage creates a new import tracker which is aware
+// of a generator's output package. The tracker will not add import lines
+// when symbols or types are added from the same package, and LocalNameOf
+// will return empty string for the output package.
+//
+// e.g.:
+//
+//	tracker := NewImportTrackerForPackage("bar.com/pkg/foo")
+//	tracker.AddSymbol(types.Name{"bar.com/pkg/foo.MyType"})
+//	tracker.AddSymbol(types.Name{"bar.com/pkg/baz.MyType"})
+//	tracker.AddSymbol(types.Name{"bar.com/pkg/baz/baz.MyType"})
+//
+//	tracker.LocalNameOf("bar.com/pkg/foo") -> ""
+//	tracker.LocalNameOf("bar.com/pkg/baz") -> "baz"
+//	tracker.LocalNameOf("bar.com/pkg/baz/baz") -> "bazbaz"
+//	tracker.ImportLines() -> {"bar.com/pkg/baz", `bazbaz "bar.com/pkg/baz/baz"`}
 func NewImportTrackerForPackage(local string, typesToAdd ...*types.Type) *namer.DefaultImportTracker {
 	tracker := namer.NewDefaultImportTracker(types.Name{Package: local})
 	tracker.IsInvalidType = func(*types.Type) bool { return false }

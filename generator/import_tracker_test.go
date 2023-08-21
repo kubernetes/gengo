@@ -26,6 +26,7 @@ import (
 func TestNewImportTracker(t *testing.T) {
 	tests := []struct {
 		name            string
+		localPackage    string
 		inputTypes      []*types.Type
 		expectedImports []string
 	}{
@@ -63,10 +64,26 @@ func TestNewImportTracker(t *testing.T) {
 				`_struct "my/reserved/pkg/struct"`,
 			},
 		},
+		{
+			name:         "local-symbol",
+			localPackage: "bar.com/my/pkg",
+			inputTypes: []*types.Type{
+				{Name: types.Name{Package: "bar.com/my/pkg"}},
+				{Name: types.Name{Package: "bar.com/external/pkg"}},
+			},
+			expectedImports: []string{
+				`pkg "bar.com/external/pkg"`,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualImports := NewImportTracker(tt.inputTypes...).ImportLines()
+			var actualImports []string
+			if len(tt.localPackage) == 0 {
+				actualImports = NewImportTracker(tt.inputTypes...).ImportLines()
+			} else {
+				actualImports = NewImportTrackerForPackage(tt.localPackage, tt.inputTypes...).ImportLines()
+			}
 			if !reflect.DeepEqual(actualImports, tt.expectedImports) {
 				t.Errorf("ImportLines(%v) = %v, want %v", tt.inputTypes, actualImports, tt.expectedImports)
 			}

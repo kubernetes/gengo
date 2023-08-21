@@ -41,7 +41,7 @@ import (
 //	tracker.LocalNameOf("bar.com/pkg/foo") -> ""
 //	tracker.LocalNameOf("bar.com/pkg/baz") -> "baz"
 //	tracker.LocalNameOf("bar.com/pkg/baz/baz") -> "bazbaz"
-//	tracker.ImportLines() -> {"bar.com/pkg/baz", `bazbaz "bar.com/pkg/baz/baz"`}
+//	tracker.ImportLines() -> {`baz "bar.com/pkg/baz"`, `bazbaz "bar.com/pkg/baz/baz"`}
 func NewImportTrackerForPackage(local string, typesToAdd ...*types.Type) *namer.DefaultImportTracker {
 	tracker := namer.NewDefaultImportTracker(types.Name{Package: local})
 	tracker.IsInvalidType = func(*types.Type) bool { return false }

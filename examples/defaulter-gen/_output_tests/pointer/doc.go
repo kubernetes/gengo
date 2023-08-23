@@ -17,4 +17,4 @@ limitations under the License.
 // +k8s:defaulter-gen=TypeMeta
 
 // This is a test package.
-package pointer // import "k8s.io/gengo/examples/defaulter-gen/output_tests/pointer"
+package pointer // import "k8s.io/gengo/examples/defaulter-gen/_output_tests/pointer"

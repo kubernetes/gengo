@@ -17,4 +17,4 @@ limitations under the License.
 // +k8s:defaulter-gen=TypeMeta
 
 // This is a test package.
-package wholepkg // import "k8s.io/gengo/examples/defaulter-gen/output_tests/wholepkg"
+package wholepkg // import "k8s.io/gengo/examples/defaulter-gen/_output_tests/wholepkg"

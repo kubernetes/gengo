@@ -17,7 +17,7 @@ limitations under the License.
 package marker
 
 import (
-	"k8s.io/gengo/examples/defaulter-gen/output_tests/empty"
+	"k8s.io/gengo/examples/defaulter-gen/_output_tests/empty"
 )
 
 type Defaulted struct {
@@ -90,10 +90,10 @@ type Defaulted struct {
 	// +default=ref(k8s.io/api/core/v1.TerminationMessagePathDefault)
 	QualifiedSymbolReference string
 
-	// +default=ref(k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external.AConstant)
+	// +default=ref(k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external.AConstant)
 	SameNamePackageSymbolReference1 string
 
-	// +default=ref(k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external/external.AnotherConstant)
+	// +default=ref(k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external/external.AnotherConstant)
 	SameNamePackageSymbolReference2 string
 }
 

@@ -24,7 +24,7 @@ type Defaulted struct {
 	empty.TypeMeta
 
 	// +default="bar"
-	StringDefault string `json:"omitempty"`
+	StringDefault string `json:",omitempty"`
 
 	// Default is forced to empty string
 	// Specifying the default is a no-op
@@ -38,7 +38,7 @@ type Defaulted struct {
 	StringPointer *string
 
 	// +default=1
-	IntDefault int `json:"omitempty"`
+	IntDefault int `json:",omitempty"`
 
 	// +default=0
 	IntEmptyDefault int
@@ -47,7 +47,7 @@ type Defaulted struct {
 	IntEmpty int
 
 	// +default=0.5
-	FloatDefault float64 `json:"omitempty"`
+	FloatDefault float64 `json:",omitempty"`
 
 	// +default=0.0
 	FloatEmptyDefault float64
@@ -90,10 +90,10 @@ type Defaulted struct {
 	// +default=ref(k8s.io/api/core/v1.TerminationMessagePathDefault)
 	QualifiedSymbolReference string
 
-	// +default=ref(k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external.AConstant)
+	// +default=ref(k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external.AConstant)
 	SameNamePackageSymbolReference1 string
 
-	// +default=ref(k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external/external.AnotherConstant)
+	// +default=ref(k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external/external.AnotherConstant)
 	SameNamePackageSymbolReference2 string
 }
 

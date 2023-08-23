@@ -6,8 +6,14 @@ test:
 
 gen:
 	@go build -o /tmp/$(TOOL)
-	@PKGS=$$(cd _output_tests && go list ./...  | paste -sd' ' -); \
-	/tmp/$(TOOL) --logtostderr --v=4 -i $$(echo $$PKGS | sed 's/ /,/g') -O zz_generated
+	@cd _output_tests && \
+	PKGS=$$(go list ./...  | paste -sd' ' -) && \
+	/tmp/$(TOOL) --logtostderr --v=4 \
+		-i $$(echo $$PKGS | sed 's/ /,/g') \
+		-O zz_generated \
+		-o . \
+		--trim-path-prefix=k8s.io/gengo/examples/defaulter-gen/output_tests \
+		--go-header-file=../../../boilerplate/boilerplate.go.txt
 
 git_verify_clean:
 	@if ! git diff --quiet HEAD; then \

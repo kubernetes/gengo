@@ -19,8 +19,8 @@ popd () {
 
 # Ensure all files are committed
 if ! git diff --quiet HEAD; then
-    echo "FAIL: git client is not clean";
-    exit 1;
+    echo "FAIL: git client is not clean"
+    exit 1
 fi
 
 echo "Removing generated code"
@@ -39,8 +39,8 @@ pushd ./examples/defaulter-gen/_output_tests; go generate ./...; popd
 
 # If there are any differences with committed files, fail
 if ! git diff --quiet HEAD; then
-    echo "FAIL: output files changed";
-    git diff;
+    echo "FAIL: output files changed"
+    git diff
     exit 1
 fi
 

@@ -1,0 +1,4 @@
+go 1.20
+
+use .
+use ./examples/defaulter-gen/_output_tests

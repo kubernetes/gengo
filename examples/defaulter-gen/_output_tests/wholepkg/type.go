@@ -17,7 +17,7 @@ limitations under the License.
 package wholepkg
 
 import (
-	"k8s.io/gengo/examples/defaulter-gen/_output_tests/empty"
+	"k8s.io/gengo/examples/defaulter-gen/output_tests/empty"
 )
 
 // Only primitives
@@ -35,7 +35,7 @@ type Struct_Struct_Primitives struct {
 	StructField Struct_Primitives
 }
 
-//Pointer
+// Pointer
 type Struct_Pointer struct {
 	empty.TypeMeta
 	PointerStructPrimitivesField             Struct_Primitives

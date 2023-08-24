@@ -7,7 +7,7 @@ go 1.20
 require (
 	k8s.io/api v0.28.0
 	k8s.io/apimachinery v0.28.0
-	k8s.io/gengo v0.0.0-20230306165830-ab3349d207d4
+	k8s.io/gengo v0.0.0-20230823165328-036e7fc87c56
 )
 
 require (

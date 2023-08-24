@@ -17,11 +17,14 @@ limitations under the License.
 package marker
 
 import (
-	"reflect"
 	"testing"
 
-	external1 "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external"
-	external2 "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external/external"
+	"github.com/google/go-cmp/cmp"
+
+	"k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external"
+	externalexternal "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external/external"
+	"k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external2"
+	"k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external3"
 )
 
 func getPointerFromString(s string) *string {
@@ -105,11 +108,7 @@ func Test_Marker(t *testing.T) {
 						I: 1,
 					},
 				},
-				AliasPtr:                        getPointerFromString("banana"),
-				SymbolReference:                 SomeDefault,
-				QualifiedSymbolReference:        "/dev/termination-log",
-				SameNamePackageSymbolReference1: external1.AConstant,
-				SameNamePackageSymbolReference2: external2.AnotherConstant,
+				AliasPtr: getPointerFromString("banana"),
 			},
 		},
 		{
@@ -181,11 +180,7 @@ func Test_Marker(t *testing.T) {
 						I: 1,
 					},
 				},
-				AliasPtr:                        getPointerFromString("banana"),
-				SymbolReference:                 SomeDefault,
-				QualifiedSymbolReference:        "/dev/termination-log",
-				SameNamePackageSymbolReference1: external1.AConstant,
-				SameNamePackageSymbolReference2: external2.AnotherConstant,
+				AliasPtr: getPointerFromString("banana"),
 			},
 		},
 		{
@@ -259,11 +254,7 @@ func Test_Marker(t *testing.T) {
 						I: 1,
 					},
 				},
-				AliasPtr:                        getPointerFromString("banana"),
-				SymbolReference:                 SomeDefault,
-				QualifiedSymbolReference:        "/dev/termination-log",
-				SameNamePackageSymbolReference1: external1.AConstant,
-				SameNamePackageSymbolReference2: external2.AnotherConstant,
+				AliasPtr: getPointerFromString("banana"),
 			},
 		},
 		{
@@ -338,11 +329,7 @@ func Test_Marker(t *testing.T) {
 						I: 1,
 					},
 				},
-				AliasPtr:                        getPointerFromString("banana"),
-				SymbolReference:                 SomeDefault,
-				QualifiedSymbolReference:        "/dev/termination-log",
-				SameNamePackageSymbolReference1: external1.AConstant,
-				SameNamePackageSymbolReference2: external2.AnotherConstant,
+				AliasPtr: getPointerFromString("banana"),
 			},
 		},
 	}
@@ -350,8 +337,8 @@ func Test_Marker(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			SetObjectDefaults_Defaulted(&tc.in)
-			if !reflect.DeepEqual(tc.in, tc.out) {
-				t.Errorf("Error: Expected and actual output are different \n actual: %+v\n expected: %+v\n", tc.in, tc.out)
+			if diff := cmp.Diff(tc.out, tc.in); len(diff) > 0 {
+				t.Errorf("Error: Expected and actual output are different \n %s\n", diff)
 			}
 		})
 	}
@@ -364,8 +351,62 @@ func Test_DefaultingFunction(t *testing.T) {
 		S1: "default_function",
 		S2: "default_marker",
 	}
-	if !reflect.DeepEqual(in, out) {
-		t.Errorf("Error: Expected and actual output are different \n actual: %+v\n expected: %+v\n", in, out)
+	if diff := cmp.Diff(out, in); len(diff) > 0 {
+		t.Errorf("Error: Expected and actual output are different \n %s\n", diff)
 	}
 
+}
+
+func Test_DefaultingReference(t *testing.T) {
+	dv := DefaultedValueItem(SomeValue)
+	SomeDefault := SomeDefault
+	SomeValue := SomeValue
+
+	ptrVar9 := string(SomeValue)
+	ptrVar8 := &ptrVar9
+	ptrVar7 := (*B1)(&ptrVar8)
+	ptrVar6 := (*B2)(&ptrVar7)
+	ptrVar5 := &ptrVar6
+	ptrVar4 := &ptrVar5
+	ptrVar3 := &ptrVar4
+	ptrVar2 := (*B3)(&ptrVar3)
+	ptrVar1 := &ptrVar2
+
+	var external2Str external2.String = external2.String(SomeValue)
+
+	testcases := []struct {
+		name string
+		in   DefaultedWithReference
+		out  DefaultedWithReference
+	}{
+		{
+			name: "default",
+			in:   DefaultedWithReference{},
+			out: DefaultedWithReference{
+				AliasPointerInside:              Item(&SomeDefault),
+				AliasOverride:                   Item(&SomeDefault),
+				AliasConvertDefaultPointer:      &dv,
+				AliasPointerDefault:             &dv,
+				PointerAliasDefault:             Item(getPointerFromString("apple")),
+				AliasNonPointer:                 SomeValue,
+				AliasPointer:                    &SomeValue,
+				SymbolReference:                 SomeDefault,
+				SameNamePackageSymbolReference1: external.AConstant,
+				SameNamePackageSymbolReference2: externalexternal.AnotherConstant,
+				PointerConversion:               (*B4)(&ptrVar1),
+				PointerConversionValue:          (B4)(ptrVar1),
+				FullyQualifiedLocalSymbol:       string(SomeValue),
+				ImportFromAliasCast:             external3.StringPointer(&external2Str),
+			},
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			SetObjectDefaults_DefaultedWithReference(&tc.in)
+			if diff := cmp.Diff(tc.out, tc.in); len(diff) > 0 {
+				t.Errorf("Error: Expected and actual output are different \n %s\n", diff)
+			}
+		})
+	}
 }

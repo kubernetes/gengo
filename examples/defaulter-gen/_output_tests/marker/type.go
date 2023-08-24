@@ -18,6 +18,7 @@ package marker
 
 import (
 	"k8s.io/gengo/examples/defaulter-gen/output_tests/empty"
+	"k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external3"
 )
 
 type Defaulted struct {
@@ -89,24 +90,22 @@ type Defaulted struct {
 	// A default specified here overrides the default for the Item type
 	// +default="banana"
 	AliasPtr Item
-
-	// +default=ref(SomeDefault)
-	SymbolReference string
-
-	// +default=ref(k8s.io/api/core/v1.TerminationMessagePathDefault)
-	QualifiedSymbolReference string
-
-	// +default=ref(k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external.AConstant)
-	SameNamePackageSymbolReference1 string
-
-	// +default=ref(k8s.io/gengo/examples/defaulter-gen/_output_tests/marker/external/external.AnotherConstant)
-	SameNamePackageSymbolReference2 string
 }
 
 const SomeDefault = "ACoolConstant"
 
 // +default="apple"
 type Item *string
+
+type ValueItem string
+
+// +default=ref(SomeValue)
+type DefaultedValueItem ValueItem
+type PointerValueItem *DefaultedValueItem
+
+type ItemDefaultWiped Item
+
+const SomeValue ValueItem = "Value"
 
 type SubStruct struct {
 	S string
@@ -121,3 +120,75 @@ type DefaultedWithFunction struct {
 	// +default="default_marker"
 	S2 string `json:"S2,omitempty"`
 }
+
+type DefaultedWithReference struct {
+	empty.TypeMeta
+
+	// Shows that if we have an alias that is a pointer and have a default
+	// that is a value convertible to that pointer we can still use it
+	// +default=ref(SomeValue)
+	AliasConvertDefaultPointer PointerValueItem
+
+	// Shows that default defined on a nested type is not respected through
+	// an alias
+	AliasWipedDefault ItemDefaultWiped
+
+	// A default defined on a pointer-valued alias is respected
+	PointerAliasDefault Item
+
+	// Can have alias that is a pointer to type of constant
+	// +default=ref(SomeDefault)
+	AliasPointerInside Item
+
+	// Can override default specified on an alias
+	// +default=ref(SomeDefault)
+	AliasOverride Item
+
+	// Type-level default is not respected unless a pointer
+	AliasNonPointerDefault DefaultedValueItem `json:",omitempty"`
+
+	// Type-level default is not respected unless a pointer
+	AliasPointerDefault *DefaultedValueItem
+
+	// Can have value typed alias
+	// +default=ref(SomeValue)
+	AliasNonPointer ValueItem `json:",omitempty"`
+
+	// Can have a pointer to an alias whose default is a non-pointer value
+	// +default=ref(SomeValue)
+	AliasPointer *ValueItem `json:",omitempty"`
+
+	// Basic ref usage exmaple
+	// +default=ref(SomeDefault)
+	SymbolReference string `json:",omitempty"`
+
+	// +default=ref(k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external.AConstant)
+	SameNamePackageSymbolReference1 string `json:",omitempty"`
+
+	// +default=ref(k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external/external.AnotherConstant)
+	SameNamePackageSymbolReference2 string `json:",omitempty"`
+
+	// Should convert ValueItem -> string then up to B4 through addressOf and
+	// casting
+	// +default=ref(SomeValue)
+	PointerConversion *B4
+
+	// +default=ref(SomeValue)
+	PointerConversionValue B4
+
+	// +default=ref(k8s.io/gengo/examples/defaulter-gen/output_tests/marker.SomeValue)
+	FullyQualifiedLocalSymbol string
+
+	// Construction of external3.StringPointer requires importing external2
+	// Test that generator can handle it
+	// +default=ref(SomeValue)
+	ImportFromAliasCast external3.StringPointer
+}
+
+// Super complicated hierarchy of aliases which includes multiple pointers,
+// and sibling types.
+type B0 *string
+type B1 B0
+type B2 *B1
+type B3 ****B2
+type B4 **B3

@@ -24,7 +24,6 @@ package marker
 import (
 	"encoding/json"
 
-	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	external "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external"
 	externalexternal "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external/external"
@@ -36,6 +35,7 @@ import (
 func RegisterDefaults(scheme *runtime.Scheme) error {
 	scheme.AddTypeDefaultingFunc(&Defaulted{}, func(obj interface{}) { SetObjectDefaults_Defaulted(obj.(*Defaulted)) })
 	scheme.AddTypeDefaultingFunc(&DefaultedWithFunction{}, func(obj interface{}) { SetObjectDefaults_DefaultedWithFunction(obj.(*DefaultedWithFunction)) })
+	scheme.AddTypeDefaultingFunc(&DefaultedWithReference{}, func(obj interface{}) { SetObjectDefaults_DefaultedWithReference(obj.(*DefaultedWithReference)) })
 	return nil
 }
 
@@ -139,18 +139,6 @@ func SetObjectDefaults_Defaulted(in *Defaulted) {
 		var ptrVar1 string = "banana"
 		in.AliasPtr = &ptrVar1
 	}
-	if in.SymbolReference == "" {
-		in.SymbolReference = SomeDefault
-	}
-	if in.QualifiedSymbolReference == "" {
-		in.QualifiedSymbolReference = v1.TerminationMessagePathDefault
-	}
-	if in.SameNamePackageSymbolReference1 == "" {
-		in.SameNamePackageSymbolReference1 = external.AConstant
-	}
-	if in.SameNamePackageSymbolReference2 == "" {
-		in.SameNamePackageSymbolReference2 = externalexternal.AnotherConstant
-	}
 }
 
 func SetObjectDefaults_DefaultedWithFunction(in *DefaultedWithFunction) {
@@ -160,5 +148,66 @@ func SetObjectDefaults_DefaultedWithFunction(in *DefaultedWithFunction) {
 	}
 	if in.S2 == "" {
 		in.S2 = "default_marker"
+	}
+}
+
+func SetObjectDefaults_DefaultedWithReference(in *DefaultedWithReference) {
+	if in.AliasConvertDefaultPointer == nil {
+		var ptrVar1 string = SomeValue
+		in.AliasConvertDefaultPointer = &ptrVar1
+	}
+	if in.AliasPointerInside == nil {
+		var ptrVar1 string = SomeDefault
+		in.AliasPointerInside = &ptrVar1
+	}
+	if in.AliasOverride == nil {
+		var ptrVar1 string = SomeDefault
+		in.AliasOverride = &ptrVar1
+	}
+	if in.AliasNonPointer == "" {
+		in.AliasNonPointer = SomeValue
+	}
+	if in.AliasPointer == nil {
+		var ptrVar1 string = SomeValue
+		in.AliasPointer = &ptrVar1
+	}
+	if in.SymbolReference == "" {
+		in.SymbolReference = SomeDefault
+	}
+	if in.SameNamePackageSymbolReference1 == "" {
+		in.SameNamePackageSymbolReference1 = external.AConstant
+	}
+	if in.SameNamePackageSymbolReference2 == "" {
+		in.SameNamePackageSymbolReference2 = externalexternal.AnotherConstant
+	}
+	if in.PointerConversion == nil {
+		var ptrVar9 string = SomeValue
+		ptrVar8 := &ptrVar9
+		ptrVar7 := &ptrVar8
+		ptrVar6 := &ptrVar7
+		ptrVar5 := &ptrVar6
+		ptrVar4 := &ptrVar5
+		ptrVar3 := &ptrVar4
+		ptrVar2 := &ptrVar3
+		ptrVar1 := &ptrVar2
+		in.PointerConversion = &ptrVar1
+	}
+	if in.PointerConversionValue == nil {
+		var ptrVar8 string = SomeValue
+		ptrVar7 := &ptrVar8
+		ptrVar6 := &ptrVar7
+		ptrVar5 := &ptrVar6
+		ptrVar4 := &ptrVar5
+		ptrVar3 := &ptrVar4
+		ptrVar2 := &ptrVar3
+		ptrVar1 := &ptrVar2
+		in.PointerConversionValue = &ptrVar1
+	}
+	if in.FullyQualifiedLocalSymbol == "" {
+		in.FullyQualifiedLocalSymbol = SomeValue
+	}
+	if in.ImportFromAliasCast == nil {
+		var ptrVar1 string = SomeValue
+		in.ImportFromAliasCast = &ptrVar1
 	}
 }

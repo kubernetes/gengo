@@ -442,19 +442,57 @@ func newCallTreeForType(existingDefaulters, newDefaulters defaulterFuncMap) *cal
 	}
 }
 
-func resolveTypeAndDepth(t *types.Type) (*types.Type, []*types.Type) {
+// resolveType follows pointers and aliases of `t` until reaching the first
+// non-pointer type in `t's` herarchy
+func resolveTypeAndDepth(t *types.Type) (*types.Type, int) {
 	var prev *types.Type
-	var depth []*types.Type
+	depth := 0
 	for prev != t {
 		prev = t
 		if t.Kind == types.Alias {
 			t = t.Underlying
 		} else if t.Kind == types.Pointer {
 			t = t.Elem
-			depth = append(depth, t)
+			depth += 1
 		}
 	}
 	return t, depth
+}
+
+// getPointerElementPath follows pointers and aliases to returns all
+// pointer elements in the path from the given type, to its base value type.
+//
+// Example:
+//
+//	type MyString string
+//	type MyStringPointer *MyString
+//	type MyStringPointerPointer *MyStringPointer
+//	type MyStringAlias MyStringPointer
+//	type MyStringAliasPointer *MyStringAlias
+//	type MyStringAliasDoublePointer **MyStringAlias
+//
+//	t		  				   | defaultPointerElementPath(t)
+//	---------------------------|----------------------------------------
+//	MyString                   | []
+//	MyStringPointer            | [MyString]
+//	MyStringPointerPointer     | [MyStringPointer, MyString]
+//	MyStringAlias              | [MyStringPointer, MyString]
+//	MyStringAliasPointer       | [MyStringAlias, MyStringPointer, MyString]
+//	MyStringAliasDoublePointer | [*MyStringAlias, MyStringAlias, MyStringPointer, MyString]
+func getPointerElementPath(t *types.Type) []*types.Type {
+	var path []*types.Type
+	for t != nil {
+		switch t.Kind {
+		case types.Alias:
+			t = t.Underlying
+		case types.Pointer:
+			t = t.Elem
+			path = append(path, t)
+		default:
+			t = nil
+		}
+	}
+	return path
 }
 
 // getNestedDefault returns the first default value when resolving alias types
@@ -531,7 +569,7 @@ func populateDefaultValue(node *callNode, t *types.Type, tags string, commentLin
 	}
 
 	baseT, depth := resolveTypeAndDepth(t)
-	if len(depth) > 0 && defaultString == "" {
+	if depth > 0 && defaultString == "" {
 		defaultString = getNestedDefault(t)
 	}
 
@@ -548,7 +586,7 @@ func populateDefaultValue(node *callNode, t *types.Type, tags string, commentLin
 	}
 
 	omitEmpty := strings.Contains(reflect.StructTag(tags).Get("json"), "omitempty")
-	if enforced, err := mustEnforceDefault(baseT, len(depth), omitEmpty); err != nil {
+	if enforced, err := mustEnforceDefault(baseT, depth, omitEmpty); err != nil {
 		klog.Fatal(err)
 	} else if enforced != nil {
 		if defaultValue != nil {
@@ -574,7 +612,6 @@ func populateDefaultValue(node *callNode, t *types.Type, tags string, commentLin
 	node.defaultTopLevelType = t
 	node.defaultValue.InlineConstant = defaultString
 	node.defaultValue.SymbolReference = symbolReference
-	node.defaultDepth = depth
 	return node
 }
 
@@ -885,29 +922,6 @@ type callNode struct {
 	// markerOnly is true if the callNode exists solely to fill in a default value
 	markerOnly bool
 
-	// defaultDepth is used to determine how to construct a pointer value.
-	// If the result type is a non-pointer, defaultDepth is empty.
-	// If the result type is a pointer, this slice contains all pointer element
-	// types by following pointers and aliases from the top type.
-	//
-	// Example:
-	//		type MyString string
-	//		type MyStringPointer *MyString
-	//		type MyStringPointerPointer *MyStringPointer
-	//		type MyStringAlias MyStringPointer
-	//		type MyStringAliasPointer *MyStringAlias
-	//		type MyStringAliasDoublePointer **MyStringAlias
-	//
-	//		node result type		   | defaultDepth value
-	//		---------------------------|----------------------------------------
-	//		MyString                   | []
-	//		MyStringPointer            | [MyString]
-	//		MyStringPointerPointer     | [MyStringPointer, MyString]
-	//		MyStringAlias              | [MyStringPointer, MyString]
-	//		MyStringAliasPointer       | [MyStringAlias, MyStringPointer, MyString]
-	//		MyStringAliasDoublePointer | [*MyStringAlias, MyStringAlias, MyStringPointer, MyString]
-	defaultDepth []*types.Type
-
 	// defaultType is the transitive underlying/element type of the node.
 	// The provided default value literal or reference is expected to be
 	// convertible to this type.
@@ -1019,7 +1033,6 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 		"defaultValue": n.defaultValue.Resolved(),
 		"varName":      varName,
 		"index":        index,
-		"varDepth":     len(n.defaultDepth),
 		"varTopType":   n.defaultTopLevelType,
 	}
 
@@ -1044,12 +1057,15 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 	if n.defaultIsPrimitive {
 		// If the default value is a primitive when the assigned type is a pointer
 		// keep using the address-of operator on the primitive value until the types match
-		if len(n.defaultDepth) > 0 {
+		if pointerPath := getPointerElementPath(n.defaultTopLevelType); len(pointerPath) > 0 {
 			// If the destination is a pointer, the last element in
 			// defaultDepth is the element type of the bottommost pointer:
 			// the base type of our default value.
-			destElemType := n.defaultDepth[len(n.defaultDepth)-1]
-			pointerArgs := args.With("baseElemType", destElemType)
+			destElemType := pointerPath[len(pointerPath)-1]
+			pointerArgs := args.WithArgs(generator.Args{
+				"varDepth":     len(pointerPath),
+				"baseElemType": destElemType,
+			})
 
 			sw.Do(fmt.Sprintf("if %s == nil {\n", variablePlaceholder), pointerArgs)
 			if len(n.defaultValue.InlineConstant) > 0 {
@@ -1061,7 +1077,7 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 				sw.Do("ptrVar$.varDepth$ := $.baseElemType|raw$($.defaultValue$)\n", pointerArgs)
 			}
 
-			for i := len(n.defaultDepth); i >= 1; i-- {
+			for i := len(pointerPath); i >= 1; i-- {
 				dest := fmt.Sprintf("ptrVar%d", i-1)
 				assignment := ":="
 				if i == 1 {
@@ -1071,11 +1087,11 @@ func (n *callNode) writeDefaulter(varName string, index string, isVarPointer boo
 				}
 
 				sourceType := "*" + destElemType.String()
-				if i == len(n.defaultDepth) {
+				if i == len(pointerPath) {
 					// Initial value is not a pointer
 					sourceType = destElemType.String()
 				}
-				destElemType = n.defaultDepth[i-1]
+				destElemType = pointerPath[i-1]
 
 				// Cannot include `dest` into args since its value may be
 				// `variablePlaceholder` which is a template, not a value

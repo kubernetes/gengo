@@ -65,3 +65,26 @@ func (in *DefaultedWithFunction) DeepCopyObject() runtime.Object {
 
 func (obj *Defaulted) GetObjectKind() schema.ObjectKind             { return schema.EmptyObjectKind }
 func (obj *DefaultedWithFunction) GetObjectKind() schema.ObjectKind { return schema.EmptyObjectKind }
+
+func (obj *DefaultedWithReference) GetObjectKind() schema.ObjectKind { return schema.EmptyObjectKind }
+
+func (in *DefaultedWithReference) DeepCopy() *DefaultedWithReference {
+	if in == nil {
+		return nil
+	}
+	out := new(DefaultedWithReference)
+	in.DeepCopyInto(out)
+	return out
+}
+
+func (in *DefaultedWithReference) DeepCopyInto(out *DefaultedWithReference) {
+	*out = *in
+	return
+}
+
+func (in *DefaultedWithReference) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}

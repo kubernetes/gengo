@@ -35,12 +35,115 @@ import (
 // All generated defaulters are covering - they call all nested defaulters.
 func RegisterDefaults(scheme *runtime.Scheme) error {
 	scheme.AddTypeDefaultingFunc(&Defaulted{}, func(obj interface{}) { SetObjectDefaults_Defaulted(obj.(*Defaulted)) })
+	scheme.AddTypeDefaultingFunc(&DefaultedOmitempty{}, func(obj interface{}) { SetObjectDefaults_DefaultedOmitempty(obj.(*DefaultedOmitempty)) })
 	scheme.AddTypeDefaultingFunc(&DefaultedWithFunction{}, func(obj interface{}) { SetObjectDefaults_DefaultedWithFunction(obj.(*DefaultedWithFunction)) })
 	scheme.AddTypeDefaultingFunc(&DefaultedWithReference{}, func(obj interface{}) { SetObjectDefaults_DefaultedWithReference(obj.(*DefaultedWithReference)) })
 	return nil
 }
 
 func SetObjectDefaults_Defaulted(in *Defaulted) {
+	if in.StringDefault == "" {
+		in.StringDefault = "bar"
+	}
+	if in.StringPointer == nil {
+		var ptrVar1 string = "default"
+		in.StringPointer = &ptrVar1
+	}
+	if in.Int64 == nil {
+		var ptrVar1 int64 = 64
+		in.Int64 = &ptrVar1
+	}
+	if in.Int32 == nil {
+		var ptrVar1 int32 = 32
+		in.Int32 = &ptrVar1
+	}
+	if in.IntDefault == 0 {
+		in.IntDefault = 1
+	}
+	if in.FloatDefault == 0 {
+		in.FloatDefault = 0.5
+	}
+	if in.List == nil {
+		if err := json.Unmarshal([]byte(`["foo", "bar"]`), &in.List); err != nil {
+			panic(err)
+		}
+	}
+	for i := range in.List {
+		if in.List[i] == nil {
+			var ptrVar1 string = "apple"
+			in.List[i] = &ptrVar1
+		}
+	}
+	if in.Sub == nil {
+		if err := json.Unmarshal([]byte(`{"s": "foo", "i": 5}`), &in.Sub); err != nil {
+			panic(err)
+		}
+	}
+	if in.Sub != nil {
+		if in.Sub.I == 0 {
+			in.Sub.I = 1
+		}
+	}
+	if in.StructList == nil {
+		if err := json.Unmarshal([]byte(`[{"s": "foo1", "i": 1}, {"s": "foo2"}]`), &in.StructList); err != nil {
+			panic(err)
+		}
+	}
+	for i := range in.StructList {
+		a := &in.StructList[i]
+		if a.I == 0 {
+			a.I = 1
+		}
+	}
+	if in.PtrStructList == nil {
+		if err := json.Unmarshal([]byte(`[{"s": "foo1", "i": 1}, {"s": "foo2"}]`), &in.PtrStructList); err != nil {
+			panic(err)
+		}
+	}
+	for i := range in.PtrStructList {
+		a := in.PtrStructList[i]
+		if a != nil {
+			if a.I == 0 {
+				a.I = 1
+			}
+		}
+	}
+	if in.StringList == nil {
+		if err := json.Unmarshal([]byte(`["foo"]`), &in.StringList); err != nil {
+			panic(err)
+		}
+	}
+	if in.OtherSub.I == 0 {
+		in.OtherSub.I = 1
+	}
+	if in.Map == nil {
+		if err := json.Unmarshal([]byte(`{"foo": "bar"}`), &in.Map); err != nil {
+			panic(err)
+		}
+	}
+	for i_Map := range in.Map {
+		if in.Map[i_Map] == nil {
+			var ptrVar1 string = "apple"
+			in.Map[i_Map] = &ptrVar1
+		}
+	}
+	if in.StructMap == nil {
+		if err := json.Unmarshal([]byte(`{"foo": {"S": "string", "I": 1}}`), &in.StructMap); err != nil {
+			panic(err)
+		}
+	}
+	if in.PtrStructMap == nil {
+		if err := json.Unmarshal([]byte(`{"foo": {"S": "string", "I": 1}}`), &in.PtrStructMap); err != nil {
+			panic(err)
+		}
+	}
+	if in.AliasPtr == nil {
+		var ptrVar1 string = "banana"
+		in.AliasPtr = &ptrVar1
+	}
+}
+
+func SetObjectDefaults_DefaultedOmitempty(in *DefaultedOmitempty) {
 	if in.StringDefault == "" {
 		in.StringDefault = "bar"
 	}

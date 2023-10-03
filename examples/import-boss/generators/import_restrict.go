@@ -281,17 +281,21 @@ func (irf importRuleFile) verifyRules(restrictionFiles []*fileFormat, f *generat
 				if !matching {
 					continue
 				}
-				for _, forbidden := range r.ForbiddenPrefixes {
-					klog.V(4).Infof("Checking %v against %v\n", v, forbidden)
-					if strings.HasPrefix(v, forbidden) {
-						forbiddenImports[v] = forbidden
-					}
-				}
+				importInAllowList := false
 				for _, allowed := range r.AllowedPrefixes {
 					klog.V(4).Infof("Checking %v against %v\n", v, allowed)
 					if strings.HasPrefix(v, allowed) {
 						explicitlyAllowed = true
+						importInAllowList = true
 						break
+					}
+				}
+				if !importInAllowList {
+					for _, forbidden := range r.ForbiddenPrefixes {
+						klog.V(4).Infof("Checking %v against %v\n", v, forbidden)
+						if strings.HasPrefix(v, forbidden) {
+							forbiddenImports[v] = forbidden
+						}
 					}
 				}
 

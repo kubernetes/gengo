@@ -63,8 +63,7 @@ func TestRecursive(t *testing.T) {
 	if foundC {
 		t.Error("Did not expect to find package c")
 	}
-	if name := findTypes[dir].Types["AA"].Methods["AFunc"].Name.Name;
-		name != "func (*k8s.io/gengo/testdata/a.AA).AFunc(i *int, j int) (*k8s.io/gengo/testdata/a.A, k8s.io/gengo/testdata/a/b.ITest, error)" {
+	if name := findTypes[dir].Types["AA"].Methods["AFunc"].Name.Name; name != "func (*k8s.io/gengo/testdata/a.AA).AFunc(i *int, j int) (*k8s.io/gengo/testdata/a.A, k8s.io/gengo/testdata/a/b.ITest, error)" {
 		t.Errorf("Parse method type error, got name: %s", name)
 	}
 	// only has three package: package "a", package "b", and package "" for all
@@ -351,45 +350,251 @@ const FooThirdDegree proto.Degrees = proto.ThirdDegree(2)
 }
 
 func TestStructParse(t *testing.T) {
-	var structTest = file{
-		path: "base/foo/proto/foo.go",
-		contents: `
-            package foo
+	testCases := []struct {
+		description string
+		testFile    file
+		expected    func() *types.Type
+	}{
+		{
+			description: "basic comments",
+			testFile: file{
+				path: "base/foo/proto/foo.go",
+				contents: `
+					package foo
 
-            // Blah is a test.
-            // A test, I tell you.
-            type Blah struct {
-	            // A is the first field.
-	            A int64 ` + "`" + `json:"a"` + "`" + `
-            
-	            // B is the second field.
-	            // Multiline comments work.
-	            B string ` + "`" + `json:"b"` + "`" + `
-            }
-            `,
+					// Blah is a test.
+					// A test, I tell you.
+					type Blah struct {
+						// A is the first field.
+						A int64 ` + "`" + `json:"a"` + "`" + `
+
+						// B is the second field.
+						// Multiline comments work.
+						B string ` + "`" + `json:"b"` + "`" + `
+					}
+					`,
+			},
+			expected: func() *types.Type {
+				return &types.Type{
+					Name:                      types.Name{Package: "base/foo/proto", Name: "Blah"},
+					Kind:                      types.Struct,
+					CommentLines:              []string{"Blah is a test.", "A test, I tell you."},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "A",
+							Embedded:     false,
+							CommentLines: []string{"A is the first field."},
+							Tags:         `json:"a"`,
+							Type:         types.Int64,
+						},
+						{
+							Name:         "B",
+							Embedded:     false,
+							CommentLines: []string{"B is the second field.", "Multiline comments work."},
+							Tags:         `json:"b"`,
+							Type:         types.String,
+						},
+					},
+					TypeParams: map[string]*types.Type{},
+				}
+			},
+		},
+		{
+			description: "generic",
+			testFile: file{
+				path: "base/foo/proto/foo.go",
+				contents: `
+					package foo
+
+					type Blah[T any] struct {
+						// V is the first field.
+						V T ` + "`" + `json:"v"` + "`" + `
+					}
+					`,
+			},
+			expected: func() *types.Type {
+				return &types.Type{
+					Name:                      types.Name{Package: "base/foo/proto", Name: "Blah[T]"},
+					Kind:                      types.Struct,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "V",
+							Embedded:     false,
+							CommentLines: []string{"V is the first field."},
+							Tags:         `json:"v"`,
+							Type: &types.Type{
+								Kind: types.TypeParam,
+								Name: types.Name{
+									Name: "T",
+								},
+							},
+						},
+					},
+					TypeParams: map[string]*types.Type{
+						"T": {
+							Name: types.Name{
+								Name: "any",
+							},
+							Kind: types.Interface,
+						},
+					},
+				}
+			},
+		},
+		{
+			description: "generic multiple",
+			testFile: file{
+				path: "base/foo/proto/foo.go",
+				contents: `
+					package foo
+
+					type Blah[T any, U any] struct {
+						// V1 is the first field.
+						V1 T ` + "`" + `json:"v1"` + "`" + `
+						// V2 is the first field.
+						V2 U ` + "`" + `json:"v2"` + "`" + `
+					}
+					`,
+			},
+			expected: func() *types.Type {
+				return &types.Type{
+					Name:                      types.Name{Package: "base/foo/proto", Name: "Blah[T,U]"},
+					Kind:                      types.Struct,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "V1",
+							Embedded:     false,
+							CommentLines: []string{"V1 is the first field."},
+							Tags:         `json:"v1"`,
+							Type: &types.Type{
+								Kind: types.TypeParam,
+								Name: types.Name{
+									Name: "T",
+								},
+							},
+						},
+						{
+							Name:         "V2",
+							Embedded:     false,
+							CommentLines: []string{"V2 is the first field."},
+							Tags:         `json:"v2"`,
+							Type: &types.Type{
+								Kind: types.TypeParam,
+								Name: types.Name{
+									Name: "U",
+								},
+							},
+						},
+					},
+					TypeParams: map[string]*types.Type{
+						"T": {
+							Name: types.Name{
+								Name: "any",
+							},
+							Kind: types.Interface,
+						},
+						"U": {
+							Name: types.Name{
+								Name: "any",
+							},
+							Kind: types.Interface,
+						},
+					},
+				}
+			},
+		},
+		{
+			description: "generic recursive",
+			testFile: file{
+				path: "base/foo/proto/foo.go",
+				contents: `
+					package foo
+
+					type DeepCopyable[T any] interface {
+						DeepCopy() T
+					}
+
+					type Blah[T DeepCopyable[T]] struct {
+						// V is the first field.
+						V T ` + "`" + `json:"v"` + "`" + `
+					}
+					`,
+			},
+			expected: func() *types.Type {
+				recursiveT := &types.Type{
+					Name: types.Name{
+						Package: "base/foo/proto",
+						Name:    "DeepCopyable",
+					},
+					Kind:                      types.Interface,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Methods:                   map[string]*types.Type{},
+				}
+				recursiveT.Methods["DeepCopy"] = &types.Type{
+					Name: types.Name{
+						Name: "func (base/foo/proto.DeepCopyable[T]).DeepCopy() T",
+					},
+					Kind:         types.Func,
+					CommentLines: []string{""},
+					Signature: &types.Signature{
+						Receiver: recursiveT,
+						Results: []*types.Type{
+							{
+								Name: types.Name{
+									Name: "T",
+								},
+								Kind: types.TypeParam,
+							},
+						},
+						ResultNames: []string{""},
+					},
+				}
+				return &types.Type{
+					Name:                      types.Name{Package: "base/foo/proto", Name: "Blah[T]"},
+					Kind:                      types.Struct,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "V",
+							Embedded:     false,
+							CommentLines: []string{"V is the first field."},
+							Tags:         `json:"v"`,
+							Type: &types.Type{
+								Name: types.Name{
+									Name: "T",
+								},
+								Kind: types.TypeParam,
+							},
+						},
+					},
+					TypeParams: map[string]*types.Type{
+						"T": recursiveT,
+					},
+				}
+			},
+		},
 	}
 
-	_, u, o := construct(t, []file{structTest}, namer.NewPublicNamer(0))
-	t.Logf("%#v", o)
-	blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "Blah"})
-	if blahT == nil {
-		t.Fatal("type not found")
-	}
-	if e, a := types.Struct, blahT.Kind; e != a {
-		t.Errorf("struct kind wrong, wanted %v, got %v", e, a)
-	}
-	if e, a := []string{"Blah is a test.", "A test, I tell you."}, blahT.CommentLines; !reflect.DeepEqual(e, a) {
-		t.Errorf("struct comment wrong, wanted %q, got %q", e, a)
-	}
-	m := types.Member{
-		Name:         "B",
-		Embedded:     false,
-		CommentLines: []string{"B is the second field.", "Multiline comments work."},
-		Tags:         `json:"b"`,
-		Type:         types.String,
-	}
-	if e, a := m, blahT.Members[1]; !reflect.DeepEqual(e, a) {
-		t.Errorf("wanted, got:\n%#v\n%#v", e, a)
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			_, u, o := construct(t, []file{tc.testFile}, namer.NewPublicNamer(0))
+			t.Logf("%#v", o)
+			expected := tc.expected()
+			st := u.Type(expected.Name)
+			if st == nil || st.Kind == types.Unknown {
+				t.Fatal("type not found")
+			}
+			if e, a := expected, st; !reflect.DeepEqual(e, a) {
+				t.Errorf("wanted, got:\n%#v\n%#v\n%s", e, a, cmp.Diff(e, a))
+			}
+		})
 	}
 }
 

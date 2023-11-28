@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/google/gofuzz"
+	fuzz "github.com/google/gofuzz"
 
 	"k8s.io/gengo/examples/deepcopy-gen/output_tests/aliases"
 	"k8s.io/gengo/examples/deepcopy-gen/output_tests/builtins"
+	"k8s.io/gengo/examples/deepcopy-gen/output_tests/generics"
 	"k8s.io/gengo/examples/deepcopy-gen/output_tests/interfaces"
 	"k8s.io/gengo/examples/deepcopy-gen/output_tests/maps"
 	"k8s.io/gengo/examples/deepcopy-gen/output_tests/pointer"
@@ -26,6 +27,9 @@ func TestWithValueFuzzer(t *testing.T) {
 		pointer.Ttest{},
 		slices.Ttest{},
 		structs.Ttest{},
+
+		generics.TunusedGeneric[int]{},
+		generics.TunusedGenericMulti[int, bool, byte]{},
 	}
 
 	fuzzer := fuzz.New()

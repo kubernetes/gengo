@@ -23,6 +23,27 @@ import (
 	"k8s.io/gengo/examples/deepcopy-gen/output_tests/structs"
 )
 
+type DeepCopyable[T any] interface {
+	DeepCopy() T
+}
+
+type Tgeneric[T DeepCopyable[T]] struct {
+	V      T
+	Inner1 structs.Inner
+	Inner2 structs.Inner
+}
+
+type WrappedInterface[T any] interface {
+	DeepCopyable[T]
+	String() string
+}
+
+type TgenericWrapped[T WrappedInterface[T]] struct {
+	V      T
+	Inner1 structs.Inner
+	Inner2 structs.Inner
+}
+
 type TunusedGeneric[T any] struct {
 	Inner1 structs.Inner
 	Inner2 structs.Inner

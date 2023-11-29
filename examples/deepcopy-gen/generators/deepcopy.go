@@ -17,6 +17,7 @@ limitations under the License.
 package generators
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -297,39 +298,59 @@ func (g *genDeepCopy) copyableAndInBounds(t *types.Type) bool {
 // if the type does not match. This allows more efficient deep copy
 // implementations to be defined by the type's author.  The correct signature
 // for a type T is:
-//    func (t T) DeepCopy() T
+//
+//	func (t T) DeepCopy() T
+//
 // or:
-//    func (t *T) DeepCopy() *T
+//
+//	func (t *T) DeepCopy() *T
 func deepCopyMethod(t *types.Type) (*types.Signature, error) {
 	f, found := t.Methods["DeepCopy"]
 	if !found {
 		return nil, nil
 	}
-	if len(f.Signature.Parameters) != 0 {
-		return nil, fmt.Errorf("type %v: invalid DeepCopy signature, expected no parameters", t)
+	return f.Signature, validateDeepCopySignature(t, f.Signature)
+}
+
+func validateDeepCopySignature(t *types.Type, s *types.Signature) error {
+	if len(s.Parameters) != 0 {
+		return fmt.Errorf("type %v: invalid DeepCopy signature, expected no parameters", t)
 	}
-	if len(f.Signature.Results) != 1 {
-		return nil, fmt.Errorf("type %v: invalid DeepCopy signature, expected exactly one result", t)
+	if len(s.Results) != 1 {
+		return fmt.Errorf("type %v: invalid DeepCopy signature, expected exactly one result", t)
 	}
 
-	ptrResult := f.Signature.Results[0].Kind == types.Pointer && f.Signature.Results[0].Elem.Name == t.Name
-	nonPtrResult := f.Signature.Results[0].Name == t.Name
+	ptrResult := s.Results[0].Kind == types.Pointer && s.Results[0].Elem.Name == t.Name
+	nonPtrResult := s.Results[0].Name == t.Name
 
 	if !ptrResult && !nonPtrResult {
-		return nil, fmt.Errorf("type %v: invalid DeepCopy signature, expected to return %s or *%s", t, t.Name.Name, t.Name.Name)
+		return fmt.Errorf("type %v: invalid DeepCopy signature, expected to return %s or *%s", t, t.Name.Name, t.Name.Name)
 	}
 
-	ptrRcvr := f.Signature.Receiver != nil && f.Signature.Receiver.Kind == types.Pointer && f.Signature.Receiver.Elem.Name == t.Name
-	nonPtrRcvr := f.Signature.Receiver != nil && f.Signature.Receiver.Name == t.Name
+	ptrRcvr := s.Receiver != nil && s.Receiver.Kind == types.Pointer && s.Receiver.Elem.Name == t.Name
+	nonPtrRcvr := s.Receiver != nil && s.Receiver.Name == t.Name
 
 	if ptrRcvr && !ptrResult {
-		return nil, fmt.Errorf("type %v: invalid DeepCopy signature, expected a *%s result for a *%s receiver", t, t.Name.Name, t.Name.Name)
+		return fmt.Errorf("type %v: invalid DeepCopy signature, expected a *%s result for a *%s receiver", t, t.Name.Name, t.Name.Name)
 	}
 	if nonPtrRcvr && !nonPtrResult {
-		return nil, fmt.Errorf("type %v: invalid DeepCopy signature, expected a %s result for a %s receiver", t, t.Name.Name, t.Name.Name)
+		return fmt.Errorf("type %v: invalid DeepCopy signature, expected a %s result for a %s receiver", t, t.Name.Name, t.Name.Name)
 	}
 
-	return f.Signature, nil
+	return nil
+}
+
+func resolveMethod(s *types.Type, t *types.Type, method string) *types.Type {
+	switch t.Kind {
+	case types.TypeParam:
+		res := s.TypeParams[t.Name.Name]
+		return resolveMethod(s, res, method)
+	}
+	f, found := t.Methods[method]
+	if !found {
+		return nil
+	}
+	return f
 }
 
 // deepCopyMethodOrDie returns the signatrue of a DeepCopy method, nil or calls klog.Fatalf
@@ -337,7 +358,7 @@ func deepCopyMethod(t *types.Type) (*types.Signature, error) {
 func deepCopyMethodOrDie(t *types.Type) *types.Signature {
 	ret, err := deepCopyMethod(t)
 	if err != nil {
-		klog.Fatal(err)
+		klog.Fatalf("type %v: %s", t, err)
 	}
 	return ret
 }
@@ -346,9 +367,12 @@ func deepCopyMethodOrDie(t *types.Type) *types.Signature {
 // if the type is wrong. DeepCopyInto allows more efficient deep copy
 // implementations to be defined by the type's author.  The correct signature
 // for a type T is:
-//    func (t T) DeepCopyInto(t *T)
+//
+//	func (t T) DeepCopyInto(t *T)
+//
 // or:
-//    func (t *T) DeepCopyInto(t *T)
+//
+//	func (t *T) DeepCopyInto(t *T)
 func deepCopyIntoMethod(t *types.Type) (*types.Signature, error) {
 	f, found := t.Methods["DeepCopyInto"]
 	if !found {
@@ -892,6 +916,19 @@ func (g *genDeepCopy) doStruct(t *types.Type, sw *generator.SnippetWriter) {
 			// parser does not give us the underlying interface name. So we cannot do any better.
 			sw.Do(fmt.Sprintf("out.$.name$ = in.$.name$.DeepCopy%s()\n", uft.Name.Name), args)
 			sw.Do("}\n", nil)
+		case uft.Kind == types.TypeParam:
+			sig := resolveMethod(ut, uft, "DeepCopy")
+			var err error
+			if sig == nil {
+				err = errors.New("DeepCopy method missing")
+			}
+			if err != nil {
+				err = validateDeepCopySignature(uft, sig.Signature)
+			}
+			if err != nil {
+				klog.Fatalf("for type %v for %v: %s", uft, t, err)
+			}
+			sw.Do("out.$.name$ = in.$.name$.DeepCopy()\n", args)
 		default:
 			klog.Fatalf("Hit an unsupported type %v for %v, from %v", uft, ft, t)
 		}

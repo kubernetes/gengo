@@ -30,6 +30,13 @@ func TestWithValueFuzzer(t *testing.T) {
 
 		generics.TunusedGeneric[int]{},
 		generics.TunusedGenericMulti[int, bool, byte]{},
+		generics.Tgeneric[*aliases.Ttest]{},
+		generics.Tgeneric[*builtins.Ttest]{},
+		generics.Tgeneric[*interfaces.Ttest]{},
+		generics.Tgeneric[*maps.Ttest]{},
+		generics.Tgeneric[*pointer.Ttest]{},
+		generics.Tgeneric[*slices.Ttest]{},
+		generics.Tgeneric[*structs.Ttest]{},
 	}
 
 	fuzzer := fuzz.New()

@@ -33,6 +33,7 @@ import (
 	"sort"
 	"strings"
 
+	forkedast "k8s.io/gengo/third_party/forked/golang/go/ast"
 	"k8s.io/gengo/types"
 	"k8s.io/klog/v2"
 )
@@ -545,6 +546,13 @@ func (b *Builder) addCommentsToType(obj tc.Object, t *types.Type) {
 	}
 }
 
+// addDirectivesToType takes any directives prior to obj and attaches them to
+// the type t.
+func (b *Builder) addDirectivesToType(obj tc.Object, t *types.Type) {
+	c1 := b.priorCommentLines(obj.Pos(), 1)
+	t.Directives = extractDirectives(c1)
+}
+
 // findTypesIn finalizes the package import and searches through the package
 // for types.
 func (b *Builder) findTypesIn(pkgPath importPathString, u *types.Universe) error {
@@ -579,6 +587,7 @@ func (b *Builder) findTypesIn(pkgPath importPathString, u *types.Universe) error
 			if f.file.Doc != nil {
 				tp.DocComments = splitLines(f.file.Doc.Text())
 			}
+			tp.DocDirectives = extractDirectives(f.file.Doc)
 		}
 	}
 
@@ -589,22 +598,26 @@ func (b *Builder) findTypesIn(pkgPath importPathString, u *types.Universe) error
 		if ok {
 			t := b.walkType(*u, nil, tn.Type())
 			b.addCommentsToType(obj, t)
+			b.addDirectivesToType(obj, t)
 		}
 		tf, ok := obj.(*tc.Func)
 		// We only care about functions, not concrete/abstract methods.
 		if ok && tf.Type() != nil && tf.Type().(*tc.Signature).Recv() == nil {
 			t := b.addFunction(*u, nil, tf)
 			b.addCommentsToType(obj, t)
+			b.addDirectivesToType(obj, t)
 		}
 		tv, ok := obj.(*tc.Var)
 		if ok && !tv.IsField() {
 			t := b.addVariable(*u, nil, tv)
 			b.addCommentsToType(obj, t)
+			b.addDirectivesToType(obj, t)
 		}
 		tconst, ok := obj.(*tc.Const)
 		if ok {
 			t := b.addConstant(*u, nil, tconst)
 			b.addCommentsToType(obj, t)
+			b.addDirectivesToType(obj, t)
 		}
 	}
 
@@ -727,12 +740,14 @@ func (b *Builder) walkType(u types.Universe, useName *types.Name, in tc.Type) *t
 		out.Kind = types.Struct
 		for i := 0; i < t.NumFields(); i++ {
 			f := t.Field(i)
+			commentGroup := b.priorCommentLines(f.Pos(), 1)
 			m := types.Member{
 				Name:         f.Name(),
 				Embedded:     f.Anonymous(),
 				Tags:         t.Tag(i),
 				Type:         b.walkType(u, nil, f.Type()),
-				CommentLines: splitLines(b.priorCommentLines(f.Pos(), 1).Text()),
+				CommentLines: splitLines(commentGroup.Text()),
+				Directives:   extractDirectives(commentGroup),
 			}
 			out.Members = append(out.Members, m)
 		}
@@ -812,8 +827,10 @@ func (b *Builder) walkType(u types.Universe, useName *types.Name, in tc.Type) *t
 			}
 			method := t.Method(i)
 			name := tcNameToName(method.String())
+			commentGroup := b.priorCommentLines(method.Pos(), 1)
 			mt := b.walkType(u, &name, method.Type())
-			mt.CommentLines = splitLines(b.priorCommentLines(method.Pos(), 1).Text())
+			mt.CommentLines = splitLines(commentGroup.Text())
+			mt.Directives = extractDirectives(commentGroup)
 			out.Methods[method.Name()] = mt
 		}
 		return out
@@ -848,8 +865,10 @@ func (b *Builder) walkType(u types.Universe, useName *types.Name, in tc.Type) *t
 				}
 				method := t.Method(i)
 				name := tcNameToName(method.String())
+				commentGroup := b.priorCommentLines(method.Pos(), 1)
 				mt := b.walkType(u, &name, method.Type())
-				mt.CommentLines = splitLines(b.priorCommentLines(method.Pos(), 1).Text())
+				mt.CommentLines = splitLines(commentGroup.Text())
+				mt.Directives = extractDirectives(commentGroup)
 				out.Methods[method.Name()] = mt
 			}
 		}
@@ -922,4 +941,21 @@ func canonicalizeImportPath(importPath string) importPathString {
 	}
 
 	return importPathString(importPath[strings.Index(importPath, "/vendor/")+len("/vendor/"):])
+}
+
+// extractDirectives extracts directives from a CommentGroup.
+func extractDirectives(cg *ast.CommentGroup) []string {
+	if cg == nil {
+		return nil
+	}
+
+	var directives []string
+	for _, c := range cg.List {
+		text := c.Text
+		if text[1] == '/' && forkedast.IsDirective(text[2:]) {
+			directives = append(directives, text[2:])
+		}
+	}
+
+	return directives
 }

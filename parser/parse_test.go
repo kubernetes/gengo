@@ -63,8 +63,7 @@ func TestRecursive(t *testing.T) {
 	if foundC {
 		t.Error("Did not expect to find package c")
 	}
-	if name := findTypes[dir].Types["AA"].Methods["AFunc"].Name.Name;
-		name != "func (*k8s.io/gengo/testdata/a.AA).AFunc(i *int, j int) (*k8s.io/gengo/testdata/a.A, k8s.io/gengo/testdata/a/b.ITest, error)" {
+	if name := findTypes[dir].Types["AA"].Methods["AFunc"].Name.Name; name != "func (*k8s.io/gengo/testdata/a.AA).AFunc(i *int, j int) (*k8s.io/gengo/testdata/a.A, k8s.io/gengo/testdata/a/b.ITest, error)" {
 		t.Errorf("Parse method type error, got name: %s", name)
 	}
 	// only has three package: package "a", package "b", and package "" for all
@@ -358,12 +357,14 @@ func TestStructParse(t *testing.T) {
 
             // Blah is a test.
             // A test, I tell you.
+			//lint123:ignore
             type Blah struct {
 	            // A is the first field.
 	            A int64 ` + "`" + `json:"a"` + "`" + `
             
 	            // B is the second field.
 	            // Multiline comments work.
+				//lint123:field
 	            B string ` + "`" + `json:"b"` + "`" + `
             }
             `,
@@ -381,10 +382,14 @@ func TestStructParse(t *testing.T) {
 	if e, a := []string{"Blah is a test.", "A test, I tell you."}, blahT.CommentLines; !reflect.DeepEqual(e, a) {
 		t.Errorf("struct comment wrong, wanted %q, got %q", e, a)
 	}
+	if e, a := []string{"lint123:ignore"}, blahT.Directives; !reflect.DeepEqual(e, a) {
+		t.Errorf("struct directive wrong, wanted %q, got %q", e, a)
+	}
 	m := types.Member{
 		Name:         "B",
 		Embedded:     false,
 		CommentLines: []string{"B is the second field.", "Multiline comments work."},
+		Directives:   []string{"lint123:field"},
 		Tags:         `json:"b"`,
 		Type:         types.String,
 	}
@@ -610,6 +615,106 @@ func TestParseMethodCommentLines(t *testing.T) {
 	}
 }
 
+func TestParseMethodDirectives(t *testing.T) {
+	const fileName = "base/foo/proto/foo.go"
+	testCases := []struct {
+		testFile file
+		expected []string
+	}{
+		{
+			testFile: file{
+				path: fileName, contents: `
+				    package foo
+
+                    type Blah struct {
+	                    a int
+                    }
+
+                    // BlahFunc's CommentLines.
+                    // Another line.
+					//go:noinline
+                    func (b *Blah) BlahFunc() {}
+                    `},
+			expected: []string{"go:noinline"},
+		},
+		{
+			testFile: file{
+				path: fileName, contents: `
+				    package foo
+
+                    type Blah interface {
+	                    // BlahFunc's CommentLines.
+	                    // Another line.
+						//lint123:ctx
+	                    BlahFunc()
+                    }
+                    `},
+			expected: []string{"lint123:ctx"},
+		},
+	}
+	for _, test := range testCases {
+		_, u, o := construct(t, []file{test.testFile}, namer.NewPublicNamer(0))
+		t.Logf("%#v", o)
+		blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "Blah"})
+		blahM := blahT.Methods["BlahFunc"]
+		if e, a := test.expected, blahM.Directives; !reflect.DeepEqual(e, a) {
+			t.Errorf("method directives wrong, wanted %q, got %q", e, a)
+		}
+	}
+
+	signatureTestCases := []struct {
+		testFile file
+		expected []string
+	}{
+		{
+			testFile: file{
+				path: fileName, contents: `
+				    package foo
+
+                    type Blah struct {
+	                    a int
+                    }
+
+                    // Method1 CommentLines.
+					//go:noinline
+                    func (b *Blah) Method1(sameArg int) {}
+
+					// Method2 CommentLines.
+					//lint123:noctx
+                    func (b *Blah) Method2(sameArg int) {}
+                    `},
+		},
+		{
+			testFile: file{
+				path: fileName, contents: `
+				    package foo
+
+                    type Blah interface {
+						// Method1 CommentLines.
+						//go:noinline
+						Method1(sameArg int) error
+
+						// Method2 CommentLines.
+						//lint123:noctx
+						Method2(sameArg int) error
+                    }
+                    `},
+		},
+	}
+	for _, test := range signatureTestCases {
+		_, u, o := construct(t, []file{test.testFile}, namer.NewPublicNamer(0))
+		t.Logf("%#v", o)
+		blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "Blah"})
+		blahM1 := blahT.Methods["Method1"]
+		blahM2 := blahT.Methods["Method2"]
+		c1 := blahM1.Directives
+		c2 := blahM2.Directives
+		if reflect.DeepEqual(c1, c2) {
+			t.Errorf("same signature method comment got equal, %v == %v", c1, c2)
+		}
+	}
+}
+
 func TestParseConstantCommentLines(t *testing.T) {
 	testFile := file{
 		path: "base/foo/proto/foo.go",
@@ -648,6 +753,49 @@ const OtherInt = 9
 	expectComment(
 		u.Constant(types.Name{Package: "base/foo/proto", Name: "OtherInt"}),
 		[]string{"An important integer.", "This one is nine."},
+	)
+}
+
+func TestParseConstantDirectives(t *testing.T) {
+	testFile := file{
+		path: "base/foo/proto/foo.go",
+		contents: `
+package foo
+
+// FooString is a string of foo.
+type FooString string
+
+// FooStringOne is one foo.
+//directive:enum_string
+const FooStringOne FooString = "One"
+
+// An important integer.
+// This one is nine.
+//directive:enum_int
+const OtherInt = 9
+`,
+	}
+
+	expectDirectives := func(obj *types.Type, lines []string) {
+		t.Helper()
+		if !reflect.DeepEqual(obj.Directives, lines) {
+			t.Errorf("wrong const diretives for %q: wanted %q, got %q",
+				obj.Name,
+				lines, obj.Directives,
+			)
+		}
+	}
+
+	_, u, _ := construct(t, []file{testFile}, namer.NewPublicNamer(0))
+
+	expectDirectives(
+		u.Constant(types.Name{Package: "base/foo/proto", Name: "FooStringOne"}),
+		[]string{"directive:enum_string"},
+	)
+
+	expectDirectives(
+		u.Constant(types.Name{Package: "base/foo/proto", Name: "OtherInt"}),
+		[]string{"directive:enum_int"},
 	)
 }
 
@@ -822,6 +970,65 @@ func TestTypeKindParse(t *testing.T) {
 		iface := u.Type(types.Name{Package: "g", Name: "Interface"})
 		if e, a := 1, len(iface.Methods); e != a {
 			t.Errorf("expected %v but found %v methods: %#v", e, a, iface)
+		}
+	}
+}
+
+func TestParseDocDirectives(t *testing.T) {
+	tests := []struct {
+		pkg       string
+		testFiles []file
+		expected  []string
+	}{
+		{
+			pkg: "base/foo/proto",
+			testFiles: []file{
+				{
+					path: "base/foo/proto/doc.go",
+					contents: `
+				
+					//lint123:all
+					//go:build
+				    package foo
+
+					//lint123:ctx
+                    type Blah struct {
+	                    a int
+                    }
+
+                    // BlahFunc's CommentLines.
+                    // Another line.
+					//go:noinline
+                    func (b *Blah) BlahFunc() {}
+                    `,
+				},
+				{
+					path: "base/foo/proto/foo2.go",
+					contents: `
+
+					//lint123:foo1
+				    package foo
+
+					//lint123:foo2
+
+                    type Blah interface {
+	                    // BlahFunc's CommentLines.
+	                    // Another line.
+						//lint123:ctx
+	                    BlahFunc()
+                    }
+
+					//lint123:foo3
+                    `,
+				},
+			},
+			expected: []string{"lint123:all", "go:build"},
+		},
+	}
+	for _, tt := range tests {
+		_, u, _ := construct(t, tt.testFiles, namer.NewPublicNamer(0))
+		if e, a := tt.expected, u.Package(tt.pkg).DocDirectives; !reflect.DeepEqual(e, a) {
+			t.Errorf("package doc directives wrong, wanted %q, got %q", e, a)
 		}
 	}
 }

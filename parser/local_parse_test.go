@@ -17,8 +17,11 @@ limitations under the License.
 package parser
 
 import (
+	"go/ast"
 	"os"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestImportBuildPackage(t *testing.T) {
@@ -82,6 +85,53 @@ func TestCanonicalizeImportPath(t *testing.T) {
 		actual := canonicalizeImportPath(tc.input)
 		if string(actual) != tc.output {
 			t.Errorf("%v: expected %q got %q", tc.name, tc.output, actual)
+		}
+	}
+}
+
+func TestExtractDirecrives(t *testing.T) {
+	var tests = []struct {
+		commentLines []string
+		directives   []string
+	}{
+		{
+			[]string{"// foo", "//   ", "//", "//", "//   bar   "},
+			nil,
+		},
+		{
+			[]string{"// foo", "/* bar */"},
+			nil,
+		},
+		{
+			[]string{"// foo", "// bar", "// notdirective:baz"},
+			nil,
+		},
+		{
+			[]string{"// foo", "/* notdirective0:baz */", "/*notdirective1:baz */"},
+			nil,
+		},
+		{
+			[]string{"// foo", "//go:noinline", "// bar", "// notdirective:baz", "//lint123:ignore"},
+			[]string{"go:noinline", "lint123:ignore"},
+		},
+		{
+			[]string{"// foo", "//go:noinline", "/* notdirective0:baz */", "/*notdirective1:baz */", "//lint123:ignore"},
+			[]string{"go:noinline", "lint123:ignore"},
+		},
+	}
+
+	for i, tt := range tests {
+		list := make([]*ast.Comment, len(tt.commentLines))
+		for i, line := range tt.commentLines {
+			list[i] = &ast.Comment{Text: line}
+		}
+
+		directives := extractDirectives(&ast.CommentGroup{List: list})
+		if diff := cmp.Diff(directives, tt.directives); diff != "" {
+			t.Errorf(
+				"Case: %d\nWanted, got:\n%v\n-----\n%v\nDiff:\n%s",
+				i, tt.directives, directives, diff,
+			)
 		}
 	}
 }

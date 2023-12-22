@@ -125,6 +125,9 @@ type Package struct {
 	// TODO: remove Comments and use DocComments everywhere.
 	Comments []string
 
+	// The directives right above the package declaration in doc.go, if any.
+	DocDirectives []string
+
 	// Types within this package, indexed by their name (*not* including
 	// package name).
 	Types map[string]*Type
@@ -322,6 +325,10 @@ type Type struct {
 	// ---
 	SecondClosestCommentLines []string
 
+	// If there are directives immediately before the type definition,
+	// they will be recorded here.
+	Directives []string
+
 	// If Kind == Struct
 	Members []Member
 
@@ -408,6 +415,10 @@ type Member struct {
 	// If there are comment lines immediately before the member in the type
 	// definition, they will be recorded here.
 	CommentLines []string
+
+	// If there are directives immediately before the type definition,
+	// they will be recorded here.
+	Directives []string
 
 	// If there are tags along with this member, they will be saved here.
 	Tags string

@@ -25,7 +25,7 @@ type Defaulted struct {
 	empty.TypeMeta
 
 	// +default="bar"
-	StringDefault string `json:",omitempty"`
+	StringDefault string
 
 	// Default is forced to empty string
 	// Specifying the default is a no-op
@@ -45,7 +45,7 @@ type Defaulted struct {
 	Int32 *int32
 
 	// +default=1
-	IntDefault int `json:",omitempty"`
+	IntDefault int
 
 	// +default=0
 	IntEmptyDefault int
@@ -54,7 +54,7 @@ type Defaulted struct {
 	IntEmpty int
 
 	// +default=0.5
-	FloatDefault float64 `json:",omitempty"`
+	FloatDefault float64
 
 	// +default=0.0
 	FloatEmptyDefault float64
@@ -90,6 +90,77 @@ type Defaulted struct {
 	// A default specified here overrides the default for the Item type
 	// +default="banana"
 	AliasPtr Item
+}
+
+type DefaultedOmitempty struct {
+	empty.TypeMeta `json:",omitempty"`
+
+	// +default="bar"
+	StringDefault string `json:",omitempty"`
+
+	// Default is forced to empty string
+	// Specifying the default is a no-op
+	// +default=""
+	StringEmptyDefault string `json:",omitempty"`
+
+	// Not specifying a default still defaults for non-omitempty
+	StringEmpty string `json:",omitempty"`
+
+	// +default="default"
+	StringPointer *string `json:",omitempty"`
+
+	// +default=64
+	Int64 *int64 `json:",omitempty"`
+
+	// +default=32
+	Int32 *int32 `json:",omitempty"`
+
+	// +default=1
+	IntDefault int `json:",omitempty"`
+
+	// +default=0
+	IntEmptyDefault int `json:",omitempty"`
+
+	// Default is forced to 0
+	IntEmpty int `json:",omitempty"`
+
+	// +default=0.5
+	FloatDefault float64 `json:",omitempty"`
+
+	// +default=0.0
+	FloatEmptyDefault float64 `json:",omitempty"`
+
+	FloatEmpty float64 `json:",omitempty"`
+
+	// +default=["foo", "bar"]
+	List []Item `json:",omitempty"`
+	// +default={"s": "foo", "i": 5}
+	Sub *SubStruct `json:",omitempty"`
+
+	//+default=[{"s": "foo1", "i": 1}, {"s": "foo2"}]
+	StructList []SubStruct `json:",omitempty"`
+
+	//+default=[{"s": "foo1", "i": 1}, {"s": "foo2"}]
+	PtrStructList []*SubStruct `json:",omitempty"`
+
+	//+default=["foo"]
+	StringList []string `json:",omitempty"`
+
+	// Default is forced to empty struct
+	OtherSub SubStruct `json:",omitempty"`
+
+	// +default={"foo": "bar"}
+	Map map[string]Item `json:",omitempty"`
+
+	// +default={"foo": {"S": "string", "I": 1}}
+	StructMap map[string]SubStruct `json:",omitempty"`
+
+	// +default={"foo": {"S": "string", "I": 1}}
+	PtrStructMap map[string]*SubStruct `json:",omitempty"`
+
+	// A default specified here overrides the default for the Item type
+	// +default="banana"
+	AliasPtr Item `json:",omitempty"`
 }
 
 const SomeDefault = "ACoolConstant"

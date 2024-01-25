@@ -28,12 +28,7 @@ echo "Removing generated code"
 # Defaulter-gen and deepcopy-gen both generate types of this format
 find ./examples -name "zz_generated.go" -type f -delete
 
-# Delete set-gen tests
-find ./examples/set-gen/sets -type f -maxdepth 1 -not -name "set_test.go" -not -name "doc.go" -delete
-
-# Generate set-gen first since others depend on it
 echo "Generating example output..."
-go generate ./examples/set-gen/...
 go generate ./examples/...
 pushd ./examples/defaulter-gen/_output_tests; go generate ./...; popd
 

@@ -41,49 +41,49 @@ limitations under the License.
 //
 // An example file looks like this:
 //
-// {
-//   "Rules": [
-//     {
-//       "SelectorRegexp": "k8s[.]io",
-//       "AllowedPrefixes": [
-//         "k8s.io/gengo/v2/examples",
-//         "k8s.io/kubernetes/third_party"
-//       ],
-//       "ForbiddenPrefixes": [
-//         "k8s.io/kubernetes/pkg/third_party/deprecated"
-//       ]
-//     },
-//     {
-//       "SelectorRegexp": "^unsafe$",
-//       "AllowedPrefixes": [
-//       ],
-//       "ForbiddenPrefixes": [
-//         ""
-//       ]
-//     }
-//   ],
-//   "InverseRules": [{
-//       "SelectorRegexp": "k8s[.]io",
-//       "AllowedPrefixes": [
-//         "k8s.io/same-repo",
-//         "k8s.io/kubernetes/pkg/legacy"
-//       ],
-//       "ForbiddenPrefixes": [
-//         "k8s.io/kubernetes/pkg/legacy/subpkg"
-//       ]
-//     },
-//     {
-//       "SelectorRegexp": "k8s[.]io",
-//       "Transitive": true,
-//       "AllowedPrefixes": [
-//         "k8s.io/
-//       ],
-//       "ForbiddenPrefixes": [
-//         "k8s.io/kubernetes/cmd/kubelet",
-//         "k8s.io/kubernetes/cmd/kubectl"
-//       ],
-//   ]
-// }
+//	{
+//	  "Rules": [
+//	    {
+//	      "SelectorRegexp": "k8s[.]io",
+//	      "AllowedPrefixes": [
+//	        "k8s.io/gengo/v2/examples",
+//	        "k8s.io/kubernetes/third_party"
+//	      ],
+//	      "ForbiddenPrefixes": [
+//	        "k8s.io/kubernetes/pkg/third_party/deprecated"
+//	      ]
+//	    },
+//	    {
+//	      "SelectorRegexp": "^unsafe$",
+//	      "AllowedPrefixes": [
+//	      ],
+//	      "ForbiddenPrefixes": [
+//	        ""
+//	      ]
+//	    }
+//	  ],
+//	  "InverseRules": [{
+//	      "SelectorRegexp": "k8s[.]io",
+//	      "AllowedPrefixes": [
+//	        "k8s.io/same-repo",
+//	        "k8s.io/kubernetes/pkg/legacy"
+//	      ],
+//	      "ForbiddenPrefixes": [
+//	        "k8s.io/kubernetes/pkg/legacy/subpkg"
+//	      ]
+//	    },
+//	    {
+//	      "SelectorRegexp": "k8s[.]io",
+//	      "Transitive": true,
+//	      "AllowedPrefixes": [
+//	        "k8s.io/
+//	      ],
+//	      "ForbiddenPrefixes": [
+//	        "k8s.io/kubernetes/cmd/kubelet",
+//	        "k8s.io/kubernetes/cmd/kubectl"
+//	      ],
+//	  ]
+//	}
 //
 // Note the second (non-inverse) rule explicitly matches the unsafe package, and forbids it
 // ("" is a prefix of everything).

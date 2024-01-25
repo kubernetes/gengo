@@ -63,8 +63,7 @@ func TestRecursive(t *testing.T) {
 	if foundC {
 		t.Error("Did not expect to find package c")
 	}
-	if name := findTypes[dir].Types["AA"].Methods["AFunc"].Name.Name;
-		name != "func (*k8s.io/gengo/v2/testdata/a.AA).AFunc(i *int, j int) (*k8s.io/gengo/v2/testdata/a.A, k8s.io/gengo/v2/testdata/a/b.ITest, error)" {
+	if name := findTypes[dir].Types["AA"].Methods["AFunc"].Name.Name; name != "func (*k8s.io/gengo/v2/testdata/a.AA).AFunc(i *int, j int) (*k8s.io/gengo/v2/testdata/a.A, k8s.io/gengo/v2/testdata/a/b.ITest, error)" {
 		t.Errorf("Parse method type error, got name: %s", name)
 	}
 	// only has three package: package "a", package "b", and package "" for all
@@ -288,47 +287,47 @@ const FooThirdDegree proto.Degrees = proto.ThirdDegree(2)
 	strPtr := func(s string) *string { return &s }
 
 	expectedConst := map[string]*types.Type{
-		"EnumSymbol": &types.Type{
+		"EnumSymbol": {
 			Name:       types.Name{Package: "base/foo/proto", Name: "EnumSymbol"},
 			Kind:       types.DeclarationOf,
 			ConstValue: strPtr("enumSymbolValue"),
 		},
-		"FirstDegree": &types.Type{
+		"FirstDegree": {
 			Name:       types.Name{Package: "base/foo/proto", Name: "FirstDegree"},
 			Kind:       types.DeclarationOf,
 			ConstValue: strPtr("0"),
 		},
-		"SecondDegree": &types.Type{
+		"SecondDegree": {
 			Name:       types.Name{Package: "base/foo/proto", Name: "SecondDegree"},
 			Kind:       types.DeclarationOf,
 			ConstValue: strPtr("1"),
 		},
-		"ThirdDegree": &types.Type{
+		"ThirdDegree": {
 			Name:       types.Name{Package: "base/foo/proto", Name: "ThirdDegree"},
 			Kind:       types.DeclarationOf,
 			ConstValue: strPtr("2"),
 		},
-		"ConstNineNine": &types.Type{
+		"ConstNineNine": {
 			Name:       types.Name{Package: "base/foo/proto", Name: "ConstNineNine"},
 			Kind:       types.DeclarationOf,
 			ConstValue: strPtr("99"),
 		},
-		"ConstHundred": &types.Type{
+		"ConstHundred": {
 			Name:       types.Name{Package: "base/foo/proto", Name: "ConstHundred"},
 			Kind:       types.DeclarationOf,
 			ConstValue: strPtr("100"),
 		},
-		"ConstFloat": &types.Type{
+		"ConstFloat": {
 			Name:       types.Name{Package: "base/foo/proto", Name: "ConstFloat"},
 			Kind:       types.DeclarationOf,
 			ConstValue: strPtr("7.8"),
 		},
-		"ConstExpr": &types.Type{
+		"ConstExpr": {
 			Name:       types.Name{Package: "base/foo/proto", Name: "ConstExpr"},
 			Kind:       types.DeclarationOf,
 			ConstValue: strPtr("(1 + -6.5751i)"),
 		},
-		"ConstString": &types.Type{
+		"ConstString": {
 			Name:       types.Name{Package: "base/foo/proto", Name: "ConstString"},
 			Kind:       types.DeclarationOf,
 			ConstValue: strPtr("constant string"),

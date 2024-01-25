@@ -97,13 +97,13 @@ func Test_Marker(t *testing.T) {
 					"foo": getPointerFromString("bar"),
 				},
 				StructMap: map[string]SubStruct{
-					"foo": SubStruct{
+					"foo": {
 						S: "string",
 						I: 1,
 					},
 				},
 				PtrStructMap: map[string]*SubStruct{
-					"foo": &SubStruct{
+					"foo": {
 						S: "string",
 						I: 1,
 					},
@@ -169,13 +169,13 @@ func Test_Marker(t *testing.T) {
 					"foo": getPointerFromString("bar"),
 				},
 				StructMap: map[string]SubStruct{
-					"foo": SubStruct{
+					"foo": {
 						S: "string",
 						I: 1,
 					},
 				},
 				PtrStructMap: map[string]*SubStruct{
-					"foo": &SubStruct{
+					"foo": {
 						S: "string",
 						I: 1,
 					},
@@ -243,13 +243,13 @@ func Test_Marker(t *testing.T) {
 					"foo": getPointerFromString("bar"),
 				},
 				StructMap: map[string]SubStruct{
-					"foo": SubStruct{
+					"foo": {
 						S: "string",
 						I: 1,
 					},
 				},
 				PtrStructMap: map[string]*SubStruct{
-					"foo": &SubStruct{
+					"foo": {
 						S: "string",
 						I: 1,
 					},
@@ -318,13 +318,13 @@ func Test_Marker(t *testing.T) {
 					"bar": getPointerFromString("banana"),
 				},
 				StructMap: map[string]SubStruct{
-					"foo": SubStruct{
+					"foo": {
 						S: "string",
 						I: 1,
 					},
 				},
 				PtrStructMap: map[string]*SubStruct{
-					"foo": &SubStruct{
+					"foo": {
 						S: "string",
 						I: 1,
 					},

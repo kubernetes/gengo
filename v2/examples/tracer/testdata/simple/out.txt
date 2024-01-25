@@ -1,0 +1,30 @@
+DBG: getPackages
+DBG: FilterFunc{./examples/tracer/testdata/simple}: *int
+DBG: FilterFunc{./examples/tracer/testdata/simple}: *string
+DBG: FilterFunc{./examples/tracer/testdata/simple}: int
+DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.ExportedInt
+DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.ExportedString
+DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.ExportedStruct
+DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.privateInt
+DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.privateString
+DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.privateStruct
+DBG: FilterFunc{./examples/tracer/testdata/simple}: string
+DBG: GeneratorFunc{./examples/tracer/testdata/simple}
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.ExportedInt
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.ExportedString
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.ExportedStruct
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.privateInt
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.privateString
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.privateStruct
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.Namers
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.PackageVars
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.PackageConsts
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.Init
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.ExportedInt
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.ExportedString
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.ExportedStruct
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.privateInt
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.privateString
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.privateStruct
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.Finalize
+DBG: tracerGenerator{./examples/tracer/testdata/simple}.Imports

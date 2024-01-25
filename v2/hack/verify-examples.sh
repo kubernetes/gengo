@@ -43,3 +43,11 @@ echo "Running tests..."
 go test ./examples/...
 go run ./examples/import-boss/main.go -i $(go list k8s.io/gengo/v2/... | grep -v import-boss/tests | paste -sd',' -) --verify-only
 pushd ./examples/defaulter-gen/_output_tests; go test ./...; popd
+
+rm ./examples/tracer/testdata/simple/out.txt
+go run ./examples/tracer -i ./examples/tracer/testdata/simple > ./examples/tracer/testdata/simple/out.txt
+if ! git diff --quiet HEAD; then
+    echo "FAIL: output files changed"
+    git diff
+    exit 1
+fi

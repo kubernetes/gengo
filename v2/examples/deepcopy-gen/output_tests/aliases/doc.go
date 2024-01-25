@@ -24,9 +24,9 @@ package aliases
 // an interface I is actually equivalent to I. So support deepcopies of those aliases, we have
 // to implement all aliases of that interface.
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/examples/deepcopy-gen/output_tests/aliases.Interface
-// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/examples/deepcopy-gen/output_tests/aliases.AliasInterface
-// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/examples/deepcopy-gen/output_tests/aliases.AliasAliasInterface
+// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/aliases.Interface
+// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/aliases.AliasInterface
+// +k8s:deepcopy-gen:interfaces=k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/aliases.AliasAliasInterface
 type Foo struct {
 	X int
 }

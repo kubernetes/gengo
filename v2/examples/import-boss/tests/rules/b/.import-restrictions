@@ -5,7 +5,7 @@
          ""
        ],
        "ForbiddenPrefixes": [
-         "k8s.io/gengo/examples/import-boss/tests/rules/c"
+         "k8s.io/gengo/v2/examples/import-boss/tests/rules/c"
        ]
    }]
 }

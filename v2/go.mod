@@ -1,4 +1,4 @@
-module k8s.io/gengo
+module k8s.io/gengo/v2
 
 go 1.13
 

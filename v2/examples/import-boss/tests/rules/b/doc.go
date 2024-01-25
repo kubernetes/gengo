@@ -2,5 +2,5 @@
 package b
 
 import (
-	_ "k8s.io/gengo/examples/import-boss/tests/rules/c"
+	_ "k8s.io/gengo/v2/examples/import-boss/tests/rules/c"
 )

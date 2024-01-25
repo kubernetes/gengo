@@ -19,8 +19,8 @@ package output_tests
 import (
 	"github.com/google/gofuzz"
 
-	"k8s.io/gengo/examples/deepcopy-gen/output_tests/aliases"
-	"k8s.io/gengo/examples/deepcopy-gen/output_tests/interfaces"
+	"k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/aliases"
+	"k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/interfaces"
 )
 
 // interfaceFuzzers contains fuzzer that set all interface to nil because our

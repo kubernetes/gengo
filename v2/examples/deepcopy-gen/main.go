@@ -57,8 +57,8 @@ limitations under the License.
 package main
 
 import (
-	"k8s.io/gengo/args"
-	"k8s.io/gengo/examples/deepcopy-gen/generators"
+	"k8s.io/gengo/v2/args"
+	"k8s.io/gengo/v2/examples/deepcopy-gen/generators"
 
 	"github.com/spf13/pflag"
 	"k8s.io/klog/v2"

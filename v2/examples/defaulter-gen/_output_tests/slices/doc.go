@@ -17,4 +17,4 @@ limitations under the License.
 // +k8s:defaulter-gen=TypeMeta
 
 // This is a test package.
-package slices // import "k8s.io/gengo/examples/defaulter-gen/output_tests/slices"
+package slices // import "k8s.io/gengo/v2/examples/defaulter-gen/output_tests/slices"

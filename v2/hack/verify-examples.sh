@@ -46,5 +46,5 @@ fi
 
 echo "Running tests..."
 go test ./examples/...
-go run ./examples/import-boss/main.go -i $(go list k8s.io/gengo/... | grep -v import-boss/tests | paste -sd',' -) --verify-only
+go run ./examples/import-boss/main.go -i $(go list k8s.io/gengo/v2/... | grep -v import-boss/tests | paste -sd',' -) --verify-only
 pushd ./examples/defaulter-gen/_output_tests; go test ./...; popd

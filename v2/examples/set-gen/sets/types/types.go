@@ -18,7 +18,7 @@ limitations under the License.
 // contains a "go generate" block.
 package types
 
-//go:generate go run k8s.io/gengo/examples/set-gen -i k8s.io/gengo/examples/set-gen/sets/types -o ../ --go-header-file=../../../../boilerplate/boilerplate.go.txt
+//go:generate go run k8s.io/gengo/v2/examples/set-gen -i k8s.io/gengo/v2/examples/set-gen/sets/types -o ../ --go-header-file=../../../../boilerplate/boilerplate.go.txt
 
 type ReferenceSetTypes struct {
 	// These types all cause files to be generated

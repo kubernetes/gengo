@@ -46,7 +46,7 @@ limitations under the License.
 //     {
 //       "SelectorRegexp": "k8s[.]io",
 //       "AllowedPrefixes": [
-//         "k8s.io/gengo/examples",
+//         "k8s.io/gengo/v2/examples",
 //         "k8s.io/kubernetes/third_party"
 //       ],
 //       "ForbiddenPrefixes": [
@@ -97,8 +97,8 @@ package main
 import (
 	"os"
 
-	"k8s.io/gengo/args"
-	"k8s.io/gengo/examples/import-boss/generators"
+	"k8s.io/gengo/v2/args"
+	"k8s.io/gengo/v2/examples/import-boss/generators"
 
 	"k8s.io/klog/v2"
 )

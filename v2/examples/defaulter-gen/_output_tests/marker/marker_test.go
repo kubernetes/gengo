@@ -21,10 +21,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external"
-	externalexternal "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external/external"
-	"k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external2"
-	"k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external3"
+	"k8s.io/gengo/v2/examples/defaulter-gen/output_tests/marker/external"
+	externalexternal "k8s.io/gengo/v2/examples/defaulter-gen/output_tests/marker/external/external"
+	"k8s.io/gengo/v2/examples/defaulter-gen/output_tests/marker/external2"
+	"k8s.io/gengo/v2/examples/defaulter-gen/output_tests/marker/external3"
 )
 
 func getPointerFromString(s string) *string {

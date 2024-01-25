@@ -17,8 +17,8 @@ limitations under the License.
 package marker
 
 import (
-	"k8s.io/gengo/examples/defaulter-gen/output_tests/empty"
-	"k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external3"
+	"k8s.io/gengo/v2/examples/defaulter-gen/output_tests/empty"
+	"k8s.io/gengo/v2/examples/defaulter-gen/output_tests/marker/external3"
 )
 
 type Defaulted struct {
@@ -233,10 +233,10 @@ type DefaultedWithReference struct {
 	// +default=ref(SomeDefault)
 	SymbolReference string `json:",omitempty"`
 
-	// +default=ref(k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external.AConstant)
+	// +default=ref(k8s.io/gengo/v2/examples/defaulter-gen/output_tests/marker/external.AConstant)
 	SameNamePackageSymbolReference1 string `json:",omitempty"`
 
-	// +default=ref(k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external/external.AnotherConstant)
+	// +default=ref(k8s.io/gengo/v2/examples/defaulter-gen/output_tests/marker/external/external.AnotherConstant)
 	SameNamePackageSymbolReference2 string `json:",omitempty"`
 
 	// Should convert ValueItem -> string then up to B4 through addressOf and
@@ -247,7 +247,7 @@ type DefaultedWithReference struct {
 	// +default=ref(SomeValue)
 	PointerConversionValue B4
 
-	// +default=ref(k8s.io/gengo/examples/defaulter-gen/output_tests/marker.SomeValue)
+	// +default=ref(k8s.io/gengo/v2/examples/defaulter-gen/output_tests/marker.SomeValue)
 	FullyQualifiedLocalSymbol string
 
 	// Construction of external3.StringPointer requires importing external2

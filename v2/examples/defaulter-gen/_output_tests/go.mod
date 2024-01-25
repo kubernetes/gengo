@@ -1,13 +1,13 @@
 // Package must be named output_tests rather than _output tests to avoid
 // ambiguous import conflict with main gengo package
-module k8s.io/gengo/examples/defaulter-gen/output_tests
+module k8s.io/gengo/v2/examples/defaulter-gen/output_tests
 
 go 1.20
 
 require (
 	github.com/google/go-cmp v0.5.9
 	k8s.io/apimachinery v0.28.0
-	k8s.io/gengo v0.0.0-20230823165328-036e7fc87c56
+	k8s.io/gengo/v2 v0.0.0-20230823165328-036e7fc87c56
 )
 
 require (
@@ -26,4 +26,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 )
 
-replace k8s.io/gengo => ../../../
+replace k8s.io/gengo/v2 => ../../../

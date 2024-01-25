@@ -25,9 +25,9 @@ import (
 	"encoding/json"
 
 	runtime "k8s.io/apimachinery/pkg/runtime"
-	external "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external"
-	externalexternal "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external/external"
-	external2 "k8s.io/gengo/examples/defaulter-gen/output_tests/marker/external2"
+	external "k8s.io/gengo/v2/examples/defaulter-gen/output_tests/marker/external"
+	externalexternal "k8s.io/gengo/v2/examples/defaulter-gen/output_tests/marker/external/external"
+	external2 "k8s.io/gengo/v2/examples/defaulter-gen/output_tests/marker/external2"
 )
 
 // RegisterDefaults adds defaulters functions to the given scheme.

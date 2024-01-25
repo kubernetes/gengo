@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-const pkgName string = "k8s.io/gengo/examples/import-boss"
+const pkgName string = "k8s.io/gengo/v2/examples/import-boss"
 
 func runImportBoss(inputPackages ...string) error {
 	for i, v := range inputPackages {

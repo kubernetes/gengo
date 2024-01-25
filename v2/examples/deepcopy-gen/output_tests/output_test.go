@@ -8,13 +8,13 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/gofuzz"
 
-	"k8s.io/gengo/examples/deepcopy-gen/output_tests/aliases"
-	"k8s.io/gengo/examples/deepcopy-gen/output_tests/builtins"
-	"k8s.io/gengo/examples/deepcopy-gen/output_tests/interfaces"
-	"k8s.io/gengo/examples/deepcopy-gen/output_tests/maps"
-	"k8s.io/gengo/examples/deepcopy-gen/output_tests/pointer"
-	"k8s.io/gengo/examples/deepcopy-gen/output_tests/slices"
-	"k8s.io/gengo/examples/deepcopy-gen/output_tests/structs"
+	"k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/aliases"
+	"k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/builtins"
+	"k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/interfaces"
+	"k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/maps"
+	"k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/pointer"
+	"k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/slices"
+	"k8s.io/gengo/v2/examples/deepcopy-gen/output_tests/structs"
 )
 
 func TestWithValueFuzzer(t *testing.T) {

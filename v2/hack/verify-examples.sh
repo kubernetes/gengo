@@ -51,3 +51,11 @@ if ! git diff --quiet HEAD; then
     git diff
     exit 1
 fi
+
+rm ./examples/kilroy/testdata/simple/generated.kilroy.go
+go run ./examples/kilroy/ -i ./examples/kilroy/testdata/simple -o .
+if ! git diff --quiet HEAD; then
+    echo "FAIL: output files changed"
+    git diff
+    exit 1
+fi

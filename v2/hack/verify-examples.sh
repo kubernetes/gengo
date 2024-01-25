@@ -59,3 +59,11 @@ if ! git diff --quiet HEAD; then
     git diff
     exit 1
 fi
+
+rm -rf ./examples/pointuh/testdata/results
+go run ./examples/pointuh/ -i ./examples/pointuh/testdata/simple -o . -p ./examples/pointuh/testdata/results
+if ! git diff --quiet HEAD; then
+    echo "FAIL: output files changed"
+    git diff
+    exit 1
+fi

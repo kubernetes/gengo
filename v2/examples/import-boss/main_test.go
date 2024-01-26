@@ -22,7 +22,6 @@ func runImportBoss(inputPackages ...string) error {
 	cmd := exec.CommandContext(context.Background(),
 		"go", "run", pkgName, "--logtostderr", "--v=4",
 		"-i", strings.Join(inputPackages, ","),
-		"-o", ".",
 		"--trim-path-prefix", pkgName,
 	)
 	cmd.Dir = dir

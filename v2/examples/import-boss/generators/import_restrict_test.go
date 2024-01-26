@@ -19,8 +19,6 @@ package generators
 import (
 	"path/filepath"
 	"testing"
-
-	"k8s.io/gengo/v2/types"
 )
 
 func TestRemoveLastDir(t *testing.T) {
@@ -37,34 +35,5 @@ func TestRemoveLastDir(t *testing.T) {
 		if e, a := filepath.FromSlash(expect.removedDir), gotRemoved; e != a {
 			t.Errorf("%v: wanted %v, got %v", input, e, a)
 		}
-	}
-}
-
-func TestInputIncludes(t *testing.T) {
-	inputs := []string{"a", "a/b", "c/d/..."}
-
-	if !inputIncludes(inputs, &types.Package{Path: "a"}) {
-		t.Errorf("Expected 'a' to match")
-	}
-	if !inputIncludes(inputs, &types.Package{Path: "a/b"}) {
-		t.Errorf("Expected 'a/b' to match")
-	}
-	if inputIncludes(inputs, &types.Package{Path: "a/b/c"}) {
-		t.Errorf("Expected 'a/b/c' to not match")
-	}
-	if inputIncludes(inputs, &types.Package{Path: "c"}) {
-		t.Errorf("Expected 'c' to not match")
-	}
-	if !inputIncludes(inputs, &types.Package{Path: "c/d"}) {
-		t.Errorf("Expected 'c/d' to match")
-	}
-	if !inputIncludes(inputs, &types.Package{Path: "c/d/e"}) {
-		t.Errorf("Expected 'c/d/e' to match via /... syntax")
-	}
-	if inputIncludes(inputs, &types.Package{Path: "z"}) {
-		t.Errorf("Expected 'z' to not match")
-	}
-	if inputIncludes(inputs, &types.Package{Path: "c/z"}) {
-		t.Errorf("Expected 'c/z' to not match")
 	}
 }

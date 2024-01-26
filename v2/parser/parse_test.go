@@ -14,813 +14,802 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parser_test
+package parser
 
 import (
-	"bytes"
-	"path"
+	"encoding/json"
+	"fmt"
 	"path/filepath"
-	"reflect"
+	"sort"
 	"testing"
-	"text/template"
 
-	"github.com/davecgh/go-spew/spew"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-
-	"k8s.io/gengo/v2/args"
-	"k8s.io/gengo/v2/namer"
-	"k8s.io/gengo/v2/parser"
+	"golang.org/x/tools/go/packages"
 	"k8s.io/gengo/v2/types"
 )
 
-func TestRecursive(t *testing.T) {
-	dir := "k8s.io/gengo/v2/testdata/a"
-	d := args.Default()
-	d.InputDirs = []string{dir + "/..."}
-	b, err := d.NewBuilder()
-	if err != nil {
-		t.Fatalf("Fail making builder: %v", err)
+func TestNew(t *testing.T) {
+	b := New()
+	if b.goPkgs == nil {
+		t.Errorf("expected .goPkgs to be initialized")
 	}
-	findTypes, err := b.FindTypes()
-	if err != nil {
-		t.Fatalf("Fail finding types: %v", err)
+	if b.userRequested == nil {
+		t.Errorf("expected .userRequested to be initialized")
 	}
-	foundB := false
-	foundC := false
-	for _, p := range b.FindPackages() {
-		t.Logf("Package: %v", p)
-		if p == "k8s.io/gengo/v2/testdata/a/b" {
-			foundB = true
-		}
-		if p == "k8s.io/gengo/v2/testdata/a/c" {
-			foundC = true
-		}
+	if b.fullyProcessed == nil {
+		t.Errorf("expected .fullyProcessed to be initialized")
 	}
-	if !foundB {
-		t.Errorf("Expected to find packages a and b")
+	if b.fset == nil {
+		t.Errorf("expected .fset to be initialized")
 	}
-	if foundC {
-		t.Error("Did not expect to find package c")
-	}
-	if name := findTypes[dir].Types["AA"].Methods["AFunc"].Name.Name; name != "func (*k8s.io/gengo/v2/testdata/a.AA).AFunc(i *int, j int) (*k8s.io/gengo/v2/testdata/a.A, k8s.io/gengo/v2/testdata/a/b.ITest, error)" {
-		t.Errorf("Parse method type error, got name: %s", name)
-	}
-	// only has three package: package "a", package "b", and package "" for all
-	if len(findTypes) != 3 {
-		t.Error("Parse type error, and take type path as package")
+	if b.endLineToCommentGroup == nil {
+		t.Errorf("expected .endLineToCommentGroup to be initialized")
 	}
 }
 
-func TestRecursiveWithTestGoFiles(t *testing.T) {
-	d := args.Default()
-	d.IncludeTestFiles = true
-	d.InputDirs = []string{"k8s.io/gengo/v2/testdata/a/..."}
-	b, err := d.NewBuilder()
-	if err != nil {
-		t.Fatalf("Fail making builder: %v", err)
+func sorted(in ...string) []string {
+	out := make([]string, len(in))
+	copy(out, in)
+	sort.Strings(out)
+	return out
+}
+
+func sliceEq(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
 	}
-	_, err = b.FindTypes()
-	if err != nil {
-		t.Fatalf("Fail finding types: %v", err)
-	}
-	foundB := false
-	foundC := false
-	for _, p := range b.FindPackages() {
-		t.Logf("Package: %v", p)
-		if p == "k8s.io/gengo/v2/testdata/a/b" {
-			foundB = true
-		}
-		if p == "k8s.io/gengo/v2/testdata/a/c" {
-			foundC = true
+	for i := range a {
+		if a[i] != b[i] {
+			return false
 		}
 	}
-	if !foundC || !foundB {
-		t.Errorf("Expected to find packages a, b and c")
+	return true
+}
+
+func pkgPathsFromSlice(pkgs []*packages.Package) []string {
+	paths := []string{}
+	for _, pkg := range pkgs {
+		paths = append(paths, pkg.PkgPath)
+	}
+	return sorted(paths...)
+}
+
+func pkgPathsFromMap(pkgs map[importPathString]*packages.Package) []string {
+	paths := []string{}
+	for _, pkg := range pkgs {
+		paths = append(paths, pkg.PkgPath)
+	}
+	return sorted(paths...)
+}
+
+func pkgPathsFromUniverse(u types.Universe) []string {
+	paths := []string{}
+	for path := range u {
+		paths = append(paths, path)
+	}
+	return sorted(paths...)
+}
+
+func pretty(in []string) string {
+	size := 0
+	oneline := true
+	for _, s := range in {
+		size += len(s)
+		if size > 60 {
+			oneline = false
+			break
+		}
+	}
+	var jb []byte
+	var err error
+	if oneline {
+		jb, err = json.Marshal(in)
+	} else {
+		jb, err = json.MarshalIndent(in, "", "  ")
+	}
+	if err != nil {
+		panic(fmt.Sprintf("JSON marshal failed: %v", err))
+	}
+	return string(jb)
+}
+
+func keys[T any](m map[string]T) []string {
+	ret := []string{}
+	for k := range m {
+		ret = append(ret, k)
+	}
+	return sorted(ret...)
+}
+
+func TestAddBuildTags(t *testing.T) {
+	testTags := []string{"foo", "bar", "qux"}
+
+	b := New()
+	if len(b.buildTags) != 0 {
+		t.Errorf("expected no default build tags, got %v", b.buildTags)
+	}
+	b.AddBuildTags(testTags[0])
+	if want, got := testTags[0:1], b.buildTags; !sliceEq(want, got) {
+		t.Errorf("wrong build tags:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+	}
+	b.AddBuildTags(testTags[1], testTags[2])
+	if want, got := testTags, b.buildTags; !sliceEq(want, got) {
+		t.Errorf("wrong build tags:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+	}
+	b.AddBuildTags()
+	if want, got := testTags, b.buildTags; !sliceEq(want, got) {
+		t.Errorf("wrong build tags:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
 	}
 }
 
-type file struct {
-	path     string
-	contents string
-}
+func TestFindPackages(t *testing.T) {
+	b := New()
 
-// Pass files in topological order - deps first!
-func construct(t *testing.T, files []file, testNamer namer.Namer) (*parser.Builder, types.Universe, []*types.Type) {
-	b := parser.New()
-	for _, f := range files {
-		if err := b.AddFileForTest(path.Dir(f.path), filepath.FromSlash(f.path), []byte(f.contents)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	u, err := b.FindTypes()
-	if err != nil {
-		t.Fatal(err)
-	}
-	orderer := namer.Orderer{Namer: testNamer}
-	o := orderer.OrderUniverse(u)
-	return b, u, o
-}
-
-func TestBuilder(t *testing.T) {
-	var testFiles = []file{
-		{
-			path: "base/common/proto/common.go", contents: `
-                package common
-
-                type Object struct {
-    	            ID int64
-                }
-                `,
-		}, {
-			path: "base/foo/proto/foo.go", contents: `
-                package foo
-
-                import (
-	                "base/common/proto"
-                )
-
-                type Blah struct {
-    	            common.Object
-    	            Count int64
-    	            Frobbers map[string]*Frobber
-    	            Baz []Object
-    	            Nickname *string
-    	            NumberIsAFavorite map[int]bool
-                }
-
-                type Frobber struct {
-	                Name string
-	                Amount int64
-                }
-
-                type Object struct {
-	                common.Object
-                }
-
-                func AFunc(obj1 common.Object, obj2 Object) Frobber {
-                }
-
-                var AVar Frobber
-    
-                var (
-	                AnotherVar = Frobber{}
-                )
-
-		type Enumeration string
-		const (
-			EnumSymbol Enumeration = "enumSymbolValue"
+	// Proper packages with deps.
+	if pkgs, err := b.FindPackages("./testdata/root1", "./testdata/root2", "./testdata/roots345/..."); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	} else {
+		expected := sorted(
+			"k8s.io/gengo/v2/parser/testdata/root1",
+			"k8s.io/gengo/v2/parser/testdata/root2",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root3",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root3/lib3",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root4",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root4/lib4",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root5",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root5/lib5",
 		)
+		if want, got := expected, sorted(pkgs...); !sliceEq(want, got) {
+			t.Errorf("wrong pkgs:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+		}
+		if len(b.goPkgs) != 0 {
+			t.Errorf("expected no added .goPkgs, got %v", pretty(pkgPathsFromMap(b.goPkgs)))
+		}
+	}
 
-		type Degrees int
-		const (
-			FirstDegree Degrees = iota
-			SecondDegree
-			ThirdDegree
+	// Non-existent packages should be an error.
+	if pkgs, err := b.FindPackages("./testdata/does-not-exist"); err == nil {
+		t.Errorf("unexpected success: %v", pkgs)
+	}
+
+	// Packages without .go files should be an error.
+	if pkgs, err := b.FindPackages("./testdata/has-no-gofiles"); err == nil {
+		t.Errorf("unexpected success: %v", pkgs)
+	}
+
+	// Invalid go files are not an error.
+	if pkgs, err := b.FindPackages("./testdata/does-not-parse"); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	} else {
+		expected := []string{
+			"k8s.io/gengo/v2/parser/testdata/does-not-parse",
+		}
+		if want, got := expected, pkgs; !sliceEq(want, got) {
+			t.Errorf("wrong pkgs:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+		}
+	}
+}
+
+func TestAlreadyLoaded(t *testing.T) {
+	newPkg := func(path string) *packages.Package {
+		return &packages.Package{
+			ID:      path,
+			PkgPath: path,
+			Name:    filepath.Base(path),
+		}
+	}
+
+	b := New()
+
+	// Test loading something we don't have.
+	if existing, netNew, err := b.alreadyLoaded("./testdata/root1"); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	} else {
+		if len(existing) > 0 {
+			t.Errorf("unexpected existing pkg(s): %v", existing)
+		}
+		if len(netNew) != 1 {
+			t.Errorf("expected 1 net-new, got: %v", netNew)
+		} else if want, got := "k8s.io/gengo/v2/parser/testdata/root1", netNew[0]; want != got {
+			t.Errorf("wrong net-new, want %v, got %v", want, got)
+		}
+	}
+
+	// Test loading something already present.
+	b.goPkgs["k8s.io/gengo/v2/parser/testdata/root1"] = newPkg("k8s.io/gengo/v2/parser/testdata/root1")
+	if existing, netNew, err := b.alreadyLoaded("./testdata/root1"); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	} else {
+		if len(existing) != 1 {
+			t.Errorf("expected 1 existing, got: %v", existing)
+		} else if want, got := "k8s.io/gengo/v2/parser/testdata/root1", existing[0].PkgPath; want != got {
+			t.Errorf("wrong existing, want %v, got %v", want, got)
+		}
+		if len(netNew) > 0 {
+			t.Errorf("unexpected net-new pkg(s): %v", netNew)
+		}
+	}
+
+	// Test loading something partly present.
+	if existing, netNew, err := b.alreadyLoaded("./testdata/root1/..."); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	} else {
+		if len(existing) != 1 {
+			t.Errorf("expected 1 existing, got: %v", existing)
+		} else if want, got := "k8s.io/gengo/v2/parser/testdata/root1", existing[0].PkgPath; want != got {
+			t.Errorf("wrong existing, want %v, got %v", want, got)
+		}
+		if len(netNew) != 1 {
+			t.Errorf("expected 1 net-new, got: %v", netNew)
+		} else if want, got := "k8s.io/gengo/v2/parser/testdata/root1/lib1", netNew[0]; want != got {
+			t.Errorf("wrong net-new, want %v, got %v", want, got)
+		}
+	}
+}
+
+func TestLoadPackagesInternal(t *testing.T) {
+	b := New()
+
+	// Proper packages with deps.
+	if pkgs, err := b.loadPackages("./testdata/root1", "./testdata/root2", "./testdata/roots345/..."); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	} else {
+		expectedDirect := sorted(
+			"k8s.io/gengo/v2/parser/testdata/root1",
+			"k8s.io/gengo/v2/parser/testdata/root2",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root3",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root3/lib3",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root4",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root4/lib4",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root5",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root5/lib5",
 		)
+		expectedIndirect := sorted(
+			"k8s.io/gengo/v2/parser/testdata/root1/lib1",
+			"k8s.io/gengo/v2/parser/testdata/root2/lib2",
+			"k8s.io/gengo/v2/parser/testdata/rootpeer",
+			"k8s.io/gengo/v2/parser/testdata/rootpeer/sub1",
+			"k8s.io/gengo/v2/parser/testdata/rootpeer/sub2",
+		)
+		expectedAll := sorted(append(expectedDirect, expectedIndirect...)...)
 
-		const ConstNineNine = 99
-		const ConstHundred = ConstNineNine + 1
+		if want, got := expectedDirect, pkgPathsFromSlice(pkgs); !sliceEq(want, got) {
+			t.Errorf("wrong pkgs returned:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+		}
+		if want, got := expectedAll, pkgPathsFromMap(b.goPkgs); !sliceEq(want, got) {
+			t.Errorf("wrong pkgs in .goPkgs:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+		}
 
-		const ConstExpr = 1 - 0.707i * 9.3
-		const ConstFloat = float64(7.8)
-		const ConstString = "constant string"
-                `,
-		},
+		for _, path := range expectedDirect {
+			if !b.userRequested[importPathString(path)] {
+				t.Errorf("expected .userRequested[%q] to be set", path)
+			}
+			if b.fullyProcessed[importPathString(path)] {
+				t.Errorf("expected .fullyProcessed[%q] to be unset", path)
+			}
+		}
+		for _, path := range expectedIndirect {
+			if b.userRequested[importPathString(path)] {
+				t.Errorf("expected .userRequested[%q] to be unset", path)
+			}
+			if b.fullyProcessed[importPathString(path)] {
+				t.Errorf("expected .fullyProcessed[%q] to be unset", path)
+			}
+		}
+
+		// There is a comment is at this fixed location.
+		pos := fileLine{b.goPkgs["k8s.io/gengo/v2/parser/testdata/root1"].GoFiles[0], 9}
+		if b.endLineToCommentGroup[pos] == nil {
+			t.Errorf("expected a comment-group ending at %v", pos)
+			t.Errorf("%v", b.endLineToCommentGroup)
+		}
 	}
 
-	var tmplText = `
-package o
-{{define "Struct"}}type {{Name .}} interface { {{range $m := .Members}}{{$n := Name $m.Type}}
-	{{if $m.Embedded}}{{$n}}{{else}}{{$m.Name}}() {{$n}}{{if $m.Type.Elem}}{{else}}
-	Set{{$m.Name}}({{$n}}){{end}}{{end}}{{end}}
-}
-
-{{end}}
-{{define "Func"}}{{$s := .Underlying.Signature}}var {{Name .}} func({{range $index,$elem := $s.Parameters}}{{if $index}}, {{end}}{{Raw $elem}}{{end}}) {{if $s.Results|len |gt 1}}({{end}}{{range $index,$elem := $s.Results}}{{if $index}}, {{end}}{{Raw .}}{{end}}{{if $s.Results|len |gt 1}}){{end}} = {{Raw .}}
-
-{{end}}
-{{define "Var"}}{{$t := .Underlying}}var {{Name .}} {{Raw $t}} = {{Raw .}}
-
-{{end}}
-{{define "Const"}}{{$t := .Underlying}}const {{Name .}} {{Raw $t}} = {{Raw .}}({{ .ConstValue }})
-
-{{end}}
-{{range $t := .}}{{if eq $t.Kind "Struct"}}{{template "Struct" $t}}{{end}}{{end}}
-{{range $t := .}}{{if eq $t.Kind "DeclarationOf"}}{{if eq $t.Underlying.Kind "Func"}}{{template "Func" $t}}{{end}}{{end}}{{end}}
-{{range $t := .}}{{if eq $t.Kind "DeclarationOf"}}{{if eq $t.Underlying.Kind "Struct"}}{{template "Var" $t}}{{end}}{{end}}{{end}}
-{{range $t := .}}{{if eq $t.Kind "DeclarationOf"}}{{if eq $t.Underlying.Kind "Alias"}}{{template "Const" $t}}{{end}}{{end}}{{end}}`
-
-	var expect = `
-package o
-
-
-
-
-type CommonObject interface { 
-	ID() Int64
-	SetID(Int64)
-}
-
-type FooBlah interface { 
-	CommonObject
-	Count() Int64
-	SetCount(Int64)
-	Frobbers() MapStringToPointerFooFrobber
-	Baz() SliceFooObject
-	Nickname() PointerString
-	NumberIsAFavorite() MapIntToBool
-}
-
-type FooFrobber interface { 
-	Name() String
-	SetName(String)
-	Amount() Int64
-	SetAmount(Int64)
-}
-
-type FooObject interface { 
-	CommonObject
-}
-
-
-var FooAFunc func(proto.Object, proto.Object) proto.Frobber = proto.AFunc
-
-
-var FooAVar proto.Frobber = proto.AVar
-
-var FooAnotherVar proto.Frobber = proto.AnotherVar
-
-
-const FooEnumSymbol proto.Enumeration = proto.EnumSymbol(enumSymbolValue)
-
-const FooFirstDegree proto.Degrees = proto.FirstDegree(0)
-
-const FooSecondDegree proto.Degrees = proto.SecondDegree(1)
-
-const FooThirdDegree proto.Degrees = proto.ThirdDegree(2)
-
-`
-	testNamer := namer.NewPublicNamer(1, "proto")
-	rawNamer := namer.NewRawNamer("o", nil)
-	_, u, o := construct(t, testFiles, testNamer)
-	t.Logf("\n%v\n\n", o)
-	args := map[string]interface{}{
-		"Name": testNamer.Name,
-		"Raw":  rawNamer.Name,
+	// Non-existent packages should be an error.
+	if pkgs, err := b.loadPackages("./testdata/does-not-exist"); err == nil {
+		t.Errorf("unexpected success: %v", pkgs)
 	}
-	tmpl := template.Must(
-		template.New("").
-			Funcs(args).
-			Parse(tmplText),
+
+	// Packages without .go files should be an error.
+	if pkgs, err := b.loadPackages("./testdata/has-no-gofiles"); err == nil {
+		t.Errorf("unexpected success: %v", pkgs)
+	}
+
+	// Invalid go files are an error.
+	if pkgs, err := b.loadPackages("./testdata/does-not-parse"); err == nil {
+		t.Errorf("unexpected success: %v", pkgs)
+	}
+
+	// Packages which parse but do not compile are NOT an error.
+	if pkgs, err := b.loadPackages("./testdata/does-not-compile"); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	} else {
+		expected := []string{
+			"k8s.io/gengo/v2/parser/testdata/does-not-compile",
+		}
+		if want, got := expected, pkgPathsFromSlice(pkgs); !sliceEq(want, got) {
+			t.Errorf("wrong pkgs:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+		}
+		if b.goPkgs[importPathString(expected[0])] == nil {
+			t.Errorf("package not found in .goPkgs: %v", expected[0])
+		}
+	}
+}
+
+func TestLoadPackagesTo(t *testing.T) {
+	b := New()
+	u := types.Universe{}
+
+	// Proper packages with deps.
+	if pkgs, err := b.LoadPackagesTo(&u, "./testdata/root1", "./testdata/root2", "./testdata/roots345/..."); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	} else {
+		expectedDirect := sorted(
+			"k8s.io/gengo/v2/parser/testdata/root1",
+			"k8s.io/gengo/v2/parser/testdata/root2",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root3",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root3/lib3",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root4",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root4/lib4",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root5",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root5/lib5",
+		)
+		expectedIndirect := sorted(
+			"k8s.io/gengo/v2/parser/testdata/root1/lib1",
+			"k8s.io/gengo/v2/parser/testdata/root2/lib2",
+			"k8s.io/gengo/v2/parser/testdata/rootpeer",
+			"k8s.io/gengo/v2/parser/testdata/rootpeer/sub1",
+			"k8s.io/gengo/v2/parser/testdata/rootpeer/sub2",
+		)
+		expectedAll := expectedDirect
+		expectedAll = append(expectedAll, expectedIndirect...)
+		expectedAll = sorted(append(expectedAll, "")...) // This is the "builtin" pkg
+
+		if want, got := len(expectedDirect), len(pkgs); want != got {
+			t.Errorf("wrong number of pkgs returned: want: %d got: %d", want, got)
+		}
+		if want, got := expectedAll, pkgPathsFromUniverse(u); !sliceEq(want, got) {
+			t.Errorf("wrong pkgs in universe:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+		}
+	}
+}
+
+func TestForEachPackageRecursive(t *testing.T) {
+	newPkg := func(path string, imports ...*packages.Package) *packages.Package {
+		pkg := &packages.Package{
+			ID:      path,
+			PkgPath: path,
+			Name:    filepath.Base(path),
+			Imports: map[string]*packages.Package{},
+		}
+		for _, imp := range imports {
+			pkg.Imports[imp.PkgPath] = imp
+		}
+		return pkg
+	}
+
+	pkgs := []*packages.Package{
+		newPkg("example.com/root1",
+			newPkg("example.com/dep1", newPkg("example.com/dep11"), newPkg("example.com/dep12")),
+			newPkg("example.com/dep2", newPkg("example.com/dep21")),
+		),
+		newPkg("example.com/root2",
+			newPkg("example.com/dep3"),
+		),
+		newPkg("example.com/root3"),
+	}
+
+	// Test success.
+	expect := sorted(
+		"example.com/root1",
+		"example.com/dep1",
+		"example.com/dep11",
+		"example.com/dep12",
+		"example.com/dep2",
+		"example.com/dep21",
+		"example.com/root2",
+		"example.com/dep3",
+		"example.com/root3",
 	)
-	buf := &bytes.Buffer{}
-	tmpl.Execute(buf, o)
-	if e, a := expect, buf.String(); e != a {
-		cmp.Diff(e, a)
-		t.Errorf("Wanted, got:\n%v\n-----\n%v\nDiff:\n%s", e, a, cmp.Diff(e, a))
+	visited := []string{}
+	visit := func(pkg *packages.Package) error {
+		visited = append(visited, pkg.PkgPath)
+		return nil
 	}
-	if p := u.Package("base/foo/proto"); !p.HasImport("base/common/proto") {
-		t.Errorf("Unexpected lack of import line: %#v", p.Imports)
-	}
-
-	strPtr := func(s string) *string { return &s }
-
-	expectedConst := map[string]*types.Type{
-		"EnumSymbol": {
-			Name:       types.Name{Package: "base/foo/proto", Name: "EnumSymbol"},
-			Kind:       types.DeclarationOf,
-			ConstValue: strPtr("enumSymbolValue"),
-		},
-		"FirstDegree": {
-			Name:       types.Name{Package: "base/foo/proto", Name: "FirstDegree"},
-			Kind:       types.DeclarationOf,
-			ConstValue: strPtr("0"),
-		},
-		"SecondDegree": {
-			Name:       types.Name{Package: "base/foo/proto", Name: "SecondDegree"},
-			Kind:       types.DeclarationOf,
-			ConstValue: strPtr("1"),
-		},
-		"ThirdDegree": {
-			Name:       types.Name{Package: "base/foo/proto", Name: "ThirdDegree"},
-			Kind:       types.DeclarationOf,
-			ConstValue: strPtr("2"),
-		},
-		"ConstNineNine": {
-			Name:       types.Name{Package: "base/foo/proto", Name: "ConstNineNine"},
-			Kind:       types.DeclarationOf,
-			ConstValue: strPtr("99"),
-		},
-		"ConstHundred": {
-			Name:       types.Name{Package: "base/foo/proto", Name: "ConstHundred"},
-			Kind:       types.DeclarationOf,
-			ConstValue: strPtr("100"),
-		},
-		"ConstFloat": {
-			Name:       types.Name{Package: "base/foo/proto", Name: "ConstFloat"},
-			Kind:       types.DeclarationOf,
-			ConstValue: strPtr("7.8"),
-		},
-		"ConstExpr": {
-			Name:       types.Name{Package: "base/foo/proto", Name: "ConstExpr"},
-			Kind:       types.DeclarationOf,
-			ConstValue: strPtr("(1 + -6.5751i)"),
-		},
-		"ConstString": {
-			Name:       types.Name{Package: "base/foo/proto", Name: "ConstString"},
-			Kind:       types.DeclarationOf,
-			ConstValue: strPtr("constant string"),
-		},
+	if err := forEachPackageRecursive(pkgs, visit); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	} else if want, got := expect, sorted(visited...); !sliceEq(want, got) {
+		t.Errorf("want: %v\ngot:  %v", pretty(want), pretty(got))
 	}
 
-	if diff := cmp.Diff(
-		u.Package("base/foo/proto").Constants, expectedConst,
-		cmpopts.IgnoreFields(types.Type{}, "Underlying"),
-		cmpopts.IgnoreFields(types.Type{}, "CommentLines"),
-		cmpopts.IgnoreFields(types.Type{}, "SecondClosestCommentLines"),
-	); diff != "" {
-		t.Errorf("Constant mismatch: %s", diff)
+	// Test errors.
+	fail := func(pkg *packages.Package) error {
+		return fmt.Errorf("%s", pkg.PkgPath)
 	}
-
-	if len(u.Package("base/foo/proto").Constants) != len(expectedConst) {
-		t.Errorf("Wanted %d constants, got: %s",
-			len(expectedConst), spew.Sdump(u.Package("base/foo/proto").Constants))
-	}
-}
-
-func TestStructParse(t *testing.T) {
-	var structTest = file{
-		path: "base/foo/proto/foo.go",
-		contents: `
-            package foo
-
-            // Blah is a test.
-            // A test, I tell you.
-            type Blah struct {
-	            // A is the first field.
-	            A int64 ` + "`" + `json:"a"` + "`" + `
-            
-	            // B is the second field.
-	            // Multiline comments work.
-	            B string ` + "`" + `json:"b"` + "`" + `
-            }
-            `,
-	}
-
-	_, u, o := construct(t, []file{structTest}, namer.NewPublicNamer(0))
-	t.Logf("%#v", o)
-	blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "Blah"})
-	if blahT == nil {
-		t.Fatal("type not found")
-	}
-	if e, a := types.Struct, blahT.Kind; e != a {
-		t.Errorf("struct kind wrong, wanted %v, got %v", e, a)
-	}
-	if e, a := []string{"Blah is a test.", "A test, I tell you."}, blahT.CommentLines; !reflect.DeepEqual(e, a) {
-		t.Errorf("struct comment wrong, wanted %q, got %q", e, a)
-	}
-	m := types.Member{
-		Name:         "B",
-		Embedded:     false,
-		CommentLines: []string{"B is the second field.", "Multiline comments work."},
-		Tags:         `json:"b"`,
-		Type:         types.String,
-	}
-	if e, a := m, blahT.Members[1]; !reflect.DeepEqual(e, a) {
-		t.Errorf("wanted, got:\n%#v\n%#v", e, a)
-	}
-}
-
-func TestParseSecondClosestCommentLines(t *testing.T) {
-	const fileName = "base/foo/proto/foo.go"
-	testCases := []struct {
-		testFile file
-		expected []string
-	}{
-		{
-			testFile: file{
-				path: fileName, contents: `
-				    package foo
-                    // Blah's SecondClosestCommentLines.
-                    // Another line.
-
-                    // Blah is a test.
-                    // A test, I tell you.
-                    type Blah struct {
-	                    a int
-                    }
-                    `},
-			expected: []string{"Blah's SecondClosestCommentLines.", "Another line."},
-		},
-		{
-			testFile: file{
-				path: fileName, contents: `
-				    package foo
-                    // Blah's SecondClosestCommentLines.
-                    // Another line.
-                    
-                    type Blah struct {
-	                    a int
-                    }
-                    `},
-			expected: []string{"Blah's SecondClosestCommentLines.", "Another line."},
-		},
-	}
-	for _, test := range testCases {
-		_, u, o := construct(t, []file{test.testFile}, namer.NewPublicNamer(0))
-		t.Logf("%#v", o)
-		blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "Blah"})
-		if e, a := test.expected, blahT.SecondClosestCommentLines; !reflect.DeepEqual(e, a) {
-			t.Errorf("struct second closest comment wrong, wanted %q, got %q", e, a)
+	if err := forEachPackageRecursive(pkgs, fail); err == nil {
+		t.Errorf("unexpected success")
+	} else if wrapped, ok := err.(interface{ Unwrap() []error }); !ok {
+		t.Errorf("expected unwrappable error, got %v", err)
+	} else {
+		visited := []string{}
+		for _, err := range wrapped.Unwrap() {
+			visited = append(visited, err.Error())
+		}
+		if want, got := expect, sorted(visited...); !sliceEq(want, got) {
+			t.Errorf("wrong errors:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
 		}
 	}
 }
 
-func TestParseMethodParameterAndResultNames(t *testing.T) {
-	const fileName = "base/foo/proto/foo.go"
-	testCases := []struct {
-		testFile            file
-		expectedParamNames  map[string][]string
-		expectedResultNames map[string][]string
-	}{
-		{
-			testFile: file{
-				path: fileName, contents: `
-				    package foo
+func TestUserRequestedPackages(t *testing.T) {
+	b := New()
 
-					type bar struct{} 
+	// Proper packages with deps.
+	if err := b.LoadPackages("./testdata/root1", "./testdata/root2", "./testdata/roots345/..."); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	} else {
+		want := sorted(
+			"k8s.io/gengo/v2/parser/testdata/root1",
+			"k8s.io/gengo/v2/parser/testdata/root2",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root3",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root3/lib3",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root4",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root4/lib4",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root5",
+			"k8s.io/gengo/v2/parser/testdata/roots345/root5/lib5",
+		)
+		got := b.UserRequestedPackages() // should be sorted!
 
-                    func (b *bar) SingleParam(param1 int) {}
-                    func (b *bar) MultipleParams(param1, param2 int) {}
-                    func (b *bar) SingleParamSingleResult(param1 int) (out1 bool) {}
-                    func (b *bar) MultipleParamsMultipleResults(param1 bool, param2 int) (out1 bool, out2 string) {}
-					func (b *bar) NoParamsMultipleResults() (out1 bool, out2 string) {}
-					func (b *bar) NoParamsSingleResults() (out1 bool) {}
-					func (b *bar) NoParamsNoResults() {}
-					func (b *bar) UnnamedSingleParamNoResults(int) {}
-					func (b *bar) UnnamedMultipleParamsNoResult(int, bool) {}
-					func (b *bar) NoParamsSingleUnnamedResults() int {}
-					func (b *bar) NoParamsMultipleUnnamedResults() (int, string) {}
-                    `},
-			expectedParamNames: map[string][]string{
-				"SingleParam":                    {"param1"},
-				"MultipleParams":                 {"param1", "param2"},
-				"SingleParamSingleResult":        {"param1"},
-				"MultipleParamsMultipleResults":  {"param1", "param2"},
-				"NoParamsMultipleResults":        nil,
-				"NoParamsSingleResults":          nil,
-				"NoParamsNoResults":              nil,
-				"UnnamedSingleParamNoResults":    {""},
-				"UnnamedMultipleParamsNoResult":  {"", ""},
-				"NoParamsSingleUnnamedResults":   nil,
-				"NoParamsMultipleUnnamedResults": nil,
-			},
-			expectedResultNames: map[string][]string{
-				"SingleParam":                    nil,
-				"MultipleParams":                 nil,
-				"SingleParamSingleResult":        {"out1"},
-				"MultipleParamsMultipleResults":  {"out1", "out2"},
-				"NoParamsMultipleResults":        {"out1", "out2"},
-				"NoParamsSingleResults":          {"out1"},
-				"NoParamsNoResults":              nil,
-				"UnnamedSingleParamNoResults":    nil,
-				"UnnamedMultipleParamsNoResult":  nil,
-				"NoParamsSingleUnnamedResults":   {""},
-				"NoParamsMultipleUnnamedResults": {"", ""},
-			},
-		},
+		if !sliceEq(want, got) {
+			t.Errorf("wrong pkgs returned:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+		}
 	}
-	for _, test := range testCases {
-		_, u, o := construct(t, []file{test.testFile}, namer.NewPublicNamer(0))
-		t.Logf("%#v", o)
-		blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "bar"})
+}
 
-		for methodName, methodType := range blahT.Methods {
-			expectedParamNames := test.expectedParamNames[methodName]
-			actualParamNames := methodType.Signature.ParameterNames
-			if !reflect.DeepEqual(expectedParamNames, actualParamNames) {
-				t.Errorf("%s param names parsed incorrectly wrong, wanted %v, got %v", methodName, expectedParamNames,
-					actualParamNames)
+func TestAddOnePkgToUniverse(t *testing.T) {
+	b := New()
+
+	// Proper packages with deps.
+	if pkgs, err := b.loadPackages("./testdata/root2"); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	} else {
+		direct := "k8s.io/gengo/v2/parser/testdata/root2"
+		indirect := "k8s.io/gengo/v2/parser/testdata/root2/lib2"
+
+		if want, got := []string{direct}, pkgPathsFromSlice(pkgs); !sliceEq(want, got) {
+			t.Errorf("wrong pkgs returned:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+		}
+
+		u := types.Universe{}
+		if err := b.addPkgToUniverse(pkgs[0], &u); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		// TODO: This is not an exhaustive test.  There are lots of types
+		// and combinations of things that are not covered.
+
+		// verify the depth of processing
+		if !b.fullyProcessed[importPathString(direct)] {
+			t.Errorf("expected .fullyProcessed[%q] to be set", direct)
+		}
+		if b.fullyProcessed[importPathString(indirect)] {
+			t.Errorf("expected .fullyProcessed[%q] to be unset", indirect)
+		}
+
+		// verify their existence
+		pd := b.goPkgs[importPathString(direct)]
+		if pd == nil {
+			t.Fatalf("expected non-nil from .goPkgs")
+		}
+		pi := b.goPkgs[importPathString(indirect)]
+		if pi == nil {
+			t.Fatalf("expected non-nil from .goPkgs")
+		}
+		ud := u[direct]
+		if ud == nil {
+			t.Fatalf("expected non-nil from universe")
+		}
+		ui := u[indirect]
+		if ui == nil {
+			t.Fatalf("expected non-nil from universe")
+		}
+
+		// verify metadata
+		if want, got := pd.PkgPath, ud.Path; want != got {
+			t.Errorf("expected .Path %q, got %q", want, got)
+		}
+		if want, got := filepath.Dir(pd.GoFiles[0]), ud.SourcePath; want != got {
+			t.Errorf("expected .SourcePath %q, got %q", want, got)
+		}
+		if want, got := pi.PkgPath, ui.Path; want != got {
+			t.Errorf("expected .Path %q, got %q", want, got)
+		}
+		if want, got := filepath.Dir(pi.GoFiles[0]), ui.SourcePath; want != got {
+			t.Errorf("expected .SourcePath %q, got %q", want, got)
+		}
+
+		// verify doc.go handling
+		if len(ud.DocComments) != 2 { // Fixed value from the testdata
+			t.Errorf("expected 2 doc-comment lines, got: %v", pretty(ud.DocComments))
+		}
+		if len(ud.Comments) != 6 { // Fixed value from the testdata
+			t.Errorf("expected 3 comments, 2 lines each, got: %v", pretty(ud.Comments))
+		}
+
+		// verify types
+		if len(ui.Types) != 0 {
+			t.Errorf("expected zero types in indirect package, got %d", len(ui.Types))
+		}
+		if len(ud.Types) == 0 {
+			t.Errorf("expected non-zero types in direct package")
+		} else {
+			type testcase struct {
+				kind       types.Kind
+				elem       string // just the type name
+				key        string // just the type name
+				underlying *testcase
+			}
+			cases := map[string]testcase{
+				"Int": {
+					kind: types.Alias,
+					underlying: &testcase{
+						kind: types.Builtin,
+					},
+				},
+				"String": {
+					kind: types.Alias,
+					underlying: &testcase{
+						kind: types.Builtin,
+					},
+				},
+				"EmptyStruct": {
+					kind: types.Struct,
+				},
+				"Struct": {
+					kind: types.Struct,
+				},
+				"M": {
+					kind: types.Alias,
+					underlying: &testcase{
+						kind: types.Map,
+						elem: "*k8s.io/gengo/v2/parser/testdata/root2.Struct",
+						key:  types.String.String(),
+					},
+				},
 			}
 
-			expectedResultNames := test.expectedResultNames[methodName]
-			actualResultNames := methodType.Signature.ResultNames
-			if !reflect.DeepEqual(expectedResultNames, actualResultNames) {
-				t.Errorf("%s result names parsed incorrectly wrong, wanted %v, got %v", methodName, expectedResultNames,
-					actualResultNames)
-			}
-		}
+			want := keys(cases)
+			got := keys(ud.Types)
 
-	}
-}
+			if !sliceEq(want, got) {
+				t.Errorf("wrong types found:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+			} else {
+				for name, obj := range ud.Types {
+					n := types.Name{Package: ud.Path, Name: name}
+					if obj.Name != n {
+						t.Errorf("wrong name for type %s: %v", name, obj.Name)
+					}
+					comment1 := fmt.Sprintf("%s comment", name)
+					if want, got := []string{comment1}, obj.CommentLines; !sliceEq(want, got) {
+						t.Errorf("wrong comments for type %s:\nwant: %v\ngot:  %v", name, want, got)
+					}
+					comment2 := fmt.Sprintf("SecondClosest %s comment", name)
+					if want, got := []string{comment2}, obj.SecondClosestCommentLines; !sliceEq(want, got) {
+						t.Errorf("wrong comments for type %s:\nwant: %v\ngot:  %v", name, want, got)
+					}
+				}
 
-func TestParseMethodCommentLines(t *testing.T) {
-	const fileName = "base/foo/proto/foo.go"
-	testCases := []struct {
-		testFile file
-		expected []string
-	}{
-		{
-			testFile: file{
-				path: fileName, contents: `
-				    package foo
-
-                    type Blah struct {
-	                    a int
-                    }
-
-                    // BlahFunc's CommentLines.
-                    // Another line.
-                    func (b *Blah) BlahFunc() {}
-                    `},
-			expected: []string{"BlahFunc's CommentLines.", "Another line."},
-		},
-		{
-			testFile: file{
-				path: fileName, contents: `
-				    package foo
-
-                    type Blah interface {
-	                    // BlahFunc's CommentLines.
-	                    // Another line.
-	                    BlahFunc()
-                    }
-                    `},
-			expected: []string{"BlahFunc's CommentLines.", "Another line."},
-		},
-	}
-	for _, test := range testCases {
-		_, u, o := construct(t, []file{test.testFile}, namer.NewPublicNamer(0))
-		t.Logf("%#v", o)
-		blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "Blah"})
-		blahM := blahT.Methods["BlahFunc"]
-		if e, a := test.expected, blahM.CommentLines; !reflect.DeepEqual(e, a) {
-			t.Errorf("method comment wrong, wanted %q, got %q", e, a)
-		}
-	}
-
-	signatureTestCases := []struct {
-		testFile file
-		expected []string
-	}{
-		{
-			testFile: file{
-				path: fileName, contents: `
-				    package foo
-
-                    type Blah struct {
-	                    a int
-                    }
-
-                    // Method1 CommentLines.
-                    func (b *Blah) Method1(sameArg int) {}
-
-					// Method2 CommentLines.
-                    func (b *Blah) Method2(sameArg int) {}
-                    `},
-		},
-		{
-			testFile: file{
-				path: fileName, contents: `
-				    package foo
-
-                    type Blah interface {
-						// Method1 CommentLines.
-						Method1(sameArg int) error
-
-						// Method2 CommentLines.
-						Method2(sameArg int) error
-                    }
-                    `},
-		},
-	}
-	for _, test := range signatureTestCases {
-		_, u, o := construct(t, []file{test.testFile}, namer.NewPublicNamer(0))
-		t.Logf("%#v", o)
-		blahT := u.Type(types.Name{Package: "base/foo/proto", Name: "Blah"})
-		blahM1 := blahT.Methods["Method1"]
-		blahM2 := blahT.Methods["Method2"]
-		c1 := blahM1.CommentLines
-		c2 := blahM2.CommentLines
-		if reflect.DeepEqual(c1, c2) {
-			t.Errorf("same signature method comment got equal, %v == %v", c1, c2)
-		}
-	}
-}
-
-func TestParseConstantCommentLines(t *testing.T) {
-	testFile := file{
-		path: "base/foo/proto/foo.go",
-		contents: `
-package foo
-
-// FooString is a string of foo.
-type FooString string
-
-// FooStringOne is one foo.
-const FooStringOne FooString = "One"
-
-// An important integer.
-// This one is nine.
-const OtherInt = 9
-`,
-	}
-
-	expectComment := func(obj *types.Type, lines []string) {
-		t.Helper()
-		if !reflect.DeepEqual(obj.CommentLines, lines) {
-			t.Errorf("wrong const comment for %q: wanted %q, got %q",
-				obj.Name,
-				lines, obj.CommentLines,
-			)
-		}
-	}
-
-	_, u, _ := construct(t, []file{testFile}, namer.NewPublicNamer(0))
-
-	expectComment(
-		u.Constant(types.Name{Package: "base/foo/proto", Name: "FooStringOne"}),
-		[]string{"FooStringOne is one foo."},
-	)
-
-	expectComment(
-		u.Constant(types.Name{Package: "base/foo/proto", Name: "OtherInt"}),
-		[]string{"An important integer.", "This one is nine."},
-	)
-}
-
-func TestTypeKindParse(t *testing.T) {
-	var testFiles = []file{
-		{path: "a/foo.go", contents: "package a\ntype Test string\n"},
-		{path: "b/foo.go", contents: "package b\ntype Test map[int]string\n"},
-		{path: "c/foo.go", contents: "package c\ntype Test []string\n"},
-		{path: "d/foo.go", contents: "package d\ntype Test struct{a int; b struct{a int}; c map[int]string; d *string}\n"},
-		{path: "e/foo.go", contents: "package e\ntype Test *string\n"},
-		{path: "f/foo.go", contents: `
-            package f
-            import (
-	            "a"
-	            "b"
-            )
-            type Test []a.Test
-            type Test2 *a.Test
-            type Test3 map[a.Test]b.Test
-            type Test4 struct {
-	            a struct {a a.Test; b b.Test}
-	            b map[a.Test]b.Test
-	            c *a.Test
-	            d []a.Test
-	            e []string
-            }
-            `},
-		{path: "g/foo.go", contents: `
-            package g
-            type Test func(a, b string) (c, d string)
-            func (t Test) Method(a, b string) (c, d string) { return t(a, b) }
-            type Interface interface{Method(a, b string) (c, d string)}
-            `},
-		{path: "h/foo.go", contents: `
-            package h
-            import "a"
-            type Test [1]a.Test
-            `},
-	}
-
-	// Check that the right types are found, and the namers give the expected names.
-
-	assertions := []struct {
-		Package, Name string
-		k             types.Kind
-		names         []string
-	}{
-		{
-			Package: "a", Name: "Test", k: types.Alias,
-			names: []string{"Test", "ATest", "test", "aTest", "a.Test"},
-		},
-		{
-			Package: "b", Name: "Test", k: types.Map,
-			names: []string{"Test", "BTest", "test", "bTest", "b.Test"},
-		},
-		{
-			Package: "c", Name: "Test", k: types.Slice,
-			names: []string{"Test", "CTest", "test", "cTest", "c.Test"},
-		},
-		{
-			Package: "d", Name: "Test", k: types.Struct,
-			names: []string{"Test", "DTest", "test", "dTest", "d.Test"},
-		},
-		{
-			Package: "e", Name: "Test", k: types.Pointer,
-			names: []string{"Test", "ETest", "test", "eTest", "e.Test"},
-		},
-		{
-			Package: "f", Name: "Test", k: types.Slice,
-			names: []string{"Test", "FTest", "test", "fTest", "f.Test"},
-		},
-		{
-			Package: "g", Name: "Test", k: types.Func,
-			names: []string{"Test", "GTest", "test", "gTest", "g.Test"},
-		},
-		{
-			Package: "g", Name: "Interface", k: types.Interface,
-			names: []string{"Interface", "GInterface", "interface", "gInterface", "g.Interface"},
-		},
-		{
-			Package: "h", Name: "Test", k: types.Array,
-			names: []string{"Test", "HTest", "test", "hTest", "h.Test"},
-		},
-		{
-			Package: "", Name: "string", k: types.Builtin,
-			names: []string{"String", "String", "string", "string", "string"},
-		},
-		{
-			Package: "", Name: "int", k: types.Builtin,
-			names: []string{"Int", "Int", "int", "int", "int"},
-		},
-		{
-			Package: "", Name: "struct{a int}", k: types.Struct,
-			names: []string{"StructInt", "StructInt", "structInt", "structInt", "struct{a int}"},
-		},
-		{
-			Package: "", Name: "struct{a a.Test; b b.Test}", k: types.Struct,
-			names: []string{"StructTestTest", "StructATestBTest", "structTestTest", "structATestBTest", "struct{a a.Test; b b.Test}"},
-		},
-		{
-			Package: "", Name: "map[int]string", k: types.Map,
-			names: []string{"MapIntToString", "MapIntToString", "mapIntToString", "mapIntToString", "map[int]string"},
-		},
-		{
-			Package: "", Name: "map[a.Test]b.Test", k: types.Map,
-			names: []string{"MapTestToTest", "MapATestToBTest", "mapTestToTest", "mapATestToBTest", "map[a.Test]b.Test"},
-		},
-		{
-			Package: "", Name: "[]string", k: types.Slice,
-			names: []string{"SliceString", "SliceString", "sliceString", "sliceString", "[]string"},
-		},
-		{
-			Package: "", Name: "[]a.Test", k: types.Slice,
-			names: []string{"SliceTest", "SliceATest", "sliceTest", "sliceATest", "[]a.Test"},
-		},
-		{
-			Package: "", Name: "*string", k: types.Pointer,
-			names: []string{"PointerString", "PointerString", "pointerString", "pointerString", "*string"},
-		},
-		{
-			Package: "", Name: "*a.Test", k: types.Pointer,
-			names: []string{"PointerTest", "PointerATest", "pointerTest", "pointerATest", "*a.Test"},
-		},
-	}
-
-	namers := []namer.Namer{
-		namer.NewPublicNamer(0),
-		namer.NewPublicNamer(1),
-		namer.NewPrivateNamer(0),
-		namer.NewPrivateNamer(1),
-		namer.NewRawNamer("", nil),
-	}
-
-	for nameIndex, namer := range namers {
-		_, u, _ := construct(t, testFiles, namer)
-		t.Logf("Found types:\n")
-		for pkgName, pkg := range u {
-			for typeName, cur := range pkg.Types {
-				t.Logf("%q-%q: %s %s", pkgName, typeName, cur.Name, cur.Kind)
-			}
-		}
-		t.Logf("\n\n")
-
-		for _, item := range assertions {
-			n := types.Name{Package: item.Package, Name: item.Name}
-			thisType := u.Type(n)
-			if thisType == nil {
-				t.Errorf("type %s not found", n)
-				continue
-			}
-			underlyingType := thisType
-			if item.k != types.Alias && thisType.Kind == types.Alias {
-				underlyingType = thisType.Underlying
-				if underlyingType == nil {
-					t.Errorf("underlying type %s not found", n)
-					continue
+				// Declare, then define because it is recursive.
+				var vrfy func(name string, tc *testcase, obj *types.Type)
+				vrfy = func(name string, tc *testcase, obj *types.Type) {
+					if want, got := tc.kind, obj.Kind; want != got {
+						t.Errorf("wrong .Kind for type %s:\nwant: %v, got: %v", name, want, got)
+					} else if obj.Kind == types.Alias {
+						vrfy(name+"^", tc.underlying, obj.Underlying)
+					}
+					if want, got := tc.elem, obj.Elem.String(); want != got {
+						t.Errorf("wrong .Elem for type %s:\nwant: %v, got: %v", name, want, got)
+					}
+					if want, got := tc.key, obj.Key.String(); want != got {
+						t.Errorf("wrong .Key for type %s:\nwant: %v, got: %v", name, want, got)
+					}
+					// TODO: Members, Methods, Len
+				}
+				for name, tc := range cases {
+					obj := ud.Types[name]
+					vrfy(name, &tc, obj)
 				}
 			}
-			if e, a := item.k, underlyingType.Kind; e != a {
-				t.Errorf("%v-%s: type kind wrong, wanted %v, got %v (%#v)", nameIndex, n, e, a, underlyingType)
+		}
+
+		// verify functions
+		if len(ui.Functions) != 0 {
+			t.Errorf("expected zero functions in indirect package, got %d", len(ui.Functions))
+		}
+		if len(ud.Functions) == 0 {
+			t.Errorf("expected non-zero functions in direct package")
+		} else {
+			type testcase struct {
+				kind types.Kind
 			}
-			if e, a := item.names[nameIndex], namer.Name(thisType); e != a {
-				t.Errorf("%v-%s: Expected %q, got %q", nameIndex, n, e, a)
+			cases := map[string]testcase{
+				"PublicFunc": {
+					kind: types.DeclarationOf,
+				},
+				"privateFunc": {
+					kind: types.DeclarationOf,
+				},
+			}
+
+			want := keys(cases)
+			got := keys(ud.Functions)
+
+			if !sliceEq(want, got) {
+				t.Errorf("wrong functions found:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+			} else {
+				for name, obj := range ud.Functions {
+					n := types.Name{Package: ud.Path, Name: name}
+					if obj.Name != n {
+						t.Errorf("wrong name for function %s: %v", name, obj.Name)
+					}
+					comment1 := fmt.Sprintf("%s comment", name)
+					if want, got := []string{comment1}, obj.CommentLines; !sliceEq(want, got) {
+						t.Errorf("wrong comments for function %s:\nwant: %v\ngot:  %v", name, want, got)
+					}
+					comment2 := fmt.Sprintf("SecondClosest %s comment", name)
+					if want, got := []string{comment2}, obj.SecondClosestCommentLines; !sliceEq(want, got) {
+						t.Errorf("wrong comments for function %s:\nwant: %v\ngot:  %v", name, want, got)
+					}
+				}
+
+				for name, tc := range cases {
+					obj := ud.Functions[name]
+					if want, got := tc.kind, obj.Kind; want != got {
+						t.Errorf("wrong .Kind for function %s:\nwant: %v, got: %v", name, want, got)
+					}
+					// TODO: Signature
+				}
 			}
 		}
 
-		// Also do some one-off checks
-		gtest := u.Type(types.Name{Package: "g", Name: "Test"})
-		if e, a := 1, len(gtest.Methods); e != a {
-			t.Errorf("expected %v but found %v methods: %#v", e, a, gtest)
+		// verify variables
+		if len(ui.Variables) != 0 {
+			t.Errorf("expected zero variables in indirect package, got %d", len(ui.Variables))
 		}
-		iface := u.Type(types.Name{Package: "g", Name: "Interface"})
-		if e, a := 1, len(iface.Methods); e != a {
-			t.Errorf("expected %v but found %v methods: %#v", e, a, iface)
+		if len(ud.Variables) == 0 {
+			t.Errorf("expected non-zero variables in direct package")
+		} else {
+			type testcase struct {
+				kind types.Kind
+			}
+			cases := map[string]testcase{
+				"X": {
+					kind: types.DeclarationOf,
+				},
+			}
+
+			want := keys(cases)
+			got := keys(ud.Variables)
+
+			if !sliceEq(want, got) {
+				t.Errorf("wrong variables found:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+			} else {
+				for name, obj := range ud.Variables {
+					n := types.Name{Package: ud.Path, Name: name}
+					if obj.Name != n {
+						t.Errorf("wrong name for variable %s: %v", name, obj.Name)
+					}
+					comment1 := fmt.Sprintf("%s comment", name)
+					if want, got := []string{comment1}, obj.CommentLines; !sliceEq(want, got) {
+						t.Errorf("wrong comments for variable %s:\nwant: %v\ngot:  %v", name, want, got)
+					}
+					comment2 := fmt.Sprintf("SecondClosest %s comment", name)
+					if want, got := []string{comment2}, obj.SecondClosestCommentLines; !sliceEq(want, got) {
+						t.Errorf("wrong comments for variable %s:\nwant: %v\ngot:  %v", name, want, got)
+					}
+				}
+
+				for name, tc := range cases {
+					obj := ud.Variables[name]
+					if want, got := tc.kind, obj.Kind; want != got {
+						t.Errorf("wrong .Kind for variable %s:\nwant: %v, got: %v", name, want, got)
+					}
+					// TODO: Underlying
+				}
+			}
+		}
+
+		// verify constants
+		if len(ui.Constants) != 0 {
+			t.Errorf("expected zero constants in indirect package, got %d", len(ui.Constants))
+		}
+		if len(ud.Constants) == 0 {
+			t.Errorf("expected non-zero constants in direct package")
+		} else {
+			type testcase struct {
+				kind types.Kind
+			}
+			cases := map[string]testcase{
+				"Y": {
+					kind: types.DeclarationOf,
+				},
+			}
+
+			want := keys(cases)
+			got := keys(ud.Constants)
+
+			if !sliceEq(want, got) {
+				t.Errorf("wrong constants found:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+			} else {
+				for name, obj := range ud.Constants {
+					n := types.Name{Package: ud.Path, Name: name}
+					if obj.Name != n {
+						t.Errorf("wrong name for constant %s: %v", name, obj.Name)
+					}
+					comment1 := fmt.Sprintf("%s comment", name)
+					if want, got := []string{comment1}, obj.CommentLines; !sliceEq(want, got) {
+						t.Errorf("wrong comments for constant %s:\nwant: %v\ngot:  %v", name, want, got)
+					}
+					comment2 := fmt.Sprintf("SecondClosest %s comment", name)
+					if want, got := []string{comment2}, obj.SecondClosestCommentLines; !sliceEq(want, got) {
+						t.Errorf("wrong comments for constant %s:\nwant: %v\ngot:  %v", name, want, got)
+					}
+				}
+
+				for name, tc := range cases {
+					obj := ud.Constants[name]
+					if want, got := tc.kind, obj.Kind; want != got {
+						t.Errorf("wrong .Kind for constant %s:\nwant: %v, got: %v", name, want, got)
+					}
+					// TODO: Underlying
+				}
+			}
+		}
+
+		// verify imports
+		if len(ui.Imports) != 0 {
+			t.Errorf("expected zero imports in indirect package, got %d", len(ui.Imports))
+		}
+		if len(ud.Imports) == 0 {
+			t.Errorf("expected non-zero imports in direct package")
+		} else {
+			want := sorted(
+				"k8s.io/gengo/v2/parser/testdata/root2/lib2",
+				"k8s.io/gengo/v2/parser/testdata/rootpeer",
+			)
+			got := keys(ud.Imports)
+
+			if !sliceEq(want, got) {
+				t.Errorf("wrong imports found:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+			}
+		}
+
+		// verify types in the "" pkg
+		if builtins := u[""]; len(builtins.Types) == 0 {
+			t.Errorf("expected non-zero types in the \"\" package")
+		} else {
+			// NOTE: this captures how the code behaved at the time of this
+			// test's creation, but does not speak to why it does this or
+			// whether it is correct or optimal.
+			want := sorted(
+				"int",
+				"*int",
+				"*string",
+				"string",
+				"untyped string",
+				"func()",
+				"*k8s.io/gengo/v2/parser/testdata/root2.Int",
+				"*k8s.io/gengo/v2/parser/testdata/root2.String",
+				"*k8s.io/gengo/v2/parser/testdata/root2.EmptyStruct",
+				"*k8s.io/gengo/v2/parser/testdata/root2.Struct",
+				"func (k8s.io/gengo/v2/parser/testdata/root2.Struct).PublicMethod()",
+				"func (k8s.io/gengo/v2/parser/testdata/root2.Struct).privateMethod()",
+				"map[string]*k8s.io/gengo/v2/parser/testdata/root2.Struct",
+			)
+			got := keys(builtins.Types)
+
+			if !sliceEq(want, got) {
+				t.Errorf("wrong types found:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
+			}
 		}
 	}
 }

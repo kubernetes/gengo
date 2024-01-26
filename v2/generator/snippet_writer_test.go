@@ -26,12 +26,12 @@ import (
 	"k8s.io/gengo/v2/parser"
 )
 
-func construct(t *testing.T, files map[string]string) *generator.Context {
+func construct(t *testing.T, patterns ...string) *generator.Context {
 	b := parser.New()
-	for name, src := range files {
-		if err := b.AddFileForTest("/tmp/"+name, name, []byte(src)); err != nil {
-			t.Fatal(err)
-		}
+
+	if err := b.LoadPackages(patterns...); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+		return nil
 	}
 	c, err := generator.NewContext(b, namer.NameSystems{
 		"public":  namer.NewPublicNamer(0),
@@ -44,24 +44,7 @@ func construct(t *testing.T, files map[string]string) *generator.Context {
 }
 
 func TestSnippetWriter(t *testing.T) {
-	var structTest = map[string]string{
-		"base/foo/proto/foo.go": `
-package foo
-
-// Blah is a test.
-// A test, I tell you.
-type Blah struct {
-	// A is the first field.
-	A int64 ` + "`" + `json:"a"` + "`" + `
-
-	// B is the second field.
-	// Multiline comments work.
-	B string ` + "`" + `json:"b"` + "`" + `
-}
-`,
-	}
-
-	c := construct(t, structTest)
+	c := construct(t, "./testdata/snippet_writer")
 	b := &bytes.Buffer{}
 	err := generator.NewSnippetWriter(b, c, "$", "$").
 		Do("$.|public$$.|private$", c.Order[0]).

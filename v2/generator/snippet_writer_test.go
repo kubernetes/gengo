@@ -27,7 +27,7 @@ import (
 )
 
 func construct(t *testing.T, patterns ...string) *generator.Context {
-	b := parser.New()
+	b := parser.New(false, nil)
 
 	if err := b.LoadPackages(patterns...); err != nil {
 		t.Fatalf("unexpected error: %v", err)

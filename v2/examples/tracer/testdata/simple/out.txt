@@ -1,30 +1,30 @@
 DBG: getPackages
-DBG: FilterFunc{./examples/tracer/testdata/simple}: *int
-DBG: FilterFunc{./examples/tracer/testdata/simple}: *string
-DBG: FilterFunc{./examples/tracer/testdata/simple}: int
-DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.ExportedInt
-DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.ExportedString
-DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.ExportedStruct
-DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.privateInt
-DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.privateString
-DBG: FilterFunc{./examples/tracer/testdata/simple}: ./examples/tracer/testdata/simple.privateStruct
-DBG: FilterFunc{./examples/tracer/testdata/simple}: string
-DBG: GeneratorFunc{./examples/tracer/testdata/simple}
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.ExportedInt
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.ExportedString
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.ExportedStruct
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.privateInt
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.privateString
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.Filter: ./examples/tracer/testdata/simple.privateStruct
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.Namers
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.PackageVars
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.PackageConsts
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.Init
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.ExportedInt
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.ExportedString
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.ExportedStruct
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.privateInt
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.privateString
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.GenerateType: ./examples/tracer/testdata/simple.privateStruct
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.Finalize
-DBG: tracerGenerator{./examples/tracer/testdata/simple}.Imports
+DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: *int
+DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: *string
+DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: int
+DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedInt
+DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedString
+DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedStruct
+DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateInt
+DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateString
+DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateStruct
+DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: string
+DBG: GeneratorFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedInt
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedString
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedStruct
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateInt
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateString
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateStruct
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Namers
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.PackageVars
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.PackageConsts
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Init
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedInt
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedString
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedStruct
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateInt
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateString
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateStruct
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Finalize
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Imports

@@ -30,7 +30,7 @@ find ./examples -name "zz_generated.go" -type f -delete
 
 echo "Generating example output..."
 go generate ./examples/...
-pushd ./examples/defaulter-gen/_output_tests; go generate ./...; popd
+go -C ./examples/defaulter-gen/_output_tests generate ./...
 
 # If there are any differences with committed files, fail
 if ! git diff --quiet HEAD; then

@@ -75,11 +75,10 @@ func main() {
 	klog.InitFlags(nil)
 	arguments := args.Default()
 
-	// Override defaults.
-	arguments.OutputFileBaseName = "deepcopy_generated"
-
 	// Custom args.
 	customArgs := &generators.CustomArgs{}
+	pflag.CommandLine.StringVar(&customArgs.OutputFile, "output-file", "generated.deepcopy.go",
+		"The name of the file to be generated.")
 	pflag.CommandLine.StringSliceVar(&customArgs.BoundingDirs, "bounding-dirs", customArgs.BoundingDirs,
 		"Comma-separated list of import paths which bound the types for which deep-copies will be generated.")
 	arguments.CustomArgs = customArgs

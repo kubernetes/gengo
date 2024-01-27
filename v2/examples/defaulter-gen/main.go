@@ -53,13 +53,12 @@ func main() {
 	klog.InitFlags(nil)
 	arguments := args.Default()
 
-	// Override defaults.
-	arguments.OutputFileBaseName = "defaulter_generated"
-
 	// Custom args.
 	customArgs := &generators.CustomArgs{
 		ExtraPeerDirs: []string{},
 	}
+	pflag.CommandLine.StringVar(&customArgs.OutputFile, "output-file", "generated.defaults.go",
+		"The name of the file to be generated.")
 	pflag.CommandLine.StringSliceVar(&customArgs.ExtraPeerDirs, "extra-peer-dirs", customArgs.ExtraPeerDirs,
 		"Comma-separated list of import paths which are considered, after tag-specified peers, for conversions.")
 	arguments.CustomArgs = customArgs

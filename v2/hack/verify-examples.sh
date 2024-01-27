@@ -63,7 +63,7 @@ fi
 rm -rf ./examples/pointuh/testdata/results
 go run ./examples/pointuh/ \
     -i ./examples/pointuh/testdata/simple \
-    -o ./examples/pointuh/testdata/results \
+    --output-dir ./examples/pointuh/testdata/results \
     --output-package k8s.io/gengo/examples/pointuh/testdata/results
 if ! git diff --quiet HEAD; then
     echo "FAIL: output files changed"

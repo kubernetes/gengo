@@ -110,6 +110,7 @@ func main() {
 		generators.NameSystems(),
 		generators.DefaultNameSystem(),
 		generators.GetTargets,
+		args.StdBuildTag,
 	); err != nil {
 		klog.Errorf("Error: %v", err)
 		os.Exit(1)

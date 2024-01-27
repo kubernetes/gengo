@@ -61,6 +61,8 @@ func main() {
 		"The name of the file to be generated.")
 	pflag.CommandLine.StringSliceVar(&customArgs.ExtraPeerDirs, "extra-peer-dirs", customArgs.ExtraPeerDirs,
 		"Comma-separated list of import paths which are considered, after tag-specified peers, for conversions.")
+	pflag.CommandLine.StringVar(&customArgs.GoHeaderFile, "go-header-file", "",
+		"The path to a file containing boilerplate header text; the string \"YEAR\" will be replaced with the current 4-digit year.")
 	arguments.CustomArgs = customArgs
 
 	// Run it.
@@ -68,6 +70,7 @@ func main() {
 		generators.NameSystems(),
 		generators.DefaultNameSystem(),
 		generators.GetTargets,
+		args.StdBuildTag,
 	); err != nil {
 		klog.Fatalf("Error: %v", err)
 	}

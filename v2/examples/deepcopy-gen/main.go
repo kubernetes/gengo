@@ -81,6 +81,8 @@ func main() {
 		"The name of the file to be generated.")
 	pflag.CommandLine.StringSliceVar(&customArgs.BoundingDirs, "bounding-dirs", customArgs.BoundingDirs,
 		"Comma-separated list of import paths which bound the types for which deep-copies will be generated.")
+	pflag.CommandLine.StringVar(&customArgs.GoHeaderFile, "go-header-file", "",
+		"The path to a file containing boilerplate header text; the string \"YEAR\" will be replaced with the current 4-digit year.")
 	arguments.CustomArgs = customArgs
 
 	// Run it.
@@ -88,6 +90,7 @@ func main() {
 		generators.NameSystems(),
 		generators.DefaultNameSystem(),
 		generators.GetTargets,
+		args.StdBuildTag,
 	); err != nil {
 		klog.Fatalf("Error: %v", err)
 	}

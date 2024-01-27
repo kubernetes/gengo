@@ -1,4 +1,4 @@
-DBG: getPackages
+DBG: getTargets
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: *int
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: *string
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: int

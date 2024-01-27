@@ -19,11 +19,13 @@ limitations under the License.
 package main
 
 import (
+	goflag "flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
+	"github.com/spf13/pflag"
 	"k8s.io/gengo/v2/args"
 	"k8s.io/gengo/v2/generator"
 	"k8s.io/gengo/v2/namer"
@@ -32,8 +34,12 @@ import (
 )
 
 func main() {
+	// Collect and parse flags.
 	klog.InitFlags(nil)
 	arguments := args.Default()
+	arguments.AddFlags(pflag.CommandLine)
+	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
+	pflag.Parse()
 
 	// Gengo apps start with arguments.
 	if err := arguments.Execute(getNameSystems(), getDefaultNameSystem(), getTargets, ""); err != nil {

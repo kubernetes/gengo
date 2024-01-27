@@ -42,16 +42,19 @@ limitations under the License.
 package main
 
 import (
-	"k8s.io/gengo/v2/args"
-	"k8s.io/gengo/v2/examples/defaulter-gen/generators"
+	goflag "flag"
 
 	"github.com/spf13/pflag"
+	"k8s.io/gengo/v2/args"
+	"k8s.io/gengo/v2/examples/defaulter-gen/generators"
 	"k8s.io/klog/v2"
 )
 
 func main() {
+	// Collect and parse flags.
 	klog.InitFlags(nil)
 	arguments := args.Default()
+	arguments.AddFlags(pflag.CommandLine)
 
 	// Custom args.
 	customArgs := &generators.CustomArgs{
@@ -64,6 +67,8 @@ func main() {
 	pflag.CommandLine.StringVar(&customArgs.GoHeaderFile, "go-header-file", "",
 		"The path to a file containing boilerplate header text; the string \"YEAR\" will be replaced with the current 4-digit year.")
 	arguments.CustomArgs = customArgs
+	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
+	pflag.Parse()
 
 	// Run it.
 	if err := arguments.Execute(

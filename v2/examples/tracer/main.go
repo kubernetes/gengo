@@ -38,11 +38,12 @@ func main() {
 	klog.InitFlags(nil)
 	arguments := args.Default()
 	arguments.AddFlags(pflag.CommandLine)
+	goflag.Set("logtostderr", "true")
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 	pflag.Parse()
 
 	// Gengo apps start with arguments.
-	if err := arguments.Execute(getNameSystems(), getDefaultNameSystem(), getTargets, ""); err != nil {
+	if err := arguments.Execute(getNameSystems(), getDefaultNameSystem(), getTargets, "", pflag.Args()); err != nil {
 		klog.ErrorS(err, "fatal error")
 		os.Exit(1)
 	}

@@ -44,7 +44,7 @@ go test ./examples/...
 pushd ./examples/defaulter-gen/_output_tests; go test ./...; popd
 
 rm ./examples/tracer/testdata/simple/out.txt
-go run ./examples/tracer -i ./examples/tracer/testdata/simple > ./examples/tracer/testdata/simple/out.txt
+go run ./examples/tracer ./examples/tracer/testdata/simple > ./examples/tracer/testdata/simple/out.txt
 if ! git diff --quiet HEAD; then
     echo "FAIL: output files changed"
     git diff
@@ -52,7 +52,7 @@ if ! git diff --quiet HEAD; then
 fi
 
 rm ./examples/kilroy/testdata/simple/generated.kilroy.go
-go run ./examples/kilroy/ -i ./examples/kilroy/testdata/simple
+go run ./examples/kilroy/ ./examples/kilroy/testdata/simple
 if ! git diff --quiet HEAD; then
     echo "FAIL: output files changed"
     git diff
@@ -61,9 +61,9 @@ fi
 
 rm -rf ./examples/pointuh/testdata/results
 go run ./examples/pointuh/ \
-    -i ./examples/pointuh/testdata/simple \
     --output-dir ./examples/pointuh/testdata/results \
-    --output-pkg k8s.io/gengo/examples/pointuh/testdata/results
+    --output-pkg k8s.io/gengo/examples/pointuh/testdata/results \
+    ./examples/pointuh/testdata/simple
 if ! git diff --quiet HEAD; then
     echo "FAIL: output files changed"
     git diff

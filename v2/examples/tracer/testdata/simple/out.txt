@@ -9,7 +9,7 @@ DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateString
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateStruct
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: string
-DBG: GeneratorFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}
+DBG: GeneratorsFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedInt
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedString
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedStruct

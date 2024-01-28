@@ -63,6 +63,8 @@ func GoBoilerplate(headerFile, buildTag, generatedBy string) ([]byte, error) {
 
 	if generatedBy != "" {
 		generatorName := filepath.Base(os.Args[0])
+		// Strip the extension from the name to normalize output between *nix and Windows.
+		generatorName = generatorName[:len(generatorName)-len(filepath.Ext(generatorName))]
 		generatedByComment := strings.ReplaceAll(generatedBy, "GENERATOR_NAME", generatorName)
 		buf.WriteString(fmt.Sprintf("%s\n\n", generatedByComment))
 	}

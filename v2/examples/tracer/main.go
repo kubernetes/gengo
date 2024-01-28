@@ -26,7 +26,7 @@ import (
 	"strings"
 
 	"github.com/spf13/pflag"
-	"k8s.io/gengo/v2/args"
+	gengo "k8s.io/gengo/v2/args"
 	"k8s.io/gengo/v2/generator"
 	"k8s.io/gengo/v2/namer"
 	"k8s.io/gengo/v2/types"
@@ -36,14 +36,12 @@ import (
 func main() {
 	// Collect and parse flags.
 	klog.InitFlags(nil)
-	arguments := args.Default()
-	arguments.AddFlags(pflag.CommandLine)
 	goflag.Set("logtostderr", "true")
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 	pflag.Parse()
 
 	// Gengo apps start with arguments.
-	if err := arguments.Execute(getNameSystems(), getDefaultNameSystem(), getTargets, "", pflag.Args()); err != nil {
+	if err := gengo.Execute(getNameSystems(), getDefaultNameSystem(), getTargets, "", pflag.Args()); err != nil {
 		klog.ErrorS(err, "fatal error")
 		os.Exit(1)
 	}
@@ -73,7 +71,7 @@ func getDefaultNameSystem() string {
 // getTargets is called after the inputs have been loaded.  It is expected to
 // examine the provided context and return a list of Packages which will be
 // executed further.
-func getTargets(c *generator.Context, arguments *args.GeneratorArgs) []generator.Target {
+func getTargets(c *generator.Context) []generator.Target {
 	trace("getTargets")
 
 	// Make sure we don't actually write a file.

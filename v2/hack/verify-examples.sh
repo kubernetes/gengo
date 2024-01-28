@@ -29,7 +29,6 @@ echo "Removing generated code"
 find ./examples -name "zz_generated.go" -type f -delete
 
 echo "Generating example output..."
-go generate ./examples/...
 go -C ./examples/defaulter-gen/_output_tests generate ./...
 
 # If there are any differences with committed files, fail

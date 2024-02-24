@@ -8,14 +8,9 @@
 # Exit immediately if any command fails
 set -e
 
-# Silence pushd/popd
-pushd () {
-    command pushd "$@" > /dev/null
-}
-
-popd () {
-    command popd "$@" > /dev/null
-}
+# Make sure we run from the v2 root.
+V2_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+cd "${V2_ROOT}"
 
 # Ensure all files are committed
 if ! git diff --quiet HEAD; then

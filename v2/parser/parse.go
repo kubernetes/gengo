@@ -67,16 +67,27 @@ type fileLine struct {
 	line int
 }
 
-// New constructs a new builder.
-func New(buildTags []string) *Parser {
+// New constructs a new Parser.
+func New() *Parser {
+	return NewWithOptions(Options{})
+}
+
+func NewWithOptions(opts Options) *Parser {
 	return &Parser{
 		goPkgs:                map[string]*packages.Package{},
 		userRequested:         map[string]bool{},
 		fullyProcessed:        map[string]bool{},
 		fset:                  token.NewFileSet(),
 		endLineToCommentGroup: map[fileLine]*ast.CommentGroup{},
-		buildTags:             buildTags,
+		buildTags:             opts.BuildTags,
 	}
+}
+
+// Options holds optional settings for the Parser.
+type Options struct {
+	// BuildTags is a list of optional tags to be specified when loading
+	// packages.
+	BuildTags []string
 }
 
 // FindPackages expands the provided patterns into a list of Go import-paths,

@@ -28,7 +28,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	parser := New(nil)
+	parser := New()
 	if parser.goPkgs == nil {
 		t.Errorf("expected .goPkgs to be initialized")
 	}
@@ -123,22 +123,22 @@ func keys[T any](m map[string]T) []string {
 func TestAddBuildTags(t *testing.T) {
 	testTags := []string{"foo", "bar", "qux"}
 
-	parser := New(nil)
+	parser := New()
 	if len(parser.buildTags) != 0 {
 		t.Errorf("expected no default build tags, got %v", parser.buildTags)
 	}
-	parser = New(testTags[0:1])
+	parser = NewWithOptions(Options{BuildTags: testTags[0:1]})
 	if want, got := testTags[0:1], parser.buildTags; !sliceEq(want, got) {
 		t.Errorf("wrong build tags:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
 	}
-	parser = New(testTags)
+	parser = NewWithOptions(Options{BuildTags: testTags})
 	if want, got := testTags, parser.buildTags; !sliceEq(want, got) {
 		t.Errorf("wrong build tags:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
 	}
 }
 
 func TestFindPackages(t *testing.T) {
-	parser := New(nil)
+	parser := New()
 
 	// Proper packages with deps.
 	if pkgs, err := parser.FindPackages("./testdata/root1", "./testdata/root2", "./testdata/roots345/..."); err != nil {
@@ -194,7 +194,7 @@ func TestAlreadyLoaded(t *testing.T) {
 		}
 	}
 
-	parser := New(nil)
+	parser := New()
 
 	// Test loading something we don't have.
 	if existing, netNew, err := parser.alreadyLoaded("./testdata/root1"); err != nil {
@@ -243,7 +243,7 @@ func TestAlreadyLoaded(t *testing.T) {
 }
 
 func TestLoadPackagesInternal(t *testing.T) {
-	parser := New(nil)
+	parser := New()
 
 	// Proper packages with deps.
 	if pkgs, err := parser.loadPackages("./testdata/root1", "./testdata/root2", "./testdata/roots345/..."); err != nil {
@@ -339,7 +339,7 @@ func TestLoadPackagesInternal(t *testing.T) {
 }
 
 func TestLoadPackagesTo(t *testing.T) {
-	parser := New(nil)
+	parser := New()
 	u := types.Universe{}
 
 	// Proper packages with deps.
@@ -444,7 +444,7 @@ func TestForEachPackageRecursive(t *testing.T) {
 }
 
 func TestUserRequestedPackages(t *testing.T) {
-	parser := New(nil)
+	parser := New()
 
 	// Proper packages with deps.
 	if err := parser.LoadPackages("./testdata/root1", "./testdata/root2", "./testdata/roots345/..."); err != nil {
@@ -469,7 +469,7 @@ func TestUserRequestedPackages(t *testing.T) {
 }
 
 func TestAddOnePkgToUniverse(t *testing.T) {
-	parser := New(nil)
+	parser := New()
 
 	// Proper packages with deps.
 	if pkgs, err := parser.loadPackages("./testdata/root2"); err != nil {

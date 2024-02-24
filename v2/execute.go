@@ -79,7 +79,7 @@ func Execute(nameSystems namer.NameSystems, defaultSystem string, getTargets fun
 		buildTags = append(buildTags, buildTag)
 	}
 
-	p := parser.New(buildTags)
+	p := parser.NewWithOptions(parser.Options{BuildTags: buildTags})
 	if err := p.LoadPackages(patterns...); err != nil {
 		return fmt.Errorf("failed making a parser: %v", err)
 	}

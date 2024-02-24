@@ -80,7 +80,7 @@ func (ft DefaultFileType) AssembleFile(f *File, pathname string) error {
 	}
 }
 
-func assembleGolangFile(w io.Writer, f *File) {
+func assembleGoFile(w io.Writer, f *File) {
 	w.Write(f.Header)
 	fmt.Fprintf(w, "package %v\n\n", f.PackageName)
 
@@ -117,10 +117,10 @@ func importsWrapper(src []byte) ([]byte, error) {
 	return imports.Process("", src, nil)
 }
 
-func NewGolangFile() *DefaultFileType {
+func NewGoFile() *DefaultFileType {
 	return &DefaultFileType{
 		Format:   importsWrapper,
-		Assemble: assembleGolangFile,
+		Assemble: assembleGoFile,
 	}
 }
 

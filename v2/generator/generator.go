@@ -167,7 +167,7 @@ type Context struct {
 	Order []*types.Type
 
 	// A set of types this context can process. If this is empty or nil,
-	// the default "golang" filetype will be provided.
+	// the default "go" filetype will be provided.
 	FileTypes map[string]FileType
 
 	// Allows generators to add packages at runtime.
@@ -187,7 +187,7 @@ func NewContext(p *parser.Parser, nameSystems namer.NameSystems, canonicalOrderN
 		Universe: universe,
 		Inputs:   p.UserRequestedPackages(),
 		FileTypes: map[string]FileType{
-			GolangFileType: NewGolangFile(),
+			GoFileType: NewGoFile(),
 		},
 		parser: p,
 	}

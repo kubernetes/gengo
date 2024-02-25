@@ -9,6 +9,8 @@
 [GoReport]: https://goreportcard.com/badge/github.com/kubernetes/gengo
 [GoReportStatus]: https://goreportcard.com/report/github.com/kubernetes/gengo
 
+NOTE: [`k8s.io/gengo/v2`](https://github.com/kubernetes/gengo/tree/master/v2) is the current development module.
+
 A package for generating things based on go files. This mechanism was first used
 in [Kubernetes code-generator](https://github.com/kubernetes/kubernetes/tree/master/staging/src/k8s.io/code-generator) and is split out here for ease of reuse and maintainability.
 

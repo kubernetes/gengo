@@ -93,6 +93,11 @@ type Options struct {
 // FindPackages expands the provided patterns into a list of Go import-paths,
 // much like `go list -find`.
 func (p *Parser) FindPackages(patterns ...string) ([]string, error) {
+	return p.findPackages(nil, patterns...)
+}
+
+// baseCfg is an optional (may be nil) config which might be injected by tests.
+func (p *Parser) findPackages(baseCfg *packages.Config, patterns ...string) ([]string, error) {
 	toFind := make([]string, 0, len(patterns))
 	results := make([]string, 0, len(patterns))
 	for _, pat := range patterns {
@@ -106,11 +111,14 @@ func (p *Parser) FindPackages(patterns ...string) ([]string, error) {
 		return results, nil
 	}
 
-	cfg := packages.Config{
-		Mode:       packages.NeedName | packages.NeedFiles,
-		BuildFlags: []string{"-tags", strings.Join(p.buildTags, ",")},
-		Tests:      false,
+	cfg := packages.Config{}
+	if baseCfg != nil { // This is to support tests, e.g. to inject a fake GOPATH or CWD.
+		cfg = *baseCfg
 	}
+	cfg.Mode |= packages.NeedName | packages.NeedFiles
+	cfg.BuildFlags = append(cfg.BuildFlags, "-tags", strings.Join(p.buildTags, ","))
+	cfg.Tests = false
+
 	pkgs, err := packages.Load(&cfg, toFind...)
 	if err != nil {
 		return nil, fmt.Errorf("error loading packages: %w", err)
@@ -143,6 +151,13 @@ func (p *Parser) LoadPackages(patterns ...string) error {
 	return err
 }
 
+// LoadPackagesWithConfig loads and parses the specified Go packages with the
+// specified packages.Config as a starting point.  This is for testing.
+func (p *Parser) LoadPackagesWithConfig(cfg *packages.Config, patterns ...string) error {
+	_, err := p.loadPackagesWithConfig(cfg, patterns...)
+	return err
+}
+
 // LoadPackagesTo loads and parses the specified Go packages, and inserts them
 // into the specified Universe. It returns the packages which match the
 // patterns, but loads all packages and their imports, recursively, into the
@@ -169,11 +184,16 @@ func (p *Parser) LoadPackagesTo(u *types.Universe, patterns ...string) ([]*types
 }
 
 func (p *Parser) loadPackages(patterns ...string) ([]*packages.Package, error) {
+	return p.loadPackagesWithConfig(nil, patterns...)
+}
+
+// baseCfg is an optional (may be nil) config which might be injected by tests.
+func (p *Parser) loadPackagesWithConfig(baseCfg *packages.Config, patterns ...string) ([]*packages.Package, error) {
 	klog.V(5).Infof("loadPackages %q", patterns)
 
 	// Loading packages is slow - only do ones we know we have not already done
 	// (e.g. if a tool calls LoadPackages itself).
-	existingPkgs, netNewPkgs, err := p.alreadyLoaded(patterns...)
+	existingPkgs, netNewPkgs, err := p.alreadyLoaded(baseCfg, patterns...)
 	if err != nil {
 		return nil, err
 	}
@@ -206,14 +226,16 @@ func (p *Parser) loadPackages(patterns ...string) ([]*packages.Package, error) {
 		return existingPkgs, nil
 	}
 
-	cfg := packages.Config{
-		Mode: packages.NeedName |
-			packages.NeedFiles | packages.NeedImports | packages.NeedDeps |
-			packages.NeedModule | packages.NeedTypes | packages.NeedSyntax,
-		BuildFlags: []string{"-tags", strings.Join(p.buildTags, ",")},
-		Fset:       p.fset,
-		Tests:      false,
+	cfg := packages.Config{}
+	if baseCfg != nil { // This is to support tests, e.g. to inject a fake GOPATH or CWD.
+		cfg = *baseCfg
 	}
+	cfg.Mode |= packages.NeedName |
+		packages.NeedFiles | packages.NeedImports | packages.NeedDeps |
+		packages.NeedModule | packages.NeedTypes | packages.NeedSyntax
+	cfg.BuildFlags = append(cfg.BuildFlags, "-tags", strings.Join(p.buildTags, ","))
+	cfg.Fset = p.fset
+	cfg.Tests = false
 
 	tBefore := time.Now()
 	pkgs, err := packages.Load(&cfg, netNewPkgs...)
@@ -272,12 +294,13 @@ func (p *Parser) loadPackages(patterns ...string) ([]*packages.Package, error) {
 
 // alreadyLoaded figures out which of the specified patterns have already been loaded
 // and which have not, and returns those respectively.
-func (p *Parser) alreadyLoaded(patterns ...string) ([]*packages.Package, []string, error) {
+// baseCfg is an optional (may be nil) config which might be injected by tests.
+func (p *Parser) alreadyLoaded(baseCfg *packages.Config, patterns ...string) ([]*packages.Package, []string, error) {
 	existingPkgs := make([]*packages.Package, 0, len(patterns))
 	netNewPkgs := make([]string, 0, len(patterns))
 
 	// Expand and canonicalize the requested patterns.  This should be fast.
-	if pkgPaths, err := p.FindPackages(patterns...); err != nil {
+	if pkgPaths, err := p.findPackages(baseCfg, patterns...); err != nil {
 		return nil, nil, err
 	} else {
 		for _, pkgPath := range pkgPaths {

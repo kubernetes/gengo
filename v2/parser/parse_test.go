@@ -197,7 +197,7 @@ func TestAlreadyLoaded(t *testing.T) {
 	parser := New()
 
 	// Test loading something we don't have.
-	if existing, netNew, err := parser.alreadyLoaded("./testdata/root1"); err != nil {
+	if existing, netNew, err := parser.alreadyLoaded(nil, "./testdata/root1"); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	} else {
 		if len(existing) > 0 {
@@ -212,7 +212,7 @@ func TestAlreadyLoaded(t *testing.T) {
 
 	// Test loading something already present.
 	parser.goPkgs["k8s.io/gengo/v2/parser/testdata/root1"] = newPkg("k8s.io/gengo/v2/parser/testdata/root1")
-	if existing, netNew, err := parser.alreadyLoaded("./testdata/root1"); err != nil {
+	if existing, netNew, err := parser.alreadyLoaded(nil, "./testdata/root1"); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	} else {
 		if len(existing) != 1 {
@@ -226,7 +226,7 @@ func TestAlreadyLoaded(t *testing.T) {
 	}
 
 	// Test loading something partly present.
-	if existing, netNew, err := parser.alreadyLoaded("./testdata/root1/..."); err != nil {
+	if existing, netNew, err := parser.alreadyLoaded(nil, "./testdata/root1/..."); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	} else {
 		if len(existing) != 1 {

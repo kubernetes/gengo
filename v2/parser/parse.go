@@ -154,10 +154,10 @@ func (p *Parser) LoadPackages(patterns ...string) error {
 	return err
 }
 
-// LoadPackagesWithConfig loads and parses the specified Go packages with the
+// LoadPackagesWithConfigForTesting loads and parses the specified Go packages with the
 // specified packages.Config as a starting point.  This is for testing, and
 // only the .Dir and .Env fields of the Config will be considered.
-func (p *Parser) LoadPackagesWithConfig(cfg *packages.Config, patterns ...string) error {
+func (p *Parser) LoadPackagesWithConfigForTesting(cfg *packages.Config, patterns ...string) error {
 	_, err := p.loadPackagesWithConfig(cfg, patterns...)
 	return err
 }

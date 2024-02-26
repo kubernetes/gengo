@@ -111,13 +111,16 @@ func (p *Parser) findPackages(baseCfg *packages.Config, patterns ...string) ([]s
 		return results, nil
 	}
 
-	cfg := packages.Config{}
-	if baseCfg != nil { // This is to support tests, e.g. to inject a fake GOPATH or CWD.
-		cfg = *baseCfg
+	cfg := packages.Config{
+		Mode:       packages.NeedName | packages.NeedFiles,
+		BuildFlags: []string{"-tags", strings.Join(p.buildTags, ",")},
+		Tests:      false,
 	}
-	cfg.Mode |= packages.NeedName | packages.NeedFiles
-	cfg.BuildFlags = append(cfg.BuildFlags, "-tags", strings.Join(p.buildTags, ","))
-	cfg.Tests = false
+	if baseCfg != nil {
+		// This is to support tests, e.g. to inject a fake GOPATH or CWD.
+		cfg.Dir = baseCfg.Dir
+		cfg.Env = baseCfg.Env
+	}
 
 	pkgs, err := packages.Load(&cfg, toFind...)
 	if err != nil {
@@ -152,7 +155,8 @@ func (p *Parser) LoadPackages(patterns ...string) error {
 }
 
 // LoadPackagesWithConfig loads and parses the specified Go packages with the
-// specified packages.Config as a starting point.  This is for testing.
+// specified packages.Config as a starting point.  This is for testing, and
+// only the .Dir and .Env fields of the Config will be considered.
 func (p *Parser) LoadPackagesWithConfig(cfg *packages.Config, patterns ...string) error {
 	_, err := p.loadPackagesWithConfig(cfg, patterns...)
 	return err
@@ -226,16 +230,19 @@ func (p *Parser) loadPackagesWithConfig(baseCfg *packages.Config, patterns ...st
 		return existingPkgs, nil
 	}
 
-	cfg := packages.Config{}
-	if baseCfg != nil { // This is to support tests, e.g. to inject a fake GOPATH or CWD.
-		cfg = *baseCfg
+	cfg := packages.Config{
+		Mode: packages.NeedName |
+			packages.NeedFiles | packages.NeedImports | packages.NeedDeps |
+			packages.NeedModule | packages.NeedTypes | packages.NeedSyntax,
+		BuildFlags: []string{"-tags", strings.Join(p.buildTags, ",")},
+		Fset:       p.fset,
+		Tests:      false,
 	}
-	cfg.Mode |= packages.NeedName |
-		packages.NeedFiles | packages.NeedImports | packages.NeedDeps |
-		packages.NeedModule | packages.NeedTypes | packages.NeedSyntax
-	cfg.BuildFlags = append(cfg.BuildFlags, "-tags", strings.Join(p.buildTags, ","))
-	cfg.Fset = p.fset
-	cfg.Tests = false
+	if baseCfg != nil {
+		// This is to support tests, e.g. to inject a fake GOPATH or CWD.
+		cfg.Dir = baseCfg.Dir
+		cfg.Env = baseCfg.Env
+	}
 
 	tBefore := time.Now()
 	pkgs, err := packages.Load(&cfg, netNewPkgs...)

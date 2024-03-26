@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"testing"
 
@@ -814,5 +815,247 @@ func TestAddOnePkgToUniverse(t *testing.T) {
 				t.Errorf("wrong types found:\nwant: %v\ngot:  %v", pretty(want), pretty(got))
 			}
 		}
+	}
+}
+
+func TestStructParse(t *testing.T) {
+	testCases := []struct {
+		description string
+		testFile    string
+		expected    func() *types.Type
+	}{
+		{
+			description: "basic comments",
+			testFile:    "k8s.io/gengo/v2/parser/testdata/basic",
+			expected: func() *types.Type {
+				return &types.Type{
+					Name: types.Name{
+						Package: "k8s.io/gengo/v2/parser/testdata/basic",
+						Name:    "Blah",
+					},
+					Kind:                      types.Struct,
+					CommentLines:              []string{"Blah is a test.", "A test, I tell you."},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "A",
+							Embedded:     false,
+							CommentLines: []string{"A is the first field."},
+							Tags:         `json:"a"`,
+							Type:         types.Int64,
+						},
+						{
+							Name:         "B",
+							Embedded:     false,
+							CommentLines: []string{"B is the second field.", "Multiline comments work."},
+							Tags:         `json:"b"`,
+							Type:         types.String,
+						},
+					},
+					TypeParams: map[string]*types.Type{},
+				}
+			},
+		},
+		{
+			description: "generic",
+			testFile:    "./testdata/generic",
+			expected: func() *types.Type {
+				return &types.Type{
+					Name: types.Name{
+						Package: "k8s.io/gengo/v2/parser/testdata/generic",
+						Name:    "Blah[T]",
+					},
+					Kind:                      types.Struct,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "V",
+							Embedded:     false,
+							CommentLines: []string{"V is the first field."},
+							Tags:         `json:"v"`,
+							Type: &types.Type{
+								Kind: types.TypeParam,
+								Name: types.Name{
+									Name: "T",
+								},
+							},
+						},
+					},
+					TypeParams: map[string]*types.Type{
+						"T": {
+							Name: types.Name{
+								Name: "any",
+							},
+							Kind: types.Interface,
+						},
+					},
+				}
+			},
+		},
+		{
+			description: "generic multiple",
+			testFile:    "./testdata/generic-multi",
+			expected: func() *types.Type {
+				return &types.Type{
+					Name: types.Name{
+						Package: "k8s.io/gengo/v2/parser/testdata/generic-multi",
+						Name:    "Blah[T,U,V]",
+					},
+					Kind:                      types.Struct,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "V1",
+							Embedded:     false,
+							CommentLines: []string{"V1 is the first field."},
+							Tags:         `json:"v1"`,
+							Type: &types.Type{
+								Kind: types.TypeParam,
+								Name: types.Name{
+									Name: "T",
+								},
+							},
+						},
+						{
+							Name:         "V2",
+							Embedded:     false,
+							CommentLines: []string{"V2 is the second field."},
+							Tags:         `json:"v2"`,
+							Type: &types.Type{
+								Kind: types.TypeParam,
+								Name: types.Name{
+									Name: "U",
+								},
+							},
+						},
+						{
+							Name:         "V3",
+							Embedded:     false,
+							CommentLines: []string{"V3 is the third field."},
+							Tags:         `json:"v3"`,
+							Type: &types.Type{
+								Kind: types.TypeParam,
+								Name: types.Name{
+									Name: "V",
+								},
+							},
+						},
+					},
+					TypeParams: map[string]*types.Type{
+						"T": {
+							Name: types.Name{
+								Name: "any",
+							},
+							Kind: types.Interface,
+						},
+						"U": {
+							Name: types.Name{
+								Name: "any",
+							},
+							Kind: types.Interface,
+						},
+						"V": {
+							Name: types.Name{
+								Name: "any",
+							},
+							Kind: types.Interface,
+						},
+					},
+				}
+			},
+		},
+		{
+			description: "generic recursive",
+			testFile:    "./testdata/generic-recursive",
+			expected: func() *types.Type {
+				recursiveT := &types.Type{
+					Name: types.Name{
+						Package: "k8s.io/gengo/v2/parser/testdata/generic-recursive",
+						Name:    "DeepCopyable",
+					},
+					Kind:                      types.Interface,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Methods:                   map[string]*types.Type{},
+				}
+				recursiveT.Methods["DeepCopy"] = &types.Type{
+					Name: types.Name{
+						Name: "func (k8s.io/gengo/v2/parser/testdata/generic-recursive.DeepCopyable[T]).DeepCopy() T",
+					},
+					Kind:         types.Func,
+					CommentLines: []string{""},
+					Signature: &types.Signature{
+						Receiver: recursiveT,
+						Results: []*types.ParamResult{
+							{
+								Name: "",
+								Type: &types.Type{
+									Name: types.Name{
+										Name: "T",
+									},
+									Kind: types.TypeParam,
+								},
+							},
+						},
+					},
+				}
+				return &types.Type{
+					Name: types.Name{
+						Package: "k8s.io/gengo/v2/parser/testdata/generic-recursive",
+						Name:    "Blah[T]",
+					},
+					Kind:                      types.Struct,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "V",
+							Embedded:     false,
+							CommentLines: []string{"V is the first field."},
+							Tags:         `json:"v"`,
+							Type: &types.Type{
+								Name: types.Name{
+									Name: "T",
+								},
+								Kind: types.TypeParam,
+							},
+						},
+					},
+					TypeParams: map[string]*types.Type{
+						"T": recursiveT,
+					},
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			parser := New()
+
+			pkgs, err := parser.loadPackages(tc.testFile)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			u := types.Universe{}
+			if err := parser.addPkgToUniverse(pkgs[0], &u); err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+
+			expected := tc.expected()
+			pkg, ok := u[expected.Name.Package]
+			if !ok {
+				t.Fatalf("package %s not found", expected.Name.Package)
+			}
+			st := pkg.Type(expected.Name.Name)
+			if st == nil || st.Kind == types.Unknown {
+				t.Fatalf("type %s not found", expected.Name.Name)
+			}
+			if e, a := expected, st; !reflect.DeepEqual(e, a) {
+				t.Errorf("wanted, got:\n%#v\n%#v", e, a)
+			}
+		})
 	}
 }

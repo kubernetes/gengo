@@ -103,3 +103,32 @@ func TestNameStrategy(t *testing.T) {
 		t.Errorf("Wanted %#v, got %#v", e, a)
 	}
 }
+
+// NOTE: this test is intended to demostrate specific behavior
+// described in https://github.com/kubernetes/kubernetes/issues/124192
+// and should not be considered a good usage scenario of Namer
+//
+// Here we are trying to simulate the behavior when Namer is
+// configured with invalid local package name and import tracker
+// has valid configuration. In this case Namer shouldn't produce
+// invalid syntax like '.<variableName>' and instead treat empty
+// names from import tracker as types within the same package
+func TestRawNamerEmptyImportInteraction(t *testing.T) {
+	tracker := NewDefaultImportTracker(types.Name{
+		Package: "resource.io/pkg",
+		Name:    "name",
+	})
+	namer := NewRawNamer("resource/pkg", &tracker)
+
+	gotName := namer.Name(&types.Type{
+		Name: types.Name{
+			Package: "resource.io/pkg",
+			Name:    "flag",
+			Path:    "/path/resource.io/pkg",
+		},
+	})
+
+	if gotName != "flag" {
+		t.Errorf("Wanted %#v, got %#v", "flag", gotName)
+	}
+}

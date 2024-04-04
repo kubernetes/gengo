@@ -329,7 +329,12 @@ func (r *rawNamer) Name(t *types.Type) string {
 			if t.Name.Package == r.pkg {
 				name = t.Name.Name
 			} else {
-				name = r.tracker.LocalNameOf(t.Name.Package) + "." + t.Name.Name
+				packageName := r.tracker.LocalNameOf(t.Name.Package)
+				if packageName == "" {
+					name = t.Name.Name
+				} else {
+					name = packageName + "." + t.Name.Name
+				}
 			}
 		} else {
 			if t.Name.Package == r.pkg {

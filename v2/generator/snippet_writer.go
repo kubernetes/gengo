@@ -152,3 +152,16 @@ func (s *SnippetWriter) Out() io.Writer {
 func (s *SnippetWriter) Error() error {
 	return s.err
 }
+
+// Dup creates an exact duplicate SnippetWriter with a different io.Writer.
+func (s *SnippetWriter) Dup(w io.Writer) *SnippetWriter {
+	ret := *s
+	ret.w = w
+	return &ret
+}
+
+// Append adds the contents of the io.Reader to this SnippetWriter's buffer.
+func (s *SnippetWriter) Append(r io.Reader) error {
+	_, err := io.Copy(s.w, r)
+	return err
+}

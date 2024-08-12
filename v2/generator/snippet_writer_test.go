@@ -69,3 +69,54 @@ func TestSnippetWriter(t *testing.T) {
 		}
 	}
 }
+
+func TestArgsWith(t *testing.T) {
+	orig := generator.Args{
+		"a": "aaa",
+		"b": "bbb",
+	}
+
+	withC := orig.With("c", "ccc")
+	if len(orig) != 2 {
+		t.Errorf("unexpected change to 'orig': %v", orig)
+	}
+	if len(withC) != 3 {
+		t.Errorf("expected 'withC' to have 3 values: %v", withC)
+	}
+
+	withDE := withC.WithArgs(generator.Args{
+		"d": "ddd",
+		"e": "eee",
+	})
+	if len(orig) != 2 {
+		t.Errorf("unexpected change to 'orig': %v", orig)
+	}
+	if len(withC) != 3 {
+		t.Errorf("unexpected change to 'withC': %v", orig)
+	}
+	if len(withDE) != 5 {
+		t.Errorf("expected 'withDE' to have 5 values: %v", withC)
+	}
+
+	withNewA := orig.With("a", "AAA")
+	if orig["a"] != "aaa" {
+		t.Errorf("unexpected change to 'orig': %v", orig)
+	}
+	if withNewA["a"] != "AAA" {
+		t.Errorf("expected 'withNewA[\"a\"]' to be \"AAA\": %v", withNewA)
+	}
+
+	withNewAB := orig.WithArgs(generator.Args{
+		"a": "AAA",
+		"b": "BBB",
+	})
+	if orig["a"] != "aaa" || orig["b"] != "bbb" {
+		t.Errorf("unexpected change to 'orig': %v", orig)
+	}
+	if withNewAB["a"] != "AAA" {
+		t.Errorf("expected 'withNewAB[\"a\"]' to be \"AAA\": %v", withNewAB)
+	}
+	if withNewAB["b"] != "BBB" {
+		t.Errorf("expected 'withNewAB[\"b\"]' to be \"BBB\": %v", withNewAB)
+	}
+}

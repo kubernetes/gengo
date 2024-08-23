@@ -6,6 +6,7 @@ test:
 	go test -race ./...
 	go -C v2 test -race ./...
 	(cd v2 && ./hack/verify-examples.sh)
+	(cd ./examples/defaulter-gen/_output_tests && go test -v -race ./...)
 
 # We verify for the maximum version of the go directive as 1.20
 # here because the oldest go directive that exists on our supported

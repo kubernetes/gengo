@@ -24,6 +24,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/go/packages"
 	"k8s.io/gengo/v2/types"
 )
@@ -1118,7 +1119,29 @@ func TestStructParse(t *testing.T) {
 				t.Fatalf("type %s not found", expected.Name.Name)
 			}
 			if e, a := expected, st; !reflect.DeepEqual(e, a) {
-				t.Errorf("wanted, got:\n%#v\n%#v", e, a)
+				t.Errorf("wanted, got:\n%#v\n%#v\n%s", e, a, cmp.Diff(e, a))
+			}
+		})
+	}
+}
+
+func TestGoNameToName(t *testing.T) {
+	testCases := []struct {
+		input  string
+		expect types.Name
+	}{
+		{input: "foo", expect: types.Name{Name: "foo"}},
+		{input: "foo.bar", expect: types.Name{Package: "foo", Name: "bar"}},
+		{input: "foo.bar.baz", expect: types.Name{Package: "foo.bar", Name: "baz"}},
+		{input: "Foo[T]", expect: types.Name{Package: "", Name: "Foo[T]"}},
+		{input: "Foo[T any]", expect: types.Name{Package: "", Name: "Foo[T any]"}},
+		{input: "pkg.Foo[T]", expect: types.Name{Package: "pkg", Name: "Foo[T]"}},
+		{input: "pkg.Foo[T any]", expect: types.Name{Package: "pkg", Name: "Foo[T any]"}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			if got, want := goNameToName(tc.input), tc.expect; !reflect.DeepEqual(got, want) {
+				t.Errorf("\nwant: %#v\ngot:  %#v", want, got)
 			}
 		})
 	}

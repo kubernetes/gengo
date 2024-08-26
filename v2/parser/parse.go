@@ -752,7 +752,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 			}
 			out.Kind = types.Alias
 			out.Underlying = p.walkType(u, nil, t.Underlying())
-		case *gotypes.Struct:
+		case *gotypes.Struct, *gotypes.Interface:
 			name := goNameToName(t.String())
 			tpMap := map[string]*types.Type{}
 			if t.TypeParams().Len() != 0 {

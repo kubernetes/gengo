@@ -894,6 +894,62 @@ func TestStructParse(t *testing.T) {
 			},
 		},
 		{
+			description: "generic on field",
+			testFile:    "./testdata/generic-field",
+			expected: func() *types.Type {
+				fieldType := &types.Type{
+					Name: types.Name{
+						Package: "k8s.io/gengo/v2/parser/testdata/generic-field",
+						Name:    "Blah[T]",
+					},
+					Kind:                      types.Struct,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "V",
+							Embedded:     false,
+							CommentLines: []string{"V is the first field."},
+							Tags:         `json:"v"`,
+							Type: &types.Type{
+								Kind: types.TypeParam,
+								Name: types.Name{
+									Name: "T",
+								},
+							},
+						},
+					},
+					TypeParams: map[string]*types.Type{
+						"T": {
+							Name: types.Name{
+								Name: "any",
+							},
+							Kind: types.Interface,
+						},
+					},
+				}
+				return &types.Type{
+					Name: types.Name{
+						Package: "k8s.io/gengo/v2/parser/testdata/generic-field",
+						Name:    "Foo",
+					},
+					Kind:                      types.Struct,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "B",
+							Embedded:     false,
+							CommentLines: []string{""},
+							Tags:         `json:"b"`,
+							Type:         fieldType,
+						},
+					},
+					TypeParams: map[string]*types.Type{},
+				}
+			},
+		},
+		{
 			description: "generic multiple",
 			testFile:    "./testdata/generic-multi",
 			expected: func() *types.Type {

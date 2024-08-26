@@ -24,6 +24,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/go/packages"
 	"k8s.io/gengo/v2/types"
 )
@@ -894,6 +895,62 @@ func TestStructParse(t *testing.T) {
 			},
 		},
 		{
+			description: "generic on field",
+			testFile:    "./testdata/generic-field",
+			expected: func() *types.Type {
+				fieldType := &types.Type{
+					Name: types.Name{
+						Package: "k8s.io/gengo/v2/parser/testdata/generic-field",
+						Name:    "Blah[T]",
+					},
+					Kind:                      types.Struct,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "V",
+							Embedded:     false,
+							CommentLines: []string{"V is the first field."},
+							Tags:         `json:"v"`,
+							Type: &types.Type{
+								Kind: types.TypeParam,
+								Name: types.Name{
+									Name: "T",
+								},
+							},
+						},
+					},
+					TypeParams: map[string]*types.Type{
+						"T": {
+							Name: types.Name{
+								Name: "any",
+							},
+							Kind: types.Interface,
+						},
+					},
+				}
+				return &types.Type{
+					Name: types.Name{
+						Package: "k8s.io/gengo/v2/parser/testdata/generic-field",
+						Name:    "Foo",
+					},
+					Kind:                      types.Struct,
+					CommentLines:              []string{""},
+					SecondClosestCommentLines: []string{""},
+					Members: []types.Member{
+						{
+							Name:         "B",
+							Embedded:     false,
+							CommentLines: []string{""},
+							Tags:         `json:"b"`,
+							Type:         fieldType,
+						},
+					},
+					TypeParams: map[string]*types.Type{},
+				}
+			},
+		},
+		{
 			description: "generic multiple",
 			testFile:    "./testdata/generic-multi",
 			expected: func() *types.Type {
@@ -973,12 +1030,20 @@ func TestStructParse(t *testing.T) {
 				recursiveT := &types.Type{
 					Name: types.Name{
 						Package: "k8s.io/gengo/v2/parser/testdata/generic-recursive",
-						Name:    "DeepCopyable",
+						Name:    "DeepCopyable[T]",
 					},
 					Kind:                      types.Interface,
 					CommentLines:              []string{""},
 					SecondClosestCommentLines: []string{""},
 					Methods:                   map[string]*types.Type{},
+					TypeParams: map[string]*types.Type{
+						"T": {
+							Name: types.Name{
+								Name: "any",
+							},
+							Kind: types.Interface,
+						},
+					},
 				}
 				recursiveT.Methods["DeepCopy"] = &types.Type{
 					Name: types.Name{
@@ -1054,7 +1119,29 @@ func TestStructParse(t *testing.T) {
 				t.Fatalf("type %s not found", expected.Name.Name)
 			}
 			if e, a := expected, st; !reflect.DeepEqual(e, a) {
-				t.Errorf("wanted, got:\n%#v\n%#v", e, a)
+				t.Errorf("wanted, got:\n%#v\n%#v\n%s", e, a, cmp.Diff(e, a))
+			}
+		})
+	}
+}
+
+func TestGoNameToName(t *testing.T) {
+	testCases := []struct {
+		input  string
+		expect types.Name
+	}{
+		{input: "foo", expect: types.Name{Name: "foo"}},
+		{input: "foo.bar", expect: types.Name{Package: "foo", Name: "bar"}},
+		{input: "foo.bar.baz", expect: types.Name{Package: "foo.bar", Name: "baz"}},
+		{input: "Foo[T]", expect: types.Name{Package: "", Name: "Foo[T]"}},
+		{input: "Foo[T any]", expect: types.Name{Package: "", Name: "Foo[T any]"}},
+		{input: "pkg.Foo[T]", expect: types.Name{Package: "pkg", Name: "Foo[T]"}},
+		{input: "pkg.Foo[T any]", expect: types.Name{Package: "pkg", Name: "Foo[T any]"}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			if got, want := goNameToName(tc.input), tc.expect; !reflect.DeepEqual(got, want) {
+				t.Errorf("\nwant: %#v\ngot:  %#v", want, got)
 			}
 		})
 	}

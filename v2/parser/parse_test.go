@@ -1029,12 +1029,20 @@ func TestStructParse(t *testing.T) {
 				recursiveT := &types.Type{
 					Name: types.Name{
 						Package: "k8s.io/gengo/v2/parser/testdata/generic-recursive",
-						Name:    "DeepCopyable",
+						Name:    "DeepCopyable[T]",
 					},
 					Kind:                      types.Interface,
 					CommentLines:              []string{""},
 					SecondClosestCommentLines: []string{""},
 					Methods:                   map[string]*types.Type{},
+					TypeParams: map[string]*types.Type{
+						"T": {
+							Name: types.Name{
+								Name: "any",
+							},
+							Kind: types.Interface,
+						},
+					},
 				}
 				recursiveT.Methods["DeepCopy"] = &types.Type{
 					Name: types.Name{

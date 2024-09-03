@@ -13,3 +13,5 @@ test:
 verify:
 	./hack/verify-examples.sh
 	./hack/verify-go-directive.sh 1.20
+	./v2/hack/verify-examples.sh
+	cd v2 && ../hack/verify-go-directive.sh 1.20

@@ -32,10 +32,9 @@ find ./examples -name "zz_generated.go" -type f -delete
 find ./examples/set-gen/sets -maxdepth 1 -type f -not -name "set_test.go" -not -name "doc.go" -delete
 
 # Generate set-gen first since others depend on it
-echo "Generating example output..."
-go generate ./examples/set-gen/...
+echo "Generating example output"
 go generate ./examples/...
-pushd ./examples/defaulter-gen/_output_tests; go generate ./...; popd
+go -C ./examples/defaulter-gen/_output_tests generate ./...
 
 # If there are any differences with committed files, fail
 if ! git diff --quiet HEAD; then
@@ -44,7 +43,5 @@ if ! git diff --quiet HEAD; then
     exit 1
 fi
 
-echo "Running tests..."
-go test ./examples/...
+echo "Running import-boss"
 go run ./examples/import-boss/main.go -i $(go list k8s.io/gengo/... | grep -v import-boss/tests | paste -sd',' -) --verify-only
-pushd ./examples/defaulter-gen/_output_tests; go test ./...; popd

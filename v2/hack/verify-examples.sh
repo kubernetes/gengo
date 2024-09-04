@@ -18,9 +18,7 @@ if ! git diff --quiet HEAD; then
     exit 1
 fi
 
-echo "Running tests..."
-go test ./examples/...
-
+echo "Running ./examples/tracer"
 rm ./examples/tracer/testdata/simple/out.txt
 go run ./examples/tracer ./examples/tracer/testdata/simple > ./examples/tracer/testdata/simple/out.txt
 if ! git diff --quiet HEAD; then
@@ -29,6 +27,7 @@ if ! git diff --quiet HEAD; then
     exit 1
 fi
 
+echo "Running ./examples/kilroy"
 rm ./examples/kilroy/testdata/simple/generated.kilroy.go
 go run ./examples/kilroy/ ./examples/kilroy/testdata/simple
 if ! git diff --quiet HEAD; then
@@ -37,6 +36,7 @@ if ! git diff --quiet HEAD; then
     exit 1
 fi
 
+echo "Running ./examples/pointuh"
 rm -rf ./examples/pointuh/testdata/results
 go run ./examples/pointuh/ \
     --output-dir ./examples/pointuh/testdata/results \

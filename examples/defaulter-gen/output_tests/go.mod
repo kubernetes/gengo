@@ -1,5 +1,3 @@
-// Package must be named output_tests rather than _output tests to avoid
-// ambiguous import conflict with main gengo package
 module k8s.io/gengo/examples/defaulter-gen/output_tests
 
 go 1.20

@@ -9,6 +9,8 @@ type ExportedStruct struct {
 	PI *int
 	S  string
 	PS *string
+	AI AliasInt
+	AS AliasStruct
 }
 
 type privateString string
@@ -21,3 +23,11 @@ type privateStruct struct {
 	s  string
 	ps *string
 }
+
+type AliasInt = int
+
+type UnderlyingStruct struct {
+}
+type AliasStruct = UnderlyingStruct
+
+type AliasUnused = int

@@ -5,6 +5,7 @@ DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: int
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedInt
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedString
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedStruct
+DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.UnderlyingStruct
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateInt
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateString
 DBG: FilterFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateStruct
@@ -13,6 +14,7 @@ DBG: GeneratorsFunc{k8s.io/gengo/v2/examples/tracer/testdata/simple}
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedInt
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedString
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedStruct
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.UnderlyingStruct
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateInt
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateString
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Filter: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateStruct
@@ -23,6 +25,7 @@ DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.Init
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedInt
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedString
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.ExportedStruct
+DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.UnderlyingStruct
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateInt
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateString
 DBG: tracerGenerator{k8s.io/gengo/v2/examples/tracer/testdata/simple}.GenerateType: k8s.io/gengo/v2/examples/tracer/testdata/simple.privateStruct

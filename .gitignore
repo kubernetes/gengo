@@ -27,3 +27,7 @@
 *.un~
 Session.vim
 .netrwhist
+
+# Go workspace file
+go.work
+go.work.sum

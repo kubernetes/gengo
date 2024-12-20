@@ -38,10 +38,14 @@ func TestNewImportTracker(t *testing.T) {
 		{
 			name: "builtin",
 			inputTypes: []*types.Type{
+				{Name: types.Name{Package: "context"}},
 				{Name: types.Name{Package: "net/http"}},
+				{Name: types.Name{Package: "x/net/http"}},
 			},
 			expectedImports: []string{
-				`http "net/http"`,
+				`"context"`,
+				`"net/http"`,
+				`nethttp "x/net/http"`,
 			},
 		},
 		{
@@ -51,8 +55,21 @@ func TestNewImportTracker(t *testing.T) {
 				{Name: types.Name{Package: "foo/bar/pkg1"}},
 			},
 			expectedImports: []string{
-				`pkg1 "foo/bar/pkg1"`,
-				`pkg2 "foo/bar/pkg2"`,
+				`"foo/bar/pkg1"`,
+				`"foo/bar/pkg2"`,
+			},
+		},
+		{
+			name: "duplicate",
+			inputTypes: []*types.Type{
+				{Name: types.Name{Package: "foo/bar/pkg2/v1"}},
+				{Name: types.Name{Package: "foo/bar/pkg3/v1"}},
+				{Name: types.Name{Package: "foo/bar/pkg1/v1"}},
+			},
+			expectedImports: []string{
+				`pkg1v1 "foo/bar/pkg1/v1"`,
+				`"foo/bar/pkg2/v1"`,
+				`pkg3v1 "foo/bar/pkg3/v1"`,
 			},
 		},
 		{

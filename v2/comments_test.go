@@ -20,6 +20,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestExtractCommentTags(t *testing.T) {
@@ -29,6 +31,7 @@ func TestExtractCommentTags(t *testing.T) {
 		"+bar",
 		"+foo=value2",
 		"+baz=qux,zrb=true",
+		"+bip=\"value3\"",
 	}
 
 	a := ExtractCommentTags("+", commentLines)
@@ -36,9 +39,10 @@ func TestExtractCommentTags(t *testing.T) {
 		"foo": {"value1", "value2"},
 		"bar": {""},
 		"baz": {"qux,zrb=true"},
+		"bip": {`"value3"`},
 	}
 	if !reflect.DeepEqual(e, a) {
-		t.Errorf("Wanted %q, got %q", e, a)
+		t.Errorf("Wrong result:\n%v", cmp.Diff(e, a))
 	}
 }
 

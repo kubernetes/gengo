@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/tools/go/packages"
 	"k8s.io/gengo/v2/types"
 )
@@ -1118,8 +1119,14 @@ func TestStructParse(t *testing.T) {
 			if st == nil || st.Kind == types.Unknown {
 				t.Fatalf("type %s not found", expected.Name.Name)
 			}
-			if e, a := expected, st; !reflect.DeepEqual(e, a) {
-				t.Errorf("wanted, got:\n%#v\n%#v\n%s", e, a, cmp.Diff(e, a))
+			if st.GoType == nil {
+				t.Errorf("type %s did not have GoType", expected.Name.Name)
+			}
+			opts := []cmp.Option{
+				cmpopts.IgnoreTypes(types.Type{}, "GoType"),
+			}
+			if e, a := expected, st; !cmp.Equal(e, a, opts...) {
+				t.Errorf("wanted, got:\n%#v\n%#v\n%s", e, a, cmp.Diff(e, a, opts...))
 			}
 		})
 	}

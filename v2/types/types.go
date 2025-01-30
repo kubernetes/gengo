@@ -452,6 +452,10 @@ type Signature struct {
 
 // Built in types.
 var (
+	Any = &Type{
+		Name: Name{Name: "any"},
+		Kind: Interface,
+	}
 	String = &Type{
 		Name: Name{Name: "string"},
 		Kind: Builtin,
@@ -515,6 +519,7 @@ var (
 
 	builtins = &Package{
 		Types: map[string]*Type{
+			"any":     Any,
 			"bool":    Bool,
 			"string":  String,
 			"int":     Int,
@@ -538,6 +543,16 @@ var (
 		Name:    "",
 	}
 )
+
+func PointerTo(t *Type) *Type {
+	return &Type{
+		Name: Name{
+			Name: "*" + t.Name.String(),
+		},
+		Kind: Pointer,
+		Elem: t,
+	}
+}
 
 func IsInteger(t *Type) bool {
 	switch t {

@@ -1123,7 +1123,7 @@ func TestStructParse(t *testing.T) {
 				t.Errorf("type %s did not have GoType", expected.Name.Name)
 			}
 			opts := []cmp.Option{
-				cmpopts.IgnoreTypes(types.Type{}, "GoType"),
+				cmpopts.IgnoreFields(types.Type{}, "GoType"),
 			}
 			if e, a := expected, st; !cmp.Equal(e, a, opts...) {
 				t.Errorf("wanted, got:\n%#v\n%#v\n%s", e, a, cmp.Diff(e, a, opts...))

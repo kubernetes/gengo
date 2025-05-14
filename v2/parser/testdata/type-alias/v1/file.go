@@ -10,3 +10,6 @@ type Blah struct {
 	// Multiline comments work.
 	B string `json:"b"`
 }
+
+// This is an alias within the same package.
+type LocalBlahAlias = Blah

@@ -517,12 +517,12 @@ func (p *Parser) addPkgToUniverse(pkg *packages.Package, u *types.Universe) erro
 	// Add all of this package's imports.
 	importedPkgs := []string{}
 	// Iterate imports in a predictable order
-	for _, imp := range slices.Sorted(maps.Keys(pkg.Imports)) {
-		pkg := pkg.Imports[imp]
-		if err := p.addPkgToUniverse(pkg, u); err != nil {
+	for _, key := range slices.Sorted(maps.Keys(pkg.Imports)) {
+		imp := pkg.Imports[key]
+		if err := p.addPkgToUniverse(imp, u); err != nil {
 			return err
 		}
-		importedPkgs = append(importedPkgs, pkg.PkgPath)
+		importedPkgs = append(importedPkgs, imp.PkgPath)
 	}
 	sort.Strings(importedPkgs)
 	u.AddImports(pkg.PkgPath, importedPkgs...)

@@ -18,9 +18,10 @@ package gengo
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
-	"unicode"
+	"text/scanner"
 )
 
 // ExtractCommentTags parses comments for lines of the form:
@@ -265,26 +266,52 @@ func parseTagKey(input string, tagNames []string) (string, []string, error) {
 // single token may consist only of letters and digits.  Whitespace is not
 // allowed.
 func parseTagArgs(input string) ([]string, error) {
-	// This is really dumb, but should be extendable to a "real" parser if
-	// needed.
-	runes := []rune(input)
-	for i, r := range runes {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			continue
+	s := initArgScanner(input)
+	var args []string
+	if s.Peek() != ')' {
+		var err error
+		arg, err := parseArg(s)
+		if err != nil {
+			return nil, err
 		}
-		if r == ',' {
-			return nil, fmt.Errorf("multiple arguments are not supported: %q", input)
-		}
-		if r == ')' {
-			if i != len(runes)-1 {
-				return nil, fmt.Errorf("unexpected characters after ')': %q", string(runes[i:]))
-			}
-			if i == 0 {
-				return nil, nil
-			}
-			return []string{string(runes[:i])}, nil
-		}
-		return nil, fmt.Errorf("unsupported character: %q", string(r))
+		args = append(args, arg)
 	}
-	return nil, fmt.Errorf("no closing ')' found: %q", input)
+	if s.Scan() != ')' {
+		return nil, s.unexpectedTokenError("')'", s.TokenText())
+	}
+	if s.Pos().Offset != len(input) {
+		return nil, s.unexpectedTokenError("end of tag", input[s.Pos().Offset:])
+	}
+	return args, nil
+}
+
+func parseArg(s *argScanner) (string, error) {
+	switch s.Scan() {
+	case scanner.String, scanner.RawString, scanner.Ident:
+		return s.TokenText(), nil
+	default:
+		return "", s.unexpectedTokenError("identifier, quoted string (\"...\") or raw string (`...`)", s.TokenText())
+	}
+}
+
+type argScanner struct {
+	*scanner.Scanner
+	errs []error
+}
+
+func initArgScanner(input string) *argScanner {
+	s := argScanner{Scanner: &scanner.Scanner{}}
+	s.Mode = scanner.ScanIdents | scanner.ScanStrings | scanner.ScanRawStrings
+	s.Whitespace = 0 // disable whitespace scanning
+	s.Init(strings.NewReader(input))
+
+	s.Error = func(scanner *scanner.Scanner, msg string) {
+		s.errs = append(s.errs, fmt.Errorf("error parsing '%s' at %v: %s", input, scanner.Position, msg))
+	}
+	return &s
+}
+
+func (s *argScanner) unexpectedTokenError(expected string, token string) error {
+	s.Error(s.Scanner, fmt.Sprintf("expected %s but got (%q)", expected, token))
+	return errors.Join(s.errs...)
 }

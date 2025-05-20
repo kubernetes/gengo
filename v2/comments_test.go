@@ -244,8 +244,8 @@ func TestParseTagKey(t *testing.T) {
 		{"withArgs(arg1, arg2)", "", nil, true},
 		{"trailingParen(arg))", "", nil, true},
 		{"trailingSpace(arg) ", "", nil, true},
-		{"argWithDash(arg-name) ", "", nil, true},
-		{"argWithUnder(arg_name) ", "", nil, true},
+		{"argWithDash(arg-name)", "", nil, true},
+		{"argWithUnder(arg_name)", "argWithUnder", mkss("arg_name"), false},
 	}
 	for _, tc := range cases {
 		key, args, err := parseTagKey(tc.input, nil)
@@ -323,10 +323,11 @@ func TestParseTagArgs(t *testing.T) {
 		{"CAPITAL)", mkss("CAPITAL"), false},
 		{"MiXeD)", mkss("MiXeD"), false},
 		{"mIxEd)", mkss("mIxEd"), false},
-		{"_under)", nil, true},
-		{"has space", nil, true},
-		{"has-dash", nil, true},
-		{`"hasQuotes"`, nil, true},
+		{"_under)", mkss("_under"), false},
+		{"has space)", nil, true},
+		{"has-dash)", nil, true},
+		{`"hasQuotes")`, mkss("\"hasQuotes\""), false},
+		{"`hasRawQuotes`)", mkss("`hasRawQuotes`"), false},
 		{"multiple, args)", nil, true},
 		{"noClosingParen", nil, true},
 		{"extraParen))", nil, true},

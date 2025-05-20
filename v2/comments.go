@@ -18,11 +18,12 @@ package gengo
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"text/scanner"
-	"unicode"
 )
 
 // ExtractCommentTags parses comments for lines of the form:
@@ -107,9 +108,11 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //   - 'marker' + "key()=value"
 //   - 'marker' + "key(arg)=value"
 //   - 'marker' + "key(`raw string`)=value"
+//   - 'marker' + "key({"k1": "value1"})=value"
 //
-// The arg is optional.  It may be a Go identifier or a raw string literal
-// enclosed in back-ticks.  If not specified (either as "key=value" or as
+// The arg is optional.  It may be a Go identifier, a raw string literal
+// enclosed in back-ticks, or an object or array represented with a subset of
+// JSON syntax. If not specified (either as "key=value" or as
 // "key()=value"), the resulting Tag will have an empty Args list.
 //
 // The value is optional.  If not specified, the resulting Tag will have "" as
@@ -126,11 +129,12 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 // Example: if you pass "+" as the marker, and the following lines are in
 // the comments:
 //
-//	+foo=val1  // foo
-//	+bar
-//	+foo=val2  // also foo
-//	+baz="qux"
-//	+foo(arg)  // still foo
+//		+foo=val1  // foo
+//		+bar
+//		+foo=val2  // also foo
+//		+baz="qux"
+//		+foo(arg)  // still foo
+//	 +buzz({"a": 1, "b": "x"})
 //
 // Then this function will return:
 //
@@ -155,38 +159,46 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //				Name: "baz",
 //				Args: nil,
 //				Value: "\"qux\""
+//			}, {
+//				Name: "buzz",
+//				Args: []string{"{\"a\": 1, \"b\": \"x\"}"},
+//				Value: ""
 //		}}
 //
 // This function should be preferred instead of ExtractCommentTags.
 func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []string) (map[string][]Tag, error) {
+	// TODO: Both the strings of nested tags and the value of tags might contain //
+	//       resulting in a unsound removal of a trailing comment.
+	//       This should be fixed by using a grammar to parse the entire tag.
 	stripTrailingComment := func(in string) string {
-		parts := strings.SplitN(in, "//", 2)
-		return strings.TrimSpace(parts[0])
+		idx := strings.LastIndex(in, "//")
+		if idx == -1 {
+			return in
+		}
+		return strings.TrimSpace(in[:idx])
 	}
 
 	out := map[string][]Tag{}
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if len(line) == 0 {
-			continue
-		}
 		if !strings.HasPrefix(line, marker) {
 			continue
 		}
-		body := stripTrailingComment(line[len(marker):])
-		key, val, err := splitKeyValScanner(body)
+		line = line[len(marker):]
+		s := initTagKeyScanner(line)
+
+		name, args, err := s.parseTagKey(tagNames)
 		if err != nil {
 			return nil, err
 		}
-
-		tag := Tag{}
-		if name, args, err := parseTagKey(key, tagNames); err != nil {
-			return nil, err
-		} else if name != "" {
-			tag.Name, tag.Args = name, args
-			tag.Value = val
-			out[tag.Name] = append(out[tag.Name], tag)
+		if name == "" {
+			continue
 		}
+		tag := Tag{Name: name, Args: args}
+		if s.Scan() == '=' {
+			tag.Value = stripTrailingComment(line[s.Offset+1:])
+		}
+		out[tag.Name] = append(out[tag.Name], tag)
 	}
 	return out, nil
 }
@@ -229,132 +241,206 @@ func (t Tag) String() string {
 //
 // This function returns the key name and arguments, unless tagNames was
 // specified and the input did not match, in which case it returns "".
-func parseTagKey(input string, tagNames []string) (string, []string, error) {
-	parts := strings.SplitN(input, "(", 2)
-	key := parts[0]
-
-	if len(tagNames) > 0 {
-		found := false
-		for _, tn := range tagNames {
-			if key == tn {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return "", nil, nil
-		}
+func (s *tagKeyScanner) parseTagKey(tagNames []string) (string, []string, error) {
+	if s.Scan() != scanner.Ident {
+		return "", nil, fmt.Errorf("expected identifier but got %q", s.TokenText())
 	}
-
-	var args []string
-	if len(parts) == 2 {
-		if ret, err := parseTagArgs(parts[1]); err != nil {
-			return key, nil, fmt.Errorf("failed to parse tag args: %v", err)
-		} else {
-			args = ret
-		}
+	tagName := s.TokenText()
+	if len(tagNames) > 0 && !slices.Contains(tagNames, tagName) {
+		return "", nil, nil
 	}
-	return key, args, nil
+	if s.Peek() != '(' {
+		return tagName, nil, nil
+	}
+	s.Scan() // consume the '(' token
+	args, err := s.parseTagArgs()
+	if err != nil {
+		return "", nil, err
+	}
+	if s.Scan() != ')' {
+		return "", nil, s.unexpectedTokenError("')'", s.TokenText())
+	}
+	return tagName, args, nil
 }
 
 // parseTagArgs parses the arguments part of an extended comment tag. The input
 // is assumed to be the entire text of the original input after the opening
-// '(', including the trailing ')'.
+// '(', and before the trailing ')'.
 //
-// At the moment this assumes that the entire string between the opening '('
-// and the trailing ')' is a single Go-style identifier token OR a raw string
-// literal. The single Go-style token may consist only of letters and digits
-// and whitespace is not allowed.
-func parseTagArgs(input string) ([]string, error) {
-	s := initArgScanner(input)
-	var args []string
-	if s.Peek() != ')' {
-		// Arg found.
-		arg, err := parseArg(s)
+// The argument may be a go style identifier, a quoted string ("..."), or a raw string (`...`).
+func (s *tagKeyScanner) parseTagArgs() ([]string, error) {
+	if s.Peek() == ')' {
+		return nil, nil
+	}
+	if s.Peek() == '{' || s.Peek() == '[' {
+		value, err := s.scanJSONFlavoredValue()
 		if err != nil {
 			return nil, err
 		}
-		args = append(args, arg)
+		return []string{value}, nil
 	}
-	// Expect one closing ')' after the arg.
-	if s.Scan() != ')' {
-		return nil, fmt.Errorf("no closing ')' found: %q", input)
+	switch s.Scan() {
+	case scanner.String, scanner.RawString, scanner.Ident:
+		return []string{s.TokenText()}, nil
+	default:
+		return nil, s.unexpectedTokenError("identifier, quoted string (\"...\") or raw string (`...`)", s.TokenText())
 	}
-	// Expect no whitespace, etc. after the one ')'.
-	if s.Scan() != scanner.EOF {
-		pos := s.Pos().Offset - len(s.TokenText())
-		return nil, fmt.Errorf("unexpected characters after ')': %q", input[pos:])
-	}
-	return args, nil
 }
 
-type argScanner struct {
+// scanJSONFlavoredValue consumes a single token as a JSON value from the scanner and returns the token text.
+// A strict subset of JSON is supported, in particular:
+// - Big numbers and numbers with exponents are not supported.
+func (s *tagKeyScanner) scanJSONFlavoredValue() (string, error) {
+	start, end, err := s.chompJSONFlavoredValue()
+	if err != nil {
+		return "", err
+	}
+	value := s.input[start:end]
+	var out any
+	err = json.Unmarshal([]byte(value), &out) // make sure the JSON parses
+	if err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
+// chompJSONFlavoredValue consumes valid JSON from the scanner's token stream and returns the start and end positions of the JSON.
+func (s *tagKeyScanner) chompJSONFlavoredValue() (int, int, error) {
+	switch s.Peek() {
+	case '[':
+		return s.chompJSONFlavoredArray()
+	case '{':
+		return s.chompJSONFlavoredObject()
+	}
+
+	t := s.Scan()
+	startPos := s.Offset
+	switch t {
+	case '-', '+':
+		t := s.Scan()
+		if !(t == scanner.Int || t == scanner.Float) {
+			return 0, 0, s.unexpectedTokenError("number", s.TokenText())
+		}
+		return startPos, s.Offset + len(s.TokenText()), nil
+	case scanner.String, scanner.Int, scanner.Float:
+		return startPos, s.Offset + len(s.TokenText()), nil
+	case scanner.Ident:
+		text := s.TokenText()
+		if text == "true" || text == "false" || text == "null" {
+			return startPos, s.Offset + len(s.TokenText()), nil
+		}
+	}
+	return 0, 0, s.unexpectedTokenError("JSON value", s.TokenText())
+}
+
+func (s *tagKeyScanner) chompJSONFlavoredObject() (int, int, error) {
+	if s.Scan() != '{' {
+		return 0, 0, s.unexpectedTokenError("JSON array", s.TokenText())
+	}
+	startPos := s.Offset
+	if s.Peek() == '}' {
+		s.Scan() // consume }
+		return startPos, s.Offset + 1, nil
+	}
+	_, _, err := s.chompJSONFlavoredObjectEntries()
+	if err != nil {
+		return 0, 0, err
+	}
+	if s.Scan() != '}' {
+		return 0, 0, s.unexpectedTokenError("}", s.TokenText())
+	}
+	return startPos, s.Offset + 1, nil
+}
+
+func (s *tagKeyScanner) chompJSONFlavoredObjectEntries() (int, int, error) {
+	keyStart, _, err := s.chompJSONFlavoredValue()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if s.Scan() != ':' {
+		return 0, 0, s.unexpectedTokenError(":", s.TokenText())
+	}
+
+	_, valueEnd, err := s.chompJSONFlavoredValue()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	switch s.Peek() {
+	case ',':
+		s.Scan() // Consume ,
+		_, entriesEnd, err := s.chompJSONFlavoredObjectEntries()
+		if err != nil {
+			return 0, 0, err
+		}
+		return keyStart, entriesEnd, nil
+	case '}':
+		return keyStart, valueEnd, nil
+	default:
+		return 0, 0, s.unexpectedTokenError(", or ]", s.TokenText())
+	}
+}
+
+func (s *tagKeyScanner) chompJSONFlavoredArray() (int, int, error) {
+	if s.Scan() != '[' {
+		return 0, 0, s.unexpectedTokenError("JSON array", s.TokenText())
+	}
+	startPos := s.Offset
+	if s.Peek() == ']' {
+		s.Scan() // consume ]
+		return startPos, s.Offset + 1, nil
+	}
+	_, _, err := s.chompJSONFlavoredArrayItems()
+	if err != nil {
+		return 0, 0, err
+	}
+	if s.Scan() != ']' {
+		return 0, 0, s.unexpectedTokenError("]", s.TokenText())
+	}
+	return startPos, s.Offset + 1, nil
+}
+
+func (s *tagKeyScanner) chompJSONFlavoredArrayItems() (int, int, error) {
+	valueStart, valueEnd, err := s.chompJSONFlavoredValue()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	switch s.Peek() {
+	case ',':
+		s.Scan() // Consume ,
+		_, itemsEnd, err := s.chompJSONFlavoredArrayItems()
+		if err != nil {
+			return 0, 0, err
+		}
+		return valueStart, itemsEnd, nil
+	case ']':
+		return valueStart, valueEnd, nil
+	default:
+		return 0, 0, s.unexpectedTokenError(", or ]", s.TokenText())
+	}
+}
+
+type tagKeyScanner struct {
+	input string
 	*scanner.Scanner
 	errs []error
 }
 
-func initArgScanner(input string) *argScanner {
-	s := &argScanner{Scanner: &scanner.Scanner{}}
-
+func initTagKeyScanner(input string) *tagKeyScanner {
+	s := tagKeyScanner{input: input, Scanner: &scanner.Scanner{}}
+	s.Mode = scanner.ScanIdents | scanner.ScanStrings | scanner.ScanRawStrings | scanner.ScanInts | scanner.ScanFloats
+	s.Whitespace = 0 // disable whitespace scanning
 	s.Init(strings.NewReader(input))
-	s.Mode = scanner.ScanIdents | scanner.ScanRawStrings
-	s.Whitespace = 0
 
-	s.Error = func(_ *scanner.Scanner, msg string) {
-		s.errs = append(s.errs,
-			fmt.Errorf("error parsing %q at %v: %s", input, s.Position, msg))
+	s.Error = func(scanner *scanner.Scanner, msg string) {
+		s.errs = append(s.errs, fmt.Errorf("error parsing '%s' at %v: %s", input, scanner.Position, msg))
 	}
-	return s
+	return &s
 }
 
-func (s *argScanner) unexpectedTokenError(expected string, token string) error {
+func (s *tagKeyScanner) unexpectedTokenError(expected string, token string) error {
 	s.Error(s.Scanner, fmt.Sprintf("expected %s but got (%q)", expected, token))
 	return errors.Join(s.errs...)
-}
-
-func parseArg(s *argScanner) (string, error) {
-	switch tok := s.Scan(); tok {
-	case scanner.RawString:
-		return s.TokenText(), nil
-	case scanner.Ident:
-		txt := s.TokenText()
-		for _, r := range txt {
-			if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
-				return "", s.unexpectedTokenError("letter or digit", txt)
-			}
-		}
-		return txt, nil
-	case ',':
-		return "", fmt.Errorf("multiple arguments are not supported")
-	default:
-		return "", s.unexpectedTokenError("Go-style identifier or raw string", s.TokenText())
-	}
-}
-
-// splitKeyValScanner parses a tag body of the form key[=val]. It parses left to
-// right and stops at the first "=" that is not inside a quoted or raw
-// string literal. Text before that point becomes the key (trimmed of spaces).
-// Text after becomes the val. If no "=" is found, the whole input
-// is returned as key and val is empty. The parsing understands Go-style identifiers,
-// and raw strings. Any other token or scanner error is
-// reported to the caller.
-func splitKeyValScanner(input string) (key, val string, err error) {
-	var s scanner.Scanner
-	s.Init(strings.NewReader(input))
-	s.Mode = scanner.ScanIdents | scanner.ScanRawStrings
-	for {
-		switch tok := s.Scan(); tok {
-		case scanner.EOF:
-			return strings.TrimSpace(input), "", nil
-		case '=':
-			// Split at the first top-level '='.  Everything before (trimmed) is the
-			// key, everything after (not trimmed) is the value.
-			start := s.Pos().Offset - len(s.TokenText())
-			key = strings.TrimSpace(input[:start])
-			if start+len(s.TokenText()) < len(input) {
-				val = input[start+len(s.TokenText()):]
-			}
-			return key, val, nil
-		}
-	}
 }

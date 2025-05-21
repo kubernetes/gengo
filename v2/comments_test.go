@@ -217,6 +217,31 @@ func TestExtractExtendedCommentTags(t *testing.T) {
 				Tag{"pfx2Foo", nil, "val1"},
 				Tag{"pfx2Foo", mkstrs("arg"), "val2"}),
 		},
+	}, {
+		name: "raw arg with =, ), and space",
+		comments: []string{
+			"+rawEq(`a=b c=d )`)=xyz",
+		},
+		expect: map[string][]Tag{
+			"rawEq": mktags(Tag{"rawEq", mkstrs("`a=b c=d )`"), "xyz"}),
+		},
+	}, {
+		name: "raw arg no value",
+		comments: []string{
+			"+onlyRaw(`zzz`)",
+		},
+		expect: map[string][]Tag{
+			"onlyRaw": mktags(Tag{"onlyRaw", mkstrs("`zzz`"), ""}),
+		},
+	}, {
+		name: "raw string arg complex",
+		comments: []string{
+			"+rawTag(`[self.foo==10, ()), {}}, \"foo\", 'foo']`)=val",
+		},
+		expect: map[string][]Tag{
+			"rawTag": mktags(
+				Tag{"rawTag", mkstrs("`[self.foo==10, ()), {}}, \"foo\", 'foo']`"), "val"}),
+		},
 	}}
 
 	for _, tc := range cases {
@@ -246,6 +271,9 @@ func TestParseTagKey(t *testing.T) {
 		{"trailingSpace(arg) ", "", nil, true},
 		{"argWithDash(arg-name) ", "", nil, true},
 		{"argWithUnder(arg_name) ", "", nil, true},
+		{"withRaw(`a = b`)", "withRaw", mkss("`a = b`"), false},
+		{"badRaw(missing`)", "", nil, true},
+		{"badMix(arg,`raw`)", "", nil, true},
 	}
 	for _, tc := range cases {
 		key, args, err := parseTagKey(tc.input, nil)
@@ -331,6 +359,11 @@ func TestParseTagArgs(t *testing.T) {
 		{"noClosingParen", nil, true},
 		{"extraParen))", nil, true},
 		{"trailingSpace) ", nil, true},
+		{"`hasRawQuotes`)", mkss("`hasRawQuotes`"), false},
+		{"`raw with =`)", mkss("`raw with =`"), false},
+		{"`raw`   )", nil, true},
+		{"`raw`bad)", nil, true},
+		{"`first``second`)", nil, true},
 	}
 	for _, tc := range cases {
 		ret, err := parseTagArgs(tc.input)
@@ -352,6 +385,30 @@ func TestParseTagArgs(t *testing.T) {
 					t.Errorf("[%q]\nexpected %q, got %q", tc.input, want, got)
 				}
 			}
+		}
+	}
+}
+
+func TestSplitKeyValScanner(t *testing.T) {
+	cases := []struct {
+		input string
+		key   string
+		val   string
+	}{
+		{`foo=bar`, "foo", "bar"},
+		{`foo   =   bar`, "foo", "   bar"},
+		{`keyWithRaw(` + "`a=b`" + `)=value`, "keyWithRaw(`a=b`)", "value"},
+		{`noValue`, "noValue", ""},
+		{`rawKey=` + "`x=y`", "rawKey", "`x=y`"},
+	}
+
+	for _, c := range cases {
+		k, v, err := splitKeyValScanner(c.input)
+		if err != nil {
+			t.Fatalf("[%q] unexpected err: %v", c.input, err)
+		}
+		if k != c.key || v != c.val {
+			t.Errorf("[%q] got (%q,%q) want (%q,%q)", c.input, k, v, c.key, c.val)
 		}
 	}
 }

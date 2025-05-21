@@ -18,8 +18,10 @@ package gengo
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
+	"text/scanner"
 	"unicode"
 )
 
@@ -104,8 +106,10 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //   - 'marker' + "key=value"
 //   - 'marker' + "key()=value"
 //   - 'marker' + "key(arg)=value"
+//   - 'marker' + "key(`raw string`)=value"
 //
-// The arg is optional.  If not specified (either as "key=value" or as
+// The arg is optional.  It may be a Go identifier or a raw string literal
+// enclosed in back-ticks.  If not specified (either as "key=value" or as
 // "key()=value"), the resulting Tag will have an empty Args list.
 //
 // The value is optional.  If not specified, the resulting Tag will have "" as
@@ -169,12 +173,10 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 		if !strings.HasPrefix(line, marker) {
 			continue
 		}
-		line = stripTrailingComment(line)
-		kv := strings.SplitN(line[len(marker):], "=", 2)
-		key := kv[0]
-		val := ""
-		if len(kv) == 2 {
-			val = kv[1]
+		body := stripTrailingComment(line[len(marker):])
+		key, val, err := splitKeyValScanner(body)
+		if err != nil {
+			return nil, err
 		}
 
 		tag := Tag{}
@@ -260,31 +262,99 @@ func parseTagKey(input string, tagNames []string) (string, []string, error) {
 // '(', including the trailing ')'.
 //
 // At the moment this assumes that the entire string between the opening '('
-// and the trailing ')' is a single Go-style identifier token, but in the
-// future could be extended to have multiple arguments with actual syntax.  The
-// single token may consist only of letters and digits.  Whitespace is not
-// allowed.
+// and the trailing ')' is a single Go-style identifier token OR a raw string
+// literal. The single Go-style token may consist only of letters and digits
+// and whitespace is not allowed.
 func parseTagArgs(input string) ([]string, error) {
-	// This is really dumb, but should be extendable to a "real" parser if
-	// needed.
-	runes := []rune(input)
-	for i, r := range runes {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			continue
+	s := initArgScanner(input)
+	var args []string
+	if s.Peek() != ')' {
+		// Arg found.
+		arg, err := parseArg(s)
+		if err != nil {
+			return nil, err
 		}
-		if r == ',' {
-			return nil, fmt.Errorf("multiple arguments are not supported: %q", input)
-		}
-		if r == ')' {
-			if i != len(runes)-1 {
-				return nil, fmt.Errorf("unexpected characters after ')': %q", string(runes[i:]))
-			}
-			if i == 0 {
-				return nil, nil
-			}
-			return []string{string(runes[:i])}, nil
-		}
-		return nil, fmt.Errorf("unsupported character: %q", string(r))
+		args = append(args, arg)
 	}
-	return nil, fmt.Errorf("no closing ')' found: %q", input)
+	// Expect one closing ')' after the arg.
+	if s.Scan() != ')' {
+		return nil, fmt.Errorf("no closing ')' found: %q", input)
+	}
+	// Expect no whitespace, etc. after the one ')'.
+	if s.Scan() != scanner.EOF {
+		pos := s.Pos().Offset - len(s.TokenText())
+		return nil, fmt.Errorf("unexpected characters after ')': %q", input[pos:])
+	}
+	return args, nil
+}
+
+type argScanner struct {
+	*scanner.Scanner
+	errs []error
+}
+
+func initArgScanner(input string) *argScanner {
+	s := &argScanner{Scanner: &scanner.Scanner{}}
+
+	s.Init(strings.NewReader(input))
+	s.Mode = scanner.ScanIdents | scanner.ScanRawStrings
+	s.Whitespace = 0
+
+	s.Error = func(_ *scanner.Scanner, msg string) {
+		s.errs = append(s.errs,
+			fmt.Errorf("error parsing %q at %v: %s", input, s.Position, msg))
+	}
+	return s
+}
+
+func (s *argScanner) unexpectedTokenError(expected string, token string) error {
+	s.Error(s.Scanner, fmt.Sprintf("expected %s but got (%q)", expected, token))
+	return errors.Join(s.errs...)
+}
+
+func parseArg(s *argScanner) (string, error) {
+	switch tok := s.Scan(); tok {
+	case scanner.RawString:
+		return s.TokenText(), nil
+	case scanner.Ident:
+		txt := s.TokenText()
+		for _, r := range txt {
+			if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+				return "", s.unexpectedTokenError("letter or digit", txt)
+			}
+		}
+		return txt, nil
+	case ',':
+		return "", fmt.Errorf("multiple arguments are not supported")
+	default:
+		return "", s.unexpectedTokenError("Go-style identifier or raw string", s.TokenText())
+	}
+}
+
+// splitKeyValScanner parses a tag body of the form key[=val]. It parses left to
+// right and stops at the first "=" that is not inside a quoted or raw
+// string literal. Text before that point becomes the key (trimmed of spaces).
+// Text after becomes the val. If no "=" is found, the whole input
+// is returned as key and val is empty. The parsing understands Go-style identifiers,
+// and raw strings. Any other token or scanner error is
+// reported to the caller.
+func splitKeyValScanner(input string) (key, val string, err error) {
+	var s scanner.Scanner
+	s.Init(strings.NewReader(input))
+	s.Mode = scanner.ScanIdents | scanner.ScanRawStrings
+	for {
+		switch tok := s.Scan(); tok {
+		case scanner.EOF:
+			return strings.TrimSpace(input), "", nil
+		case '=':
+			// Split at the first top-level '='.  Everything before (trimmed) is the
+			// key, everything after (not trimmed) is the value.
+			start := s.Pos().Offset - len(s.TokenText())
+			key = strings.TrimSpace(input[:start])
+			if start+len(s.TokenText()) < len(input) {
+				val = input[start+len(s.TokenText()):]
+			}
+			return key, val, nil
+		}
+	}
 }

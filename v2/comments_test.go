@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"text/scanner"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -372,8 +373,9 @@ func TestParseTagKeyWithTagNames(t *testing.T) {
 
 func TestParseJSON(t *testing.T) {
 	cases := []struct {
-		input string
-		err   bool
+		input      string
+		err        bool
+		incomplete bool
 	}{
 		{
 			input: `[]`,
@@ -411,6 +413,15 @@ func TestParseJSON(t *testing.T) {
 		{
 			input: "null",
 		},
+		{
+			input: `{"key":"value" }`,
+		},
+		{
+			input: `[1 ]`,
+		},
+		{
+			input: `[1 ,2]`,
+		},
 
 		// invalid
 		{
@@ -437,6 +448,9 @@ func TestParseJSON(t *testing.T) {
 			input: `UNKNOWN`,
 			err:   true,
 		},
+		{
+			input: `1.4e-10`, // parse consumes 1.4, not the full number
+		},
 	}
 
 	for _, tc := range cases {
@@ -455,6 +469,11 @@ func TestParseJSON(t *testing.T) {
 				if out != tc.input {
 					t.Errorf("expected %q got %q", tc.input, out)
 				}
+			}
+
+			gotIncomplete := s.Scan() != scanner.EOF
+			if tc.incomplete != gotIncomplete {
+				t.Errorf("Expected incomplete=%t but got %t", tc.incomplete, gotIncomplete)
 			}
 		})
 	}

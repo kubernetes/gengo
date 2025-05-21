@@ -249,7 +249,7 @@ func (s *tagKeyScanner) parseTagKey(tagNames []string) (string, []string, error)
 	if len(tagNames) > 0 && !slices.Contains(tagNames, tagName) {
 		return "", nil, nil
 	}
-	if s.Peek() != '(' {
+	if s.PeekSkipSpaces() != '(' {
 		return tagName, nil, nil
 	}
 	s.Scan() // consume the '(' token
@@ -269,10 +269,10 @@ func (s *tagKeyScanner) parseTagKey(tagNames []string) (string, []string, error)
 //
 // The argument may be a go style identifier, a quoted string ("..."), or a raw string (`...`).
 func (s *tagKeyScanner) parseTagArgs() ([]string, error) {
-	if s.Peek() == ')' {
+	if s.PeekSkipSpaces() == ')' {
 		return nil, nil
 	}
-	if s.Peek() == '{' || s.Peek() == '[' {
+	if s.PeekSkipSpaces() == '{' || s.PeekSkipSpaces() == '[' {
 		value, err := s.scanJSONFlavoredValue()
 		if err != nil {
 			return nil, err
@@ -290,6 +290,7 @@ func (s *tagKeyScanner) parseTagArgs() ([]string, error) {
 // scanJSONFlavoredValue consumes a single token as a JSON value from the scanner and returns the token text.
 // A strict subset of JSON is supported, in particular:
 // - Big numbers and numbers with exponents are not supported.
+// - JSON is expected to be in a single line. Tabs and newlines are not fully supported.
 func (s *tagKeyScanner) scanJSONFlavoredValue() (string, error) {
 	start, end, err := s.chompJSONFlavoredValue()
 	if err != nil {
@@ -306,7 +307,7 @@ func (s *tagKeyScanner) scanJSONFlavoredValue() (string, error) {
 
 // chompJSONFlavoredValue consumes valid JSON from the scanner's token stream and returns the start and end positions of the JSON.
 func (s *tagKeyScanner) chompJSONFlavoredValue() (int, int, error) {
-	switch s.Peek() {
+	switch s.PeekSkipSpaces() {
 	case '[':
 		return s.chompJSONFlavoredArray()
 	case '{':
@@ -338,7 +339,7 @@ func (s *tagKeyScanner) chompJSONFlavoredObject() (int, int, error) {
 		return 0, 0, s.unexpectedTokenError("JSON array", s.TokenText())
 	}
 	startPos := s.Offset
-	if s.Peek() == '}' {
+	if s.PeekSkipSpaces() == '}' {
 		s.Scan() // consume }
 		return startPos, s.Offset + 1, nil
 	}
@@ -367,7 +368,7 @@ func (s *tagKeyScanner) chompJSONFlavoredObjectEntries() (int, int, error) {
 		return 0, 0, err
 	}
 
-	switch s.Peek() {
+	switch s.PeekSkipSpaces() {
 	case ',':
 		s.Scan() // Consume ,
 		_, entriesEnd, err := s.chompJSONFlavoredObjectEntries()
@@ -387,7 +388,7 @@ func (s *tagKeyScanner) chompJSONFlavoredArray() (int, int, error) {
 		return 0, 0, s.unexpectedTokenError("JSON array", s.TokenText())
 	}
 	startPos := s.Offset
-	if s.Peek() == ']' {
+	if s.PeekSkipSpaces() == ']' {
 		s.Scan() // consume ]
 		return startPos, s.Offset + 1, nil
 	}
@@ -407,7 +408,7 @@ func (s *tagKeyScanner) chompJSONFlavoredArrayItems() (int, int, error) {
 		return 0, 0, err
 	}
 
-	switch s.Peek() {
+	switch s.PeekSkipSpaces() {
 	case ',':
 		s.Scan() // Consume ,
 		_, itemsEnd, err := s.chompJSONFlavoredArrayItems()
@@ -430,14 +431,22 @@ type tagKeyScanner struct {
 
 func initTagKeyScanner(input string) *tagKeyScanner {
 	s := tagKeyScanner{input: input, Scanner: &scanner.Scanner{}}
-	s.Mode = scanner.ScanIdents | scanner.ScanStrings | scanner.ScanRawStrings | scanner.ScanInts | scanner.ScanFloats
-	s.Whitespace = 0 // disable whitespace scanning
 	s.Init(strings.NewReader(input))
+	s.Mode = scanner.ScanIdents | scanner.ScanStrings | scanner.ScanRawStrings | scanner.ScanInts | scanner.ScanFloats
 
 	s.Error = func(scanner *scanner.Scanner, msg string) {
 		s.errs = append(s.errs, fmt.Errorf("error parsing '%s' at %v: %s", input, scanner.Position, msg))
 	}
 	return &s
+}
+
+func (s *tagKeyScanner) PeekSkipSpaces() rune {
+	ch := s.Peek()
+	for ch == ' ' {
+		s.Next() // Consume the ' '
+		ch = s.Peek()
+	}
+	return ch
 }
 
 func (s *tagKeyScanner) unexpectedTokenError(expected string, token string) error {

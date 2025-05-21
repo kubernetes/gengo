@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"text/scanner"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -242,6 +243,15 @@ func TestExtractExtendedCommentTags(t *testing.T) {
 			"rawTag": mktags(
 				Tag{"rawTag", mkstrs("`[self.foo==10, ()), {}}, \"foo\", 'foo']`"), "val"}),
 		},
+	}, {
+		name: "JSON object",
+		comments: []string{
+			`+rawTag({"a": 1, "b": "x"})=val`,
+		},
+		expect: map[string][]Tag{
+			"rawTag": mktags(
+				Tag{"rawTag", mkstrs(`{"a": 1, "b": "x"}`), "val"}),
+		},
 	}}
 
 	for _, tc := range cases {
@@ -266,17 +276,18 @@ func TestParseTagKey(t *testing.T) {
 		{"withArgLower(arg)", "withArgLower", mkss("arg"), false},
 		{"withArgUpper(ARG)", "withArgUpper", mkss("ARG"), false},
 		{"withArgMixed(ArG)", "withArgMixed", mkss("ArG"), false},
+		{"name({})", "name", mkss("{}"), false},
+		{`name({"a":1})`, "name", mkss(`{"a":1}`), false},
+		{"name([])", "name", mkss("[]"), false},
 		{"withArgs(arg1, arg2)", "", nil, true},
-		{"trailingParen(arg))", "", nil, true},
-		{"trailingSpace(arg) ", "", nil, true},
 		{"argWithDash(arg-name) ", "", nil, true},
-		{"argWithUnder(arg_name) ", "", nil, true},
 		{"withRaw(`a = b`)", "withRaw", mkss("`a = b`"), false},
 		{"badRaw(missing`)", "", nil, true},
 		{"badMix(arg,`raw`)", "", nil, true},
 	}
 	for _, tc := range cases {
-		key, args, err := parseTagKey(tc.input, nil)
+		s := initTagKeyScanner(tc.input)
+		key, args, err := s.parseTagKey(nil)
 		if err != nil && tc.err == false {
 			t.Errorf("[%q]: expected success, got: %v", tc.input, err)
 			continue
@@ -309,79 +320,50 @@ func TestParseTagKeyWithTagNames(t *testing.T) {
 		input      string
 		expectKey  string
 		expectArgs []string
+		err        bool
 	}{
-		{"name", "name", nil},
-		{"name()", "name", nil},
-		{"name(arg)", "name", mkss("arg")},
-		{"nameNoMatch", "", nil},
-		{"nameNoMatch()", "", nil},
-		{"nameNoMatch(arg)", "", nil},
+		{input: "name", expectKey: "name"},
+		{input: "name()", expectKey: "name"},
+		{input: "name(arg)", expectKey: "name", expectArgs: mkss("arg")},
+		{input: "nameNoMatch", expectKey: ""},
+		{input: "nameNoMatch()", expectKey: ""},
+		{input: "nameNoMatch(arg)", expectKey: ""},
+
+		{input: "name()", expectKey: "name"},
+		{input: "name(lower)", expectKey: "name", expectArgs: mkss("lower")},
+		{input: "name(CAPITAL)", expectKey: "name", expectArgs: mkss("CAPITAL")},
+		{input: "name(MiXeD)", expectKey: "name", expectArgs: mkss("MiXeD")},
+		{input: "name(mIxEd)", expectKey: "name", expectArgs: mkss("mIxEd")},
+		{input: "name(_under)", expectKey: "name", expectArgs: mkss("_under")},
+		{input: `name("hasQuotes")`, expectKey: "name", expectArgs: mkss("\"hasQuotes\"")},
+		{input: "name(`hasRawQuotes`)", expectKey: "name", expectArgs: mkss("`hasRawQuotes`")},
+		{input: "name(has space)", expectKey: "name", err: true},
+		{input: "name(has-dash)", expectKey: "name", err: true},
+		{input: "name(multiple, args)", expectKey: "name", err: true},
+		{input: "name(noClosingParen", expectKey: "name", err: true},
 	}
 	for _, tc := range cases {
-		key, args, err := parseTagKey(tc.input, []string{"name"})
-		if err != nil {
-			t.Errorf("[%q]: expected success, got: %v", tc.input, err)
-			continue
-		}
-		if key != tc.expectKey {
-			t.Errorf("[%q]\nexpected key: %q, got: %q", tc.input, tc.expectKey, key)
-		}
-		if len(args) != len(tc.expectArgs) {
-			t.Errorf("[%q]: expected %d args, got: %q", tc.input, len(tc.expectArgs), args)
-			continue
-		}
-		for i := range tc.expectArgs {
-			if want, got := tc.expectArgs[i], args[i]; got != want {
-				t.Errorf("[%q]\nexpected %q, got %q", tc.input, want, got)
-			}
-		}
-	}
-}
+		s := initTagKeyScanner(tc.input)
+		key, args, err := s.parseTagKey([]string{"name"})
 
-func TestParseTagArgs(t *testing.T) {
-	mkss := func(s ...string) []string { return s }
-
-	cases := []struct {
-		input  string
-		expect []string
-		err    bool
-	}{
-		{")", nil, false},
-		{"lower)", mkss("lower"), false},
-		{"CAPITAL)", mkss("CAPITAL"), false},
-		{"MiXeD)", mkss("MiXeD"), false},
-		{"mIxEd)", mkss("mIxEd"), false},
-		{"_under)", nil, true},
-		{"has space", nil, true},
-		{"has-dash", nil, true},
-		{`"hasQuotes"`, nil, true},
-		{"multiple, args)", nil, true},
-		{"noClosingParen", nil, true},
-		{"extraParen))", nil, true},
-		{"trailingSpace) ", nil, true},
-		{"`hasRawQuotes`)", mkss("`hasRawQuotes`"), false},
-		{"`raw with =`)", mkss("`raw with =`"), false},
-		{"`raw`   )", nil, true},
-		{"`raw`bad)", nil, true},
-		{"`first``second`)", nil, true},
-	}
-	for _, tc := range cases {
-		ret, err := parseTagArgs(tc.input)
 		if err != nil && tc.err == false {
 			t.Errorf("[%q]: expected success, got: %v", tc.input, err)
 			continue
 		}
 		if err == nil {
 			if tc.err == true {
-				t.Errorf("[%q]: expected failure, got: %q", tc.input, ret)
+				t.Errorf("[%q]: expected failure, got: %q", tc.input, key)
 				continue
 			}
-			if len(ret) != len(tc.expect) {
-				t.Errorf("[%q]: expected %d results, got: %q", tc.input, len(tc.expect), ret)
+			if key != tc.expectKey {
+				t.Errorf("[%q]\nexpected key: %q, got: %q", tc.input, tc.expectKey, key)
+			}
+			if len(args) != len(tc.expectArgs) {
+				t.Errorf("[%q]: expected %d args, got: %q", tc.input, len(tc.expectArgs), args)
 				continue
 			}
-			for i := range tc.expect {
-				if want, got := tc.expect[i], ret[i]; got != want {
+			for i := range tc.expectArgs {
+				if want, got := tc.expectArgs[i], args[i]; got != want {
 					t.Errorf("[%q]\nexpected %q, got %q", tc.input, want, got)
 				}
 			}
@@ -389,26 +371,110 @@ func TestParseTagArgs(t *testing.T) {
 	}
 }
 
-func TestSplitKeyValScanner(t *testing.T) {
+func TestParseJSON(t *testing.T) {
 	cases := []struct {
-		input string
-		key   string
-		val   string
+		input      string
+		err        bool
+		incomplete bool
 	}{
-		{`foo=bar`, "foo", "bar"},
-		{`foo   =   bar`, "foo", "   bar"},
-		{`keyWithRaw(` + "`a=b`" + `)=value`, "keyWithRaw(`a=b`)", "value"},
-		{`noValue`, "noValue", ""},
-		{`rawKey=` + "`x=y`", "rawKey", "`x=y`"},
+		{
+			input: `[]`,
+		},
+		{
+			input: `{}`,
+		},
+		{
+			input: `[1]`,
+		},
+		{
+			input: `{"a":1}`,
+		},
+		{
+			input: `[1, 2]`,
+		},
+		{
+			input: `{"a": 1, "b": 2}`,
+		},
+		{
+			input: `1.1`,
+		},
+		{
+			input: `-4`,
+		},
+		{
+			input: `true`,
+		},
+		{
+			input: `false`,
+		},
+		{
+			input: `"string"`,
+		},
+		{
+			input: "null",
+		},
+		{
+			input: `{"key":"value" }`,
+		},
+		{
+			input: `[1 ]`,
+		},
+		{
+			input: `[1 ,2]`,
+		},
+
+		// invalid
+		{
+			input: `[1,]`,
+			err:   true,
+		},
+		{
+			input: `[1,]`,
+			err:   true,
+		},
+		{
+			input: `{"a":1,}`,
+			err:   true,
+		},
+		{
+			input: `{"a"`,
+			err:   true,
+		},
+		{
+			input: `"a`,
+			err:   true,
+		},
+		{
+			input: `UNKNOWN`,
+			err:   true,
+		},
+		{
+			input: `1.4e-10`, // parse consumes 1.4, not the full number
+		},
 	}
 
-	for _, c := range cases {
-		k, v, err := splitKeyValScanner(c.input)
-		if err != nil {
-			t.Fatalf("[%q] unexpected err: %v", c.input, err)
-		}
-		if k != c.key || v != c.val {
-			t.Errorf("[%q] got (%q,%q) want (%q,%q)", c.input, k, v, c.key, c.val)
-		}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			s := initTagKeyScanner(tc.input)
+			out, err := s.scanJSONFlavoredValue()
+			if err != nil && tc.err == false {
+				t.Errorf("[%q]: expected success, got: %v", tc.input, err)
+				return
+			}
+			if err == nil {
+				if tc.err == true {
+					t.Errorf("[%q]: expected failure, got: %q", tc.input, out)
+					return
+				}
+				if out != tc.input {
+					t.Errorf("expected %q got %q", tc.input, out)
+				}
+			}
+
+			gotIncomplete := s.Scan() != scanner.EOF
+			if tc.incomplete != gotIncomplete {
+				t.Errorf("Expected incomplete=%t but got %t", tc.incomplete, gotIncomplete)
+			}
+		})
 	}
 }

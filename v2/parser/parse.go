@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/constant"
 	"go/token"
 	gotypes "go/types"
@@ -129,7 +130,14 @@ func (p *Parser) findPackages(baseCfg *packages.Config, patterns ...string) ([]s
 	}
 	var allErrs []error
 	for _, pkg := range pkgs {
-		results = append(results, pkg.PkgPath)
+		pkgPath := pkg.PkgPath
+		if pkgPath[0] == '_' && strings.HasPrefix(pkgPath[1:], build.Default.GOPATH) {
+			// If GOPATH mode is used, the PkgPath returned by packages.Load
+			// will be of the form "_<GOPATH>/src/<IMPORT_PATH>". We thus
+			// reslice the string to only get the <IMPORT_PATH> part.
+			pkgPath = pkg.PkgPath[len(build.Default.GOPATH)+6:]
+		}
+		results = append(results, pkgPath)
 
 		// pkg.Errors is not a slice of `error`, but concrete types.  We have
 		// to iteratively convert each one into `error`.

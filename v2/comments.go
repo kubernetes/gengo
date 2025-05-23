@@ -105,12 +105,11 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //   - 'marker' + "key()=value"
 //   - 'marker' + "key(arg)=value"
 //   - 'marker' + "key(`raw string`)=value"
-//   - 'marker' + "key({"k1": "value1"})=value"
 //
-// The arg is optional.  It may be a Go identifier, a raw string literal
-// enclosed in back-ticks, or an object or array represented with a subset of
-// JSON syntax. If not specified (either as "key=value" or as
-// "key()=value"), the resulting Tag will have an empty Args list.
+// The arg is optional. It may be a Go identifier, a raw string literal enclosed
+// in back-ticks, an integer (with support for hex, octal or binary notation) or
+// a boolean. If not specified (either as "key=value" or as "key()=value"), the
+// resulting Tag will have an empty Args list.
 //
 // The value is optional.  If not specified, the resulting Tag will have "" as
 // the value.
@@ -126,12 +125,11 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 // Example: if you pass "+" as the marker, and the following lines are in
 // the comments:
 //
-//		+foo=val1  // foo
-//		+bar
-//		+foo=val2  // also foo
-//		+baz="qux"
-//		+foo(arg)  // still foo
-//	 +buzz({"a": 1, "b": "x"})
+//	+foo=val1  // foo
+//	+bar
+//	+foo=val2  // also foo
+//	+baz="qux"
+//	+foo(arg)  // still foo
 //
 // Then this function will return:
 //
@@ -156,11 +154,7 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //				Name: "baz",
 //				Args: nil,
 //				Value: "\"qux\""
-//			}, {
-//				Name: "buzz",
-//				Args: []string{"{\"a\": 1, \"b\": \"x\"}"},
-//				Value: ""
-//		}}
+//		   }}
 //
 // This function should be preferred instead of ExtractCommentTags.
 func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []string) (map[string][]Tag, error) {
@@ -176,6 +170,9 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 				if len(arg.Name) > 0 {
 					return nil, fmt.Errorf("unexpected named argument: %q", arg.Name)
 				}
+				if arg.Type != TypeString {
+					return nil, fmt.Errorf("unexpected argument type: %q", arg.Type)
+				}
 				stringArgs = append(stringArgs, arg.Value)
 			}
 			out[name] = append(out[name], Tag{
@@ -188,6 +185,19 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 	return out, nil
 }
 
+// Tag represents a single comment tag.
+type Tag struct {
+	// Name is the name of the tag with no arguments.
+	Name string
+	// Args is a list of optional arguments to the tag.
+	Args []string
+	// Value is the value of the tag.
+	Value string
+}
+
+// ExtractFunctionStyleCommentTypedTags parses comments for special metadata tags.
+// This function supports all the functionality of ExtractFunctionStyleCommentTags, and also supports named parameters
+// and returns typed results.
 func ExtractFunctionStyleCommentTypedTags(marker string, tagNames []string, lines []string) (map[string][]TypedTag, error) {
 	stripTrailingComment := func(in string) string {
 		idx := strings.LastIndex(in, "//")
@@ -204,42 +214,29 @@ func ExtractFunctionStyleCommentTypedTags(marker string, tagNames []string, line
 			continue
 		}
 		line = line[len(marker):]
-
-		line = stripTrailingComment(line)
-		kv := strings.SplitN(line, "=", 2)
-		key := kv[0]
-		val := ""
-		if len(kv) == 2 {
-			val = kv[1]
-		}
-
-		name, args, err := parseTagKey(key)
+		parsed, err := parseTagKey(line)
 		if err != nil {
 			return nil, err
 		}
-		if name == "" {
+		if parsed.name == "" {
 			continue
 		}
-		if len(tagNames) > 0 && !slices.Contains(tagNames, name) {
+		if len(tagNames) > 0 && !slices.Contains(tagNames, parsed.name) {
 			continue
 		}
-		tag := TypedTag{Name: name, Args: args, Value: val}
-		out[tag.Name] = append(out[tag.Name], tag)
+
+		var val string
+		if parsed.valueStart > 0 {
+			val = stripTrailingComment(line[parsed.valueStart:])
+		}
+
+		tag := TypedTag{Name: parsed.name, Args: parsed.args, Value: val}
+		out[parsed.name] = append(out[parsed.name], tag)
 	}
 	return out, nil
 }
 
-// Tag represents a single comment tag.
-type Tag struct {
-	// Name is the name of the tag with no arguments.
-	Name string
-	// Args is a list of optional arguments to the tag.
-	Args []string
-	// Value is the value of the tag.
-	Value string
-}
-
-// Tag represents a single comment tag.
+// TypedTag represents a single comment tag with typed args.
 type TypedTag struct {
 	// Name is the name of the tag with no arguments.
 	Name string
@@ -249,12 +246,17 @@ type TypedTag struct {
 	Value string
 }
 
+// Arg represents a typed argument
 type Arg struct {
-	Name  string
+	// Name is the name of a named argument. This is zero-valued for positional arguments.
+	Name string
+	// Value is the string value of an argument. It has been validated to match the Type.
 	Value string
-	Typ   ArgType
+	// Type is the type of the Value.
+	Type ArgType
 }
 
+// ArgType is the type of an arg.
 type ArgType string
 
 const (

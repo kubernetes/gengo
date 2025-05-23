@@ -19,11 +19,18 @@ const (
 	stEscape          = "stEscape"
 	stEndOfToken      = "stEndOfToken"
 	stMaybeComment    = "stMaybeComment"
+	stTrailingValue   = "stTrailingValue"
 	stTrailingSlash   = "stTrailingSlash"
 	stTrailingComment = "stTrailingComment"
 )
 
-func parseTagKey(input string) (string, []Arg, error) {
+type tagKey struct {
+	name       string
+	args       []Arg
+	valueStart int
+}
+
+func parseTagKey(input string) (tagKey, error) {
 	tag := bytes.Buffer{} // current tag name
 	args := []Arg{}       // all tag arguments
 
@@ -36,6 +43,8 @@ func parseTagKey(input string) (string, []Arg, error) {
 	var incomplete bool
 	var quote rune
 
+	valueStart := -1
+
 	isIdentBegin := func(r rune) bool {
 		return unicode.IsLetter(r) || r == '_'
 	}
@@ -47,7 +56,7 @@ func parseTagKey(input string) (string, []Arg, error) {
 		if _, err := strconv.ParseInt(s, 0, 64); err != nil {
 			return fmt.Errorf("invalid number %q", s)
 		}
-		cur.Typ = TypeInt
+		cur.Type = TypeInt
 		cur.Value = s
 		args = append(args, cur)
 		cur = Arg{}
@@ -56,7 +65,7 @@ func parseTagKey(input string) (string, []Arg, error) {
 	}
 	saveString := func() {
 		s := buf.String()
-		cur.Typ = TypeString
+		cur.Type = TypeString
 		cur.Value = s
 		args = append(args, cur)
 		cur = Arg{}
@@ -65,9 +74,9 @@ func parseTagKey(input string) (string, []Arg, error) {
 	saveBoolOrString := func() {
 		s := buf.String()
 		if s == "true" || s == "false" {
-			cur.Typ = TypeBool
+			cur.Type = TypeBool
 		} else {
-			cur.Typ = TypeString
+			cur.Type = TypeString
 		}
 		cur.Value = s
 		args = append(args, cur)
@@ -99,9 +108,13 @@ parseLoop:
 			switch {
 			case isIdentInterior(r):
 				tag.WriteRune(r)
+			case r == ':': // allowed in tag names
+				tag.WriteRune(r)
 			case r == '(':
 				incomplete = true
 				st = stArg
+			case r == '=':
+				st = stTrailingValue
 			case unicode.IsSpace(r):
 				st = stMaybeComment
 			default:
@@ -117,6 +130,9 @@ parseLoop:
 			case r == '0':
 				buf.WriteRune(r)
 				st = stPrefixedNumber
+			case r == '-':
+				buf.WriteRune(r)
+				st = stNumber
 			case unicode.IsDigit(r):
 				buf.WriteRune(r)
 				st = stNumber
@@ -137,18 +153,18 @@ parseLoop:
 				continue
 			case r == ',':
 				if err := saveInt(); err != nil {
-					return "", nil, err
+					return tagKey{}, err
 				}
 				st = stArg
 			case r == ')':
 				if err := saveInt(); err != nil {
-					return "", nil, err
+					return tagKey{}, err
 				}
 				incomplete = false
 				st = stMaybeComment
 			case unicode.IsSpace(r):
 				if err := saveInt(); err != nil {
-					return "", nil, err
+					return tagKey{}, err
 				}
 				st = stEndOfToken
 			default:
@@ -181,7 +197,7 @@ parseLoop:
 				buf.WriteRune(r)
 				st = stQuotedString
 			default:
-				return "", nil, fmt.Errorf("unhandled escaped character %q", r)
+				return tagKey{}, fmt.Errorf("unhandled escaped character %q", r)
 			}
 		case stNakedString:
 			switch {
@@ -222,9 +238,15 @@ parseLoop:
 			case r == '/':
 				incomplete = true
 				st = stTrailingSlash
+			case r == '=':
+				st = stTrailingValue
 			default:
 				break parseLoop
 			}
+		case stTrailingValue:
+			valueStart = i
+			i = len(runes) - 1
+			break parseLoop
 		case stTrailingSlash:
 			switch {
 			case r == '/':
@@ -241,22 +263,22 @@ parseLoop:
 		}
 	}
 	if i != len(runes)-1 {
-		return "", nil, fmt.Errorf("unexpected character %q at position %d", r, i)
+		return tagKey{}, fmt.Errorf("unexpected character %q at position %d", r, i)
 	}
 	if incomplete {
-		return "", nil, fmt.Errorf("unexpected end of input")
+		return tagKey{}, fmt.Errorf("unexpected end of input")
 	}
 	usingNamedArgs := false
 	for i, arg := range args {
 		if (usingNamedArgs && arg.Name == "") || (!usingNamedArgs && arg.Name != "" && i > 0) {
-			return "", nil, fmt.Errorf("can't mix named and positional arguments")
+			return tagKey{}, fmt.Errorf("can't mix named and positional arguments")
 		}
 		if arg.Name != "" {
 			usingNamedArgs = true
 		}
 	}
 	if !usingNamedArgs && len(args) > 1 {
-		return "", nil, fmt.Errorf("multiple arguments must use 'name: value' syntax")
+		return tagKey{}, fmt.Errorf("multiple arguments must use 'name: value' syntax")
 	}
-	return tag.String(), args, nil
+	return tagKey{name: tag.String(), args: args, valueStart: valueStart}, nil
 }

@@ -287,46 +287,46 @@ func TestExtractFunctionStyleCommentTypedTags(t *testing.T) {
 			expect: map[string][]TypedTag{
 				"quoted": mktags(
 					TypedTag{Name: "quoted", Args: []Arg{
-						{Value: "value", Type: TypeString},
+						{Value: String("value")},
 					}},
 				),
 				"backticked": mktags(
 					TypedTag{Name: "backticked", Args: []Arg{
-						{Value: "value", Type: TypeString},
+						{Value: String("value")},
 					}},
 				),
 				"ident": mktags(
 					TypedTag{Name: "ident", Args: []Arg{
-						{Value: "value", Type: TypeString},
+						{Value: String("value")},
 					}},
 				),
 				"integer": mktags(
 					TypedTag{Name: "integer", Args: []Arg{
-						{Value: "2", Type: TypeInt},
+						{Value: Int(2)},
 					}}),
 				"negative": mktags(
 					TypedTag{Name: "negative", Args: []Arg{
-						{Value: "-5", Type: TypeInt},
+						{Value: Int(-5)},
 					}}),
 				"hex": mktags(
 					TypedTag{Name: "hex", Args: []Arg{
-						{Value: "0xFF00B3", Type: TypeInt},
+						{Value: Int(0xFF00B3)},
 					}}),
 				"octal": mktags(
 					TypedTag{Name: "octal", Args: []Arg{
-						{Value: "0o04167", Type: TypeInt},
+						{Value: Int(0o04167)},
 					}}),
 				"binary": mktags(
 					TypedTag{Name: "binary", Args: []Arg{
-						{Value: "0b10101", Type: TypeInt},
+						{Value: Int(0b10101)},
 					}}),
 				"true": mktags(
 					TypedTag{Name: "true", Args: []Arg{
-						{Value: "true", Type: TypeBool},
+						{Value: Bool(true)},
 					}}),
 				"false": mktags(
 					TypedTag{Name: "false", Args: []Arg{
-						{Value: "false", Type: TypeBool},
+						{Value: Bool(false)},
 					}}),
 			},
 		},
@@ -340,22 +340,22 @@ func TestExtractFunctionStyleCommentTypedTags(t *testing.T) {
 			expect: map[string][]TypedTag{
 				"strings": mktags(
 					TypedTag{Name: "strings", Args: []Arg{
-						{Name: "q", Value: "value", Type: TypeString},
-						{Name: "b", Value: `value`, Type: TypeString},
-						{Name: "i", Value: "value", Type: TypeString},
+						{Name: "q", Value: String("value")},
+						{Name: "b", Value: String(`value`)},
+						{Name: "i", Value: String("value")},
 					}}),
 				"numbers": mktags(
 					TypedTag{Name: "numbers", Args: []Arg{
-						{Name: "n1", Value: "2", Type: TypeInt},
-						{Name: "n2", Value: "-5", Type: TypeInt},
-						{Name: "n3", Value: "0xFF00B3", Type: TypeInt},
-						{Name: "n4", Value: "0o04167", Type: TypeInt},
-						{Name: "n5", Value: "0b10101", Type: TypeInt},
+						{Name: "n1", Value: Int(2)},
+						{Name: "n2", Value: Int(-5)},
+						{Name: "n3", Value: Int(0xFF00B3)},
+						{Name: "n4", Value: Int(0o04167)},
+						{Name: "n5", Value: Int(0b10101)},
 					}}),
 				"bools": mktags(
 					TypedTag{Name: "bools", Args: []Arg{
-						{Name: "t", Value: "true", Type: TypeBool},
-						{Name: "f", Value: "false", Type: TypeBool},
+						{Name: "t", Value: Bool(true)},
+						{Name: "f", Value: Bool(false)},
 					}}),
 			},
 		},
@@ -379,7 +379,7 @@ func TestParseTagKey(t *testing.T) {
 	mkss := func(s ...string) []Arg {
 		var args []Arg
 		for _, v := range s {
-			args = append(args, Arg{Value: v, Type: TypeString})
+			args = append(args, Arg{Value: String(v)})
 		}
 		return args
 	}
@@ -401,29 +401,29 @@ func TestParseTagKey(t *testing.T) {
 		{"badRaw(missing`)", "", nil, true},
 		{"badMix(arg,`raw`)", "", nil, true},
 		{`quoted(s: "value \" \\")`, "quoted", []Arg{
-			{Name: "s", Value: "value \" \\", Type: TypeString},
+			{Name: "s", Value: String("value \" \\")},
 		}, false},
 		{"backticks(s: `value`)", "backticks", []Arg{
-			{Name: "s", Value: `value`, Type: TypeString},
+			{Name: "s", Value: String(`value`)},
 		}, false},
 		{"ident(k: value)", "ident", []Arg{
-			{Name: "k", Value: "value", Type: TypeString},
+			{Name: "k", Value: String("value")},
 		}, false},
 		{"numbers(n1: 2, n2: -5, n3: 0xFF00B3, n4: 0o04167, n5: 0b10101)", "numbers", []Arg{
-			{Name: "n1", Value: "2", Type: TypeInt},
-			{Name: "n2", Value: "-5", Type: TypeInt},
-			{Name: "n3", Value: "0xFF00B3", Type: TypeInt},
-			{Name: "n4", Value: "0o04167", Type: TypeInt},
-			{Name: "n5", Value: "0b10101", Type: TypeInt},
+			{Name: "n1", Value: Int(2)},
+			{Name: "n2", Value: Int(-5)},
+			{Name: "n3", Value: Int(0xFF00B3)},
+			{Name: "n4", Value: Int(0o04167)},
+			{Name: "n5", Value: Int(0b10101)},
 		}, false},
 		{"bools(t: true, f:false)", "bools", []Arg{
-			{Name: "t", Value: "true", Type: TypeBool},
-			{Name: "f", Value: "false", Type: TypeBool},
+			{Name: "t", Value: Bool(true)},
+			{Name: "f", Value: Bool(false)},
 		}, false},
 		{"mixed(s: `value`, i: 2, b: true)", "mixed", []Arg{
-			{Name: "s", Value: "value", Type: TypeString},
-			{Name: "i", Value: "2", Type: TypeInt},
-			{Name: "b", Value: "true", Type: TypeBool},
+			{Name: "s", Value: String("value")},
+			{Name: "i", Value: Int(2)},
+			{Name: "b", Value: Bool(true)},
 		}, false},
 	}
 	for _, tc := range cases {
@@ -500,7 +500,7 @@ func TestParseTagKeyWithTagNames(t *testing.T) {
 				continue
 			}
 			for i := range tc.expectArgs {
-				if want, got := tc.expectArgs[i], parsed.args[i]; got.Value != want {
+				if want, got := tc.expectArgs[i], parsed.args[i]; got.Value.String() != want {
 					t.Errorf("[%q]\nexpected %q, got %q", tc.input, want, got)
 				}
 			}

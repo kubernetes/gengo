@@ -1,3 +1,19 @@
+/*
+Copyright 2025 The Kubernetes Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package gengo
 
 import (
@@ -53,11 +69,11 @@ func parseTagKey(input string) (tagKey, error) {
 	}
 	saveInt := func() error {
 		s := buf.String()
-		if _, err := strconv.ParseInt(s, 0, 64); err != nil {
+		if ival, err := strconv.ParseInt(s, 0, 64); err != nil {
 			return fmt.Errorf("invalid number %q", s)
+		} else {
+			cur.Value = Int(ival)
 		}
-		cur.Type = TypeInt
-		cur.Value = s
 		args = append(args, cur)
 		cur = Arg{}
 		buf.Reset()
@@ -65,20 +81,20 @@ func parseTagKey(input string) (tagKey, error) {
 	}
 	saveString := func() {
 		s := buf.String()
-		cur.Type = TypeString
-		cur.Value = s
+		cur.Value = String(s)
 		args = append(args, cur)
 		cur = Arg{}
 		buf.Reset()
 	}
 	saveBoolOrString := func() {
 		s := buf.String()
-		if s == "true" || s == "false" {
-			cur.Type = TypeBool
+		if s == "true" {
+			cur.Value = Bool(true)
+		} else if s == "false" {
+			cur.Value = Bool(false)
 		} else {
-			cur.Type = TypeString
+			cur.Value = String(s)
 		}
-		cur.Value = s
 		args = append(args, cur)
 		cur = Arg{}
 		buf.Reset()
@@ -259,7 +275,7 @@ parseLoop:
 			i = len(runes) - 1
 			break parseLoop
 		default:
-			panic("WTF: unknown state")
+			panic("unknown state")
 		}
 	}
 	if i != len(runes)-1 {

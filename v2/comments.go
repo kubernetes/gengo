@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -170,10 +171,10 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 				if len(arg.Name) > 0 {
 					return nil, fmt.Errorf("unexpected named argument: %q", arg.Name)
 				}
-				if arg.Type != TypeString {
-					return nil, fmt.Errorf("unexpected argument type: %q", arg.Type)
+				if arg.Value.Type() != TypeString {
+					return nil, fmt.Errorf("unexpected argument type: %q", arg.Value.Type())
 				}
-				stringArgs = append(stringArgs, arg.Value)
+				stringArgs = append(stringArgs, arg.Value.String())
 			}
 			out[name] = append(out[name], Tag{
 				Name:  tag.Name,
@@ -193,6 +194,22 @@ type Tag struct {
 	Args []string
 	// Value is the value of the tag.
 	Value string
+}
+
+func (t Tag) String() string {
+	buf := bytes.Buffer{}
+	buf.WriteString(t.Name)
+	if len(t.Args) > 0 {
+		buf.WriteString("(")
+		for i, a := range t.Args {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(a)
+		}
+		buf.WriteString(")")
+	}
+	return buf.String()
 }
 
 // ExtractFunctionStyleCommentTypedTags parses comments for special metadata tags.
@@ -251,32 +268,49 @@ type Arg struct {
 	// Name is the name of a named argument. This is zero-valued for positional arguments.
 	Name string
 	// Value is the string value of an argument. It has been validated to match the Type.
-	Value string
-	// Type is the type of the Value.
-	Type ArgType
+	Value Value
 }
 
-// ArgType is the type of an arg.
-type ArgType string
+type String string
+
+func (String) Type() Type {
+	return TypeString
+}
+
+func (s String) String() string {
+	return string(s)
+}
+
+type Int int
+
+func (Int) Type() Type {
+	return TypeInt
+}
+
+func (i Int) String() string {
+	return strconv.Itoa(int(i))
+}
+
+type Bool bool
+
+func (Bool) Type() Type {
+	return TypeBool
+}
+
+func (b Bool) String() string {
+	return strconv.FormatBool(bool(b))
+}
+
+type Value interface {
+	Type() Type
+	String() string
+}
+
+// Type is the type of an arg.
+type Type string
 
 const (
 	TypeString = "string"
 	TypeInt    = "int"
 	TypeBool   = "bool"
 )
-
-func (t Tag) String() string {
-	buf := bytes.Buffer{}
-	buf.WriteString(t.Name)
-	if len(t.Args) > 0 {
-		buf.WriteString("(")
-		for i, a := range t.Args {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			buf.WriteString(a)
-		}
-		buf.WriteString(")")
-	}
-	return buf.String()
-}

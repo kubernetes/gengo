@@ -25,30 +25,29 @@ import (
 )
 
 const (
-	stBegin           = "stBegin"
-	stTag             = "stTag"
-	stArg             = "stArg"
-	stNumber          = "stNumber"
-	stPrefixedNumber  = "stPrefixedNumber"
-	stQuotedString    = "stQuotedString"
-	stNakedString     = "stNakedString"
-	stEscape          = "stEscape"
-	stEndOfToken      = "stEndOfToken"
-	stMaybeComment    = "stMaybeComment"
-	stTrailingValue   = "stTrailingValue"
-	stTrailingSlash   = "stTrailingSlash"
-	stTrailingComment = "stTrailingComment"
+	stBegin          = "stBegin"
+	stTag            = "stTag"
+	stArg            = "stArg"
+	stNumber         = "stNumber"
+	stPrefixedNumber = "stPrefixedNumber"
+	stQuotedString   = "stQuotedString"
+	stNakedString    = "stNakedString"
+	stEscape         = "stEscape"
+	stEndOfToken     = "stEndOfToken"
+	stMaybeValue     = "stMaybeValue"
+	stValue          = "stValue"
 )
 
 type tagKey struct {
-	name       string
-	args       []Arg
-	valueStart int
+	name  string
+	args  []Arg
+	value string
 }
 
 func parseTagKey(input string) (tagKey, error) {
-	tag := bytes.Buffer{} // current tag name
-	args := []Arg{}       // all tag arguments
+	tag := bytes.Buffer{}   // current tag name
+	args := []Arg{}         // all tag arguments
+	value := bytes.Buffer{} // current tag value
 
 	cur := Arg{}          // current argument accumulator
 	buf := bytes.Buffer{} // string accumulator
@@ -58,8 +57,6 @@ func parseTagKey(input string) (tagKey, error) {
 	var r rune
 	var incomplete bool
 	var quote rune
-
-	valueStart := -1
 
 	isIdentBegin := func(r rune) bool {
 		return unicode.IsLetter(r) || r == '_'
@@ -72,7 +69,7 @@ func parseTagKey(input string) (tagKey, error) {
 		if ival, err := strconv.ParseInt(s, 0, 64); err != nil {
 			return fmt.Errorf("invalid number %q", s)
 		} else {
-			cur.Value = Int(ival)
+			cur.Value = ival
 		}
 		args = append(args, cur)
 		cur = Arg{}
@@ -81,7 +78,7 @@ func parseTagKey(input string) (tagKey, error) {
 	}
 	saveString := func() {
 		s := buf.String()
-		cur.Value = String(s)
+		cur.Value = s
 		args = append(args, cur)
 		cur = Arg{}
 		buf.Reset()
@@ -89,11 +86,11 @@ func parseTagKey(input string) (tagKey, error) {
 	saveBoolOrString := func() {
 		s := buf.String()
 		if s == "true" {
-			cur.Value = Bool(true)
+			cur.Value = true
 		} else if s == "false" {
-			cur.Value = Bool(false)
+			cur.Value = false
 		} else {
-			cur.Value = String(s)
+			cur.Value = s
 		}
 		args = append(args, cur)
 		cur = Arg{}
@@ -130,9 +127,7 @@ parseLoop:
 				incomplete = true
 				st = stArg
 			case r == '=':
-				st = stTrailingValue
-			case unicode.IsSpace(r):
-				st = stMaybeComment
+				st = stValue
 			default:
 				break parseLoop
 			}
@@ -142,14 +137,11 @@ parseLoop:
 				continue
 			case r == ')':
 				incomplete = false
-				st = stMaybeComment
+				st = stMaybeValue
 			case r == '0':
 				buf.WriteRune(r)
 				st = stPrefixedNumber
-			case r == '-':
-				buf.WriteRune(r)
-				st = stNumber
-			case unicode.IsDigit(r):
+			case r == '-' || r == '+' || unicode.IsDigit(r):
 				buf.WriteRune(r)
 				st = stNumber
 			case r == '"' || r == '`':
@@ -177,7 +169,7 @@ parseLoop:
 					return tagKey{}, err
 				}
 				incomplete = false
-				st = stMaybeComment
+				st = stMaybeValue
 			case unicode.IsSpace(r):
 				if err := saveInt(); err != nil {
 					return tagKey{}, err
@@ -225,7 +217,7 @@ parseLoop:
 			case r == ')':
 				saveBoolOrString()
 				incomplete = false
-				st = stMaybeComment
+				st = stMaybeValue
 			case unicode.IsSpace(r):
 				saveBoolOrString()
 				st = stEndOfToken
@@ -243,37 +235,19 @@ parseLoop:
 				st = stArg
 			case r == ')':
 				incomplete = false
-				st = stMaybeComment
+				st = stMaybeValue
 			default:
 				break parseLoop
 			}
-		case stMaybeComment:
+		case stMaybeValue:
 			switch {
-			case unicode.IsSpace(r):
-				continue
-			case r == '/':
-				incomplete = true
-				st = stTrailingSlash
 			case r == '=':
-				st = stTrailingValue
+				st = stValue
 			default:
 				break parseLoop
 			}
-		case stTrailingValue:
-			valueStart = i
-			i = len(runes) - 1
-			break parseLoop
-		case stTrailingSlash:
-			switch {
-			case r == '/':
-				incomplete = false
-				st = stTrailingComment
-			default:
-				break parseLoop
-			}
-		case stTrailingComment:
-			i = len(runes) - 1
-			break parseLoop
+		case stValue:
+			value.WriteRune(r)
 		default:
 			panic("unknown state")
 		}
@@ -296,5 +270,5 @@ parseLoop:
 	if !usingNamedArgs && len(args) > 1 {
 		return tagKey{}, fmt.Errorf("multiple arguments must use 'name: value' syntax")
 	}
-	return tagKey{name: tag.String(), args: args, valueStart: valueStart}, nil
+	return tagKey{name: tag.String(), args: args, value: value.String()}, nil
 }

@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 )
 
@@ -108,9 +107,9 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //   - 'marker' + "key(`raw string`)=value"
 //
 // The arg is optional. It may be a Go identifier, a raw string literal enclosed
-// in back-ticks, an integer (with support for hex, octal or binary notation) or
-// a boolean. If not specified (either as "key=value" or as "key()=value"), the
-// resulting Tag will have an empty Args list.
+// in back-ticks or double-quotes, an integer (with support for hex, octal or
+// binary notation) or a boolean. If not specified (either as "key=value" or as
+// "key()=value"), the resulting Tag will have an empty Args list.
 //
 // The value is optional.  If not specified, the resulting Tag will have "" as
 // the value.
@@ -159,7 +158,7 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //
 // This function should be preferred instead of ExtractCommentTags.
 func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []string) (map[string][]Tag, error) {
-	typedTags, err := ExtractFunctionStyleCommentTypedTags(marker, tagNames, lines)
+	typedTags, err := ExtractCommentTagsWithArgs(marker, tagNames, lines)
 	if err != nil {
 		return nil, err
 	}
@@ -171,10 +170,11 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 				if len(arg.Name) > 0 {
 					return nil, fmt.Errorf("unexpected named argument: %q", arg.Name)
 				}
-				if arg.Value.Type() != TypeString {
-					return nil, fmt.Errorf("unexpected argument type: %q", arg.Value.Type())
+				if s, ok := arg.Value.(string); !ok {
+					return nil, fmt.Errorf("unexpected argument type: %T", arg.Value)
+				} else {
+					stringArgs = append(stringArgs, s)
 				}
-				stringArgs = append(stringArgs, arg.Value.String())
 			}
 			out[name] = append(out[name], Tag{
 				Name:  tag.Name,
@@ -212,18 +212,10 @@ func (t Tag) String() string {
 	return buf.String()
 }
 
-// ExtractFunctionStyleCommentTypedTags parses comments for special metadata tags.
+// ExtractCommentTagsWithArgs parses comments for special metadata tags.
 // This function supports all the functionality of ExtractFunctionStyleCommentTags, and also supports named parameters
 // and returns typed results.
-func ExtractFunctionStyleCommentTypedTags(marker string, tagNames []string, lines []string) (map[string][]TypedTag, error) {
-	stripTrailingComment := func(in string) string {
-		idx := strings.LastIndex(in, "//")
-		if idx == -1 {
-			return in
-		}
-		return strings.TrimSpace(in[:idx])
-	}
-
+func ExtractCommentTagsWithArgs(marker string, tagNames []string, lines []string) (map[string][]TypedTag, error) {
 	out := map[string][]TypedTag{}
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -242,12 +234,7 @@ func ExtractFunctionStyleCommentTypedTags(marker string, tagNames []string, line
 			continue
 		}
 
-		var val string
-		if parsed.valueStart > 0 {
-			val = stripTrailingComment(line[parsed.valueStart:])
-		}
-
-		tag := TypedTag{Name: parsed.name, Args: parsed.args, Value: val}
+		tag := TypedTag{Name: parsed.name, Args: parsed.args, Value: parsed.value}
 		out[parsed.name] = append(out[parsed.name], tag)
 	}
 	return out, nil
@@ -268,49 +255,6 @@ type Arg struct {
 	// Name is the name of a named argument. This is zero-valued for positional arguments.
 	Name string
 	// Value is the string value of an argument. It has been validated to match the Type.
-	Value Value
+	// Value may be a string, int or bool.
+	Value any
 }
-
-type String string
-
-func (String) Type() Type {
-	return TypeString
-}
-
-func (s String) String() string {
-	return string(s)
-}
-
-type Int int
-
-func (Int) Type() Type {
-	return TypeInt
-}
-
-func (i Int) String() string {
-	return strconv.Itoa(int(i))
-}
-
-type Bool bool
-
-func (Bool) Type() Type {
-	return TypeBool
-}
-
-func (b Bool) String() string {
-	return strconv.FormatBool(bool(b))
-}
-
-type Value interface {
-	Type() Type
-	String() string
-}
-
-// Type is the type of an arg.
-type Type string
-
-const (
-	TypeString = "string"
-	TypeInt    = "int"
-	TypeBool   = "bool"
-)

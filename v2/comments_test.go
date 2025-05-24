@@ -17,6 +17,7 @@ limitations under the License.
 package gengo
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -102,8 +103,8 @@ func TestExtractExtendedCommentTags(t *testing.T) {
 		name: "no args",
 		comments: []string{
 			"Human comment that is ignored",
-			"+simpleNoVal  // trailing comment",
-			"+simpleWithVal=val  // trailing comment",
+			"+simpleNoVal",
+			"+simpleWithVal=val",
 			"+duplicateNoVal",
 			"+duplicateNoVal",
 			"+duplicateWithVal=val1",
@@ -123,8 +124,8 @@ func TestExtractExtendedCommentTags(t *testing.T) {
 		name: "empty parens",
 		comments: []string{
 			"Human comment that is ignored",
-			"+simpleNoVal()  // trailing comment",
-			"+simpleWithVal()=val  // trailing comment",
+			"+simpleNoVal()",
+			"+simpleWithVal()=val",
 			"+duplicateNoVal()",
 			"+duplicateNoVal()",
 			"+duplicateWithVal()=val1",
@@ -287,46 +288,46 @@ func TestExtractFunctionStyleCommentTypedTags(t *testing.T) {
 			expect: map[string][]TypedTag{
 				"quoted": mktags(
 					TypedTag{Name: "quoted", Args: []Arg{
-						{Value: String("value")},
+						{Value: "value"},
 					}},
 				),
 				"backticked": mktags(
 					TypedTag{Name: "backticked", Args: []Arg{
-						{Value: String("value")},
+						{Value: "value"},
 					}},
 				),
 				"ident": mktags(
 					TypedTag{Name: "ident", Args: []Arg{
-						{Value: String("value")},
+						{Value: "value"},
 					}},
 				),
 				"integer": mktags(
 					TypedTag{Name: "integer", Args: []Arg{
-						{Value: Int(2)},
+						{Value: int64(2)},
 					}}),
 				"negative": mktags(
 					TypedTag{Name: "negative", Args: []Arg{
-						{Value: Int(-5)},
+						{Value: int64(-5)},
 					}}),
 				"hex": mktags(
 					TypedTag{Name: "hex", Args: []Arg{
-						{Value: Int(0xFF00B3)},
+						{Value: int64(0xFF00B3)},
 					}}),
 				"octal": mktags(
 					TypedTag{Name: "octal", Args: []Arg{
-						{Value: Int(0o04167)},
+						{Value: int64(0o04167)},
 					}}),
 				"binary": mktags(
 					TypedTag{Name: "binary", Args: []Arg{
-						{Value: Int(0b10101)},
+						{Value: int64(0b10101)},
 					}}),
 				"true": mktags(
 					TypedTag{Name: "true", Args: []Arg{
-						{Value: Bool(true)},
+						{Value: true},
 					}}),
 				"false": mktags(
 					TypedTag{Name: "false", Args: []Arg{
-						{Value: Bool(false)},
+						{Value: false},
 					}}),
 			},
 		},
@@ -340,22 +341,22 @@ func TestExtractFunctionStyleCommentTypedTags(t *testing.T) {
 			expect: map[string][]TypedTag{
 				"strings": mktags(
 					TypedTag{Name: "strings", Args: []Arg{
-						{Name: "q", Value: String("value")},
-						{Name: "b", Value: String(`value`)},
-						{Name: "i", Value: String("value")},
+						{Name: "q", Value: "value"},
+						{Name: "b", Value: `value`},
+						{Name: "i", Value: "value"},
 					}}),
 				"numbers": mktags(
 					TypedTag{Name: "numbers", Args: []Arg{
-						{Name: "n1", Value: Int(2)},
-						{Name: "n2", Value: Int(-5)},
-						{Name: "n3", Value: Int(0xFF00B3)},
-						{Name: "n4", Value: Int(0o04167)},
-						{Name: "n5", Value: Int(0b10101)},
+						{Name: "n1", Value: int64(2)},
+						{Name: "n2", Value: int64(-5)},
+						{Name: "n3", Value: int64(0xFF00B3)},
+						{Name: "n4", Value: int64(0o04167)},
+						{Name: "n5", Value: int64(0b10101)},
 					}}),
 				"bools": mktags(
 					TypedTag{Name: "bools", Args: []Arg{
-						{Name: "t", Value: Bool(true)},
-						{Name: "f", Value: Bool(false)},
+						{Name: "t", Value: true},
+						{Name: "f", Value: false},
 					}}),
 			},
 		},
@@ -363,7 +364,7 @@ func TestExtractFunctionStyleCommentTypedTags(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := ExtractFunctionStyleCommentTypedTags("+", tc.prefixes, tc.comments)
+			result, err := ExtractCommentTagsWithArgs("+", tc.prefixes, tc.comments)
 			if err != nil {
 				t.Errorf("case %q: unexpected error: %v", tc.name, err)
 				return
@@ -379,7 +380,7 @@ func TestParseTagKey(t *testing.T) {
 	mkss := func(s ...string) []Arg {
 		var args []Arg
 		for _, v := range s {
-			args = append(args, Arg{Value: String(v)})
+			args = append(args, Arg{Value: v})
 		}
 		return args
 	}
@@ -401,29 +402,29 @@ func TestParseTagKey(t *testing.T) {
 		{"badRaw(missing`)", "", nil, true},
 		{"badMix(arg,`raw`)", "", nil, true},
 		{`quoted(s: "value \" \\")`, "quoted", []Arg{
-			{Name: "s", Value: String("value \" \\")},
+			{Name: "s", Value: "value \" \\"},
 		}, false},
 		{"backticks(s: `value`)", "backticks", []Arg{
-			{Name: "s", Value: String(`value`)},
+			{Name: "s", Value: `value`},
 		}, false},
 		{"ident(k: value)", "ident", []Arg{
-			{Name: "k", Value: String("value")},
+			{Name: "k", Value: "value"},
 		}, false},
 		{"numbers(n1: 2, n2: -5, n3: 0xFF00B3, n4: 0o04167, n5: 0b10101)", "numbers", []Arg{
-			{Name: "n1", Value: Int(2)},
-			{Name: "n2", Value: Int(-5)},
-			{Name: "n3", Value: Int(0xFF00B3)},
-			{Name: "n4", Value: Int(0o04167)},
-			{Name: "n5", Value: Int(0b10101)},
+			{Name: "n1", Value: int64(2)},
+			{Name: "n2", Value: int64(-5)},
+			{Name: "n3", Value: int64(0xFF00B3)},
+			{Name: "n4", Value: int64(0o04167)},
+			{Name: "n5", Value: int64(0b10101)},
 		}, false},
 		{"bools(t: true, f:false)", "bools", []Arg{
-			{Name: "t", Value: Bool(true)},
-			{Name: "f", Value: Bool(false)},
+			{Name: "t", Value: true},
+			{Name: "f", Value: false},
 		}, false},
 		{"mixed(s: `value`, i: 2, b: true)", "mixed", []Arg{
-			{Name: "s", Value: String("value")},
-			{Name: "i", Value: Int(2)},
-			{Name: "b", Value: Bool(true)},
+			{Name: "s", Value: "value"},
+			{Name: "i", Value: int64(2)},
+			{Name: "b", Value: true},
 		}, false},
 	}
 	for _, tc := range cases {
@@ -500,7 +501,7 @@ func TestParseTagKeyWithTagNames(t *testing.T) {
 				continue
 			}
 			for i := range tc.expectArgs {
-				if want, got := tc.expectArgs[i], parsed.args[i]; got.Value.String() != want {
+				if want, got := tc.expectArgs[i], parsed.args[i]; fmt.Sprintf("%v", got.Value) != want {
 					t.Errorf("[%q]\nexpected %q, got %q", tc.input, want, got)
 				}
 			}

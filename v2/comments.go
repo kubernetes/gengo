@@ -18,12 +18,9 @@ package gengo
 
 import (
 	"bytes"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
-	"text/scanner"
 )
 
 // ExtractCommentTags parses comments for lines of the form:
@@ -108,11 +105,10 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //   - 'marker' + "key()=value"
 //   - 'marker' + "key(arg)=value"
 //   - 'marker' + "key(`raw string`)=value"
-//   - 'marker' + "key({"k1": "value1"})=value"
 //
-// The arg is optional.  It may be a Go identifier, a raw string literal
-// enclosed in back-ticks, or an object or array represented with a subset of
-// JSON syntax. If not specified (either as "key=value" or as
+// The arg is optional. It may be a Go identifier, a raw string literal enclosed
+// in back-ticks or double-quotes, an integer (with support for hex, octal, or
+// binary notation) or a boolean. If not specified (either as "key=value" or as
 // "key()=value"), the resulting Tag will have an empty Args list.
 //
 // The value is optional.  If not specified, the resulting Tag will have "" as
@@ -120,7 +116,7 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //
 // Tag comment-lines may have a trailing end-of-line comment.
 //
-// The map returned here is keyed by the Tag's name without args.
+// The map returned here are keyed by the Tag's name without args.
 //
 // A tag can be specified more than one time and all values are returned.  If
 // the resulting map has an entry for a key, the value (a slice) is guaranteed
@@ -129,12 +125,11 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 // Example: if you pass "+" as the marker, and the following lines are in
 // the comments:
 //
-//		+foo=val1  // foo
-//		+bar
-//		+foo=val2  // also foo
-//		+baz="qux"
-//		+foo(arg)  // still foo
-//	 +buzz({"a": 1, "b": "x"})
+//	+foo=val1  // foo
+//	+bar
+//	+foo=val2  // also foo
+//	+baz="qux"
+//	+foo(arg)  // still foo
 //
 // Then this function will return:
 //
@@ -159,47 +154,48 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //				Name: "baz",
 //				Args: nil,
 //				Value: "\"qux\""
-//			}, {
-//				Name: "buzz",
-//				Args: []string{"{\"a\": 1, \"b\": \"x\"}"},
-//				Value: ""
-//		}}
+//		   }}
 //
 // This function should be preferred instead of ExtractCommentTags.
 func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []string) (map[string][]Tag, error) {
-	// TODO: Both the strings of nested tags and the value of tags might contain //
-	//       resulting in a unsound removal of a trailing comment.
-	//       This should be fixed by using a grammar to parse the entire tag.
-	stripTrailingComment := func(in string) string {
-		idx := strings.LastIndex(in, "//")
-		if idx == -1 {
-			return in
-		}
-		return strings.TrimSpace(in[:idx])
-	}
-
 	out := map[string][]Tag{}
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, marker) {
-			continue
-		}
-		line = line[len(marker):]
-		s := initTagKeyScanner(line)
 
-		name, args, err := s.parseTagKey(tagNames)
-		if err != nil {
-			return nil, err
-		}
-		if name == "" {
+	tagIdents := make([]TagIdentifier, len(tagNames))
+	for i, name := range tagNames {
+		tagIdents[i] = TagIdentifierFromString(name)
+	}
+
+	tags := ExtractTags(marker, nil, lines)
+	for tagIdent, tagLines := range tags {
+		if len(tagIdents) > 0 && !slices.Contains(tagIdents, tagIdent) {
 			continue
 		}
-		tag := Tag{Name: name, Args: args}
-		if s.Scan() == '=' {
-			tag.Value = stripTrailingComment(line[s.Offset+1:])
+		for _, line := range tagLines {
+			tag, err := ParseTagWithArgs(line)
+			if err != nil {
+				return nil, err
+			}
+
+			var stringArgs []string
+			for _, arg := range tag.Args {
+				if len(arg.Name) > 0 {
+					return nil, fmt.Errorf("unexpected named argument: %q", arg.Name)
+				}
+				if s, ok := arg.Value.(string); !ok {
+					return nil, fmt.Errorf("unexpected argument type: %T", arg.Value)
+				} else {
+					stringArgs = append(stringArgs, s)
+				}
+			}
+			tag.Name = tagIdent.String()
+			out[tag.Name] = append(out[tag.Name], Tag{
+				Name:  tag.Name,
+				Args:  stringArgs,
+				Value: tag.Value,
+			})
 		}
-		out[tag.Name] = append(out[tag.Name], tag)
 	}
+
 	return out, nil
 }
 
@@ -229,227 +225,185 @@ func (t Tag) String() string {
 	return buf.String()
 }
 
-// parseTagKey parses the key part of an extended comment tag, including
-// optional arguments. The input is assumed to be the entire text of the
-// original input after the marker, up to the '=' or end-of-line.
+// ExtractTags find comment lines that match the marker and group prefix. ExtractTags
+// then returns comment lines, with the marker and group prefixes removed, grouped by group/name identifier keys.
+// If group is nil, all groups are returned.  A group of "" represents comment lines without a group prefix.
 //
-// The tags argument is an optional list of tag names to match. If it is nil or
-// empty, all tags match.
+// For example, the comment "+k8s:required" has a marker of "+" and a group of "k8s".
 //
-// At the moment, arguments are very strictly formatted (see parseTagArgs) and
-// whitespace is not allowed.
+// Example: When called with "+" for 'marker', and "k8s" for group for these comment lines:
 //
-// This function returns the key name and arguments, unless tagNames was
-// specified and the input did not match, in which case it returns "".
-func (s *tagKeyScanner) parseTagKey(tagNames []string) (string, []string, error) {
-	if s.Scan() != scanner.Ident {
-		return "", nil, fmt.Errorf("expected identifier but got %q", s.TokenText())
-	}
-	tagName := s.TokenText()
-	if len(tagNames) > 0 && !slices.Contains(tagNames, tagName) {
-		return "", nil, nil
-	}
-	if s.PeekSkipSpaces() != '(' {
-		return tagName, nil, nil
-	}
-	s.Scan() // consume the '(' token
-	args, err := s.parseTagArgs()
-	if err != nil {
-		return "", nil, err
-	}
-	if s.Scan() != ')' {
-		return "", nil, s.unexpectedTokenError("')'", s.TokenText())
-	}
-	return tagName, args, nil
-}
-
-// parseTagArgs parses the arguments part of an extended comment tag. The input
-// is assumed to be the entire text of the original input after the opening
-// '(', and before the trailing ')'.
+//	Comment line without marker
+//	+k8s:required
+//	+listType=set
+//	+k8s:format=k8s-long-name
 //
-// The argument may be a go style identifier, a quoted string ("..."), or a raw string (`...`).
-func (s *tagKeyScanner) parseTagArgs() ([]string, error) {
-	if s.PeekSkipSpaces() == ')' {
-		return nil, nil
-	}
-	if s.PeekSkipSpaces() == '{' || s.PeekSkipSpaces() == '[' {
-		value, err := s.scanJSONFlavoredValue()
-		if err != nil {
-			return nil, err
+// Then this function will return:
+//
+//	map[TagIdentifier][]string{
+//		{Group: "k8s", Name: "required"}: {"required"},
+//		{Group: "k8s", Name: "required"}: {"format=k8s-long-name"},
+//	}
+func ExtractTags(marker string, group *string, lines []string) map[TagIdentifier][]string {
+	out := map[TagIdentifier][]string{}
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, marker) {
+			continue
 		}
-		return []string{value}, nil
-	}
-	switch s.Scan() {
-	case scanner.String, scanner.RawString, scanner.Ident:
-		return []string{s.TokenText()}, nil
-	default:
-		return nil, s.unexpectedTokenError("identifier, quoted string (\"...\") or raw string (`...`)", s.TokenText())
-	}
-}
+		line = line[len(marker):]
 
-// scanJSONFlavoredValue consumes a single token as a JSON value from the scanner and returns the token text.
-// A strict subset of JSON is supported, in particular:
-// - Big numbers and numbers with exponents are not supported.
-// - JSON is expected to be in a single line. Tabs and newlines are not fully supported.
-func (s *tagKeyScanner) scanJSONFlavoredValue() (string, error) {
-	start, end, err := s.chompJSONFlavoredValue()
-	if err != nil {
-		return "", err
-	}
-	value := s.input[start:end]
-	var out any
-	err = json.Unmarshal([]byte(value), &out) // make sure the JSON parses
-	if err != nil {
-		return "", err
-	}
-	return value, nil
-}
-
-// chompJSONFlavoredValue consumes valid JSON from the scanner's token stream and returns the start and end positions of the JSON.
-func (s *tagKeyScanner) chompJSONFlavoredValue() (int, int, error) {
-	switch s.PeekSkipSpaces() {
-	case '[':
-		return s.chompJSONFlavoredArray()
-	case '{':
-		return s.chompJSONFlavoredObject()
-	}
-
-	t := s.Scan()
-	startPos := s.Offset
-	switch t {
-	case '-', '+':
-		t := s.Scan()
-		if !(t == scanner.Int || t == scanner.Float) {
-			return 0, 0, s.unexpectedTokenError("number", s.TokenText())
+		nameEnd := len(line)
+		if idx := strings.IndexAny(line, "(="); idx > 0 {
+			nameEnd = idx
 		}
-		return startPos, s.Offset + len(s.TokenText()), nil
-	case scanner.String, scanner.Int, scanner.Float:
-		return startPos, s.Offset + len(s.TokenText()), nil
-	case scanner.Ident:
-		text := s.TokenText()
-		if text == "true" || text == "false" || text == "null" {
-			return startPos, s.Offset + len(s.TokenText()), nil
+		ident := TagIdentifierFromString(line[:nameEnd])
+
+		if group != nil && ident.Group != *group {
+			continue
+		}
+		if ident.Group != "" {
+			line = line[len(ident.Group)+1:]
+		}
+
+		out[ident] = append(out[ident], line)
+	}
+	return out
+}
+
+// ParseTagWithArgs parses a single comment tag with typed args.
+// The tagText must not have a marker or group prefix.
+//
+// The tag may optionally contain function style arguments after the tag name.
+// Arguments may either be a single positional argument or any number of named
+// arguments, but not both. The tag may optionally contain a value following "=".
+// The value text is not parsed and is returned as a string.
+// Argument values may be double-quoted strings, backtick-quoted strings,
+// integers, booleans, or identifiers.
+//
+// Examples:
+//
+//	"tagName"
+//	"tagName=value"
+//	"tagName()"
+//	"tagName(arg)=value"
+//	"tagName("double-quoted")"
+//	"tagName(`backtick-quoted`)"
+//	"tagName(100)"
+//	"tagName(true)"
+//	"name(key1: value1)=value"
+//	"name(key1: value1, key2: value2)"
+//	"name(key1:`string value`)"
+//	"name(key1: 1)"
+//	"name(key1: true)"
+//
+// The tag grammar is:
+//
+// <tag> ::= <name> { "(" { <args> "}" ")" } { "=" <tagValue> }
+// <args> ::= <argValue> | <namedArgs>
+// <namedArgs> ::= <argNameAndValue> { "," <namedArgs> }
+// <argNameAndValue> ::= <identifier> ":" <argValue>
+// <argValue> ::= <identifier> | <string> | <int> | <bool>
+//
+// <identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
+// <string> ::= [`...` and "..." quoted strings with \\ and \" escaping]
+// <int> ::= [decimal, hex (0x), octal (0o) or binary (0b) notation with optional +/- prefix]
+// <bool> ::= "true" | "false"
+// <tagValue> ::= [all text after the = sign]
+func ParseTagWithArgs(tagText string) (TypedTag, error) {
+	tagText = strings.TrimSpace(tagText)
+	parsed, err := parseTagKey(tagText)
+	if err != nil {
+		return TypedTag{}, err
+	}
+	return TypedTag{Name: parsed.name, Args: parsed.args, Value: parsed.value}, nil
+}
+
+// ExtractAndParseTagWithArgs combines ExtractTags and ParseTagWithArgs.
+func ExtractAndParseTagWithArgs(marker string, group *string, lines []string) (map[TagIdentifier][]TypedTag, error) {
+	out := map[TagIdentifier][]TypedTag{}
+	for ident, lines := range ExtractTags(marker, group, lines) {
+		for _, line := range lines {
+			tag, err := ParseTagWithArgs(line)
+			if err != nil {
+				return nil, err
+			}
+			out[ident] = append(out[ident], tag)
 		}
 	}
-	return 0, 0, s.unexpectedTokenError("JSON value", s.TokenText())
+	return out, nil
 }
 
-func (s *tagKeyScanner) chompJSONFlavoredObject() (int, int, error) {
-	if s.Scan() != '{' {
-		return 0, 0, s.unexpectedTokenError("JSON array", s.TokenText())
-	}
-	startPos := s.Offset
-	if s.PeekSkipSpaces() == '}' {
-		s.Scan() // consume }
-		return startPos, s.Offset + 1, nil
-	}
-	_, _, err := s.chompJSONFlavoredObjectEntries()
-	if err != nil {
-		return 0, 0, err
-	}
-	if s.Scan() != '}' {
-		return 0, 0, s.unexpectedTokenError("}", s.TokenText())
-	}
-	return startPos, s.Offset + 1, nil
+// TagIdentifier represents a tag name with an optional group prefix.
+// Represented in string form as "<group>:<name>" or just "<name>".
+type TagIdentifier struct {
+	// Group is the optional group prefix of the tag.
+	Group string
+	Name  string
 }
 
-func (s *tagKeyScanner) chompJSONFlavoredObjectEntries() (int, int, error) {
-	keyStart, _, err := s.chompJSONFlavoredValue()
-	if err != nil {
-		return 0, 0, err
+// TagIdentifierFromString parses a TagIdentifier from string form.
+// tagName may be of form "<group>:<name>" or just "<name>".
+func TagIdentifierFromString(tagName string) TagIdentifier {
+	var ident TagIdentifier
+	group, name, ok := strings.Cut(tagName, ":")
+	if ok {
+		ident = TagIdentifier{Group: group, Name: name}
+	} else {
+		ident = TagIdentifier{Group: "", Name: tagName}
 	}
+	return ident
+}
 
-	if s.Scan() != ':' {
-		return 0, 0, s.unexpectedTokenError(":", s.TokenText())
+func (t TagIdentifier) String() string {
+	if len(t.Group) > 0 {
+		return fmt.Sprintf("%s:%s", t.Group, t.Name)
 	}
+	return t.Name
+}
 
-	_, valueEnd, err := s.chompJSONFlavoredValue()
-	if err != nil {
-		return 0, 0, err
-	}
+// TypedTag represents a single comment tag with typed args.
+type TypedTag struct {
+	// Name is the name of the tag with no arguments.
+	Name string
+	// Args is a list of optional arguments to the tag.
+	Args []Arg
+	// Value is the value of the tag.
+	Value string
+}
 
-	switch s.PeekSkipSpaces() {
-	case ',':
-		s.Scan() // Consume ,
-		_, entriesEnd, err := s.chompJSONFlavoredObjectEntries()
-		if err != nil {
-			return 0, 0, err
+func (t TypedTag) String() string {
+	buf := strings.Builder{}
+	buf.WriteString(t.Name)
+	if len(t.Args) > 0 {
+		buf.WriteString("(")
+		for i, a := range t.Args {
+			buf.WriteString(a.String())
+			if i > 0 {
+				buf.WriteString(", ")
+			}
 		}
-		return keyStart, entriesEnd, nil
-	case '}':
-		return keyStart, valueEnd, nil
-	default:
-		return 0, 0, s.unexpectedTokenError(", or ]", s.TokenText())
+		buf.WriteString(")")
 	}
+	if len(t.Value) > 0 {
+		buf.WriteString("=")
+		buf.WriteString(t.Value)
+	}
+	return buf.String()
 }
 
-func (s *tagKeyScanner) chompJSONFlavoredArray() (int, int, error) {
-	if s.Scan() != '[' {
-		return 0, 0, s.unexpectedTokenError("JSON array", s.TokenText())
-	}
-	startPos := s.Offset
-	if s.PeekSkipSpaces() == ']' {
-		s.Scan() // consume ]
-		return startPos, s.Offset + 1, nil
-	}
-	_, _, err := s.chompJSONFlavoredArrayItems()
-	if err != nil {
-		return 0, 0, err
-	}
-	if s.Scan() != ']' {
-		return 0, 0, s.unexpectedTokenError("]", s.TokenText())
-	}
-	return startPos, s.Offset + 1, nil
+// Arg represents a typed argument
+type Arg struct {
+	// Name is the name of a named argument. This is zero-valued for positional arguments.
+	Name string
+	// Value is the string value of an argument. It has been validated to match the Type.
+	// Value may be a string, int, or bool.
+	Value any
 }
 
-func (s *tagKeyScanner) chompJSONFlavoredArrayItems() (int, int, error) {
-	valueStart, valueEnd, err := s.chompJSONFlavoredValue()
-	if err != nil {
-		return 0, 0, err
+func (a Arg) String() string {
+	if len(a.Name) > 0 {
+		return fmt.Sprintf("%s: %v", a.Name, a.Value)
 	}
-
-	switch s.PeekSkipSpaces() {
-	case ',':
-		s.Scan() // Consume ,
-		_, itemsEnd, err := s.chompJSONFlavoredArrayItems()
-		if err != nil {
-			return 0, 0, err
-		}
-		return valueStart, itemsEnd, nil
-	case ']':
-		return valueStart, valueEnd, nil
-	default:
-		return 0, 0, s.unexpectedTokenError(", or ]", s.TokenText())
-	}
-}
-
-type tagKeyScanner struct {
-	input string
-	*scanner.Scanner
-	errs []error
-}
-
-func initTagKeyScanner(input string) *tagKeyScanner {
-	s := tagKeyScanner{input: input, Scanner: &scanner.Scanner{}}
-	s.Init(strings.NewReader(input))
-	s.Mode = scanner.ScanIdents | scanner.ScanStrings | scanner.ScanRawStrings | scanner.ScanInts | scanner.ScanFloats
-
-	s.Error = func(scanner *scanner.Scanner, msg string) {
-		s.errs = append(s.errs, fmt.Errorf("error parsing '%s' at %v: %s", input, scanner.Position, msg))
-	}
-	return &s
-}
-
-func (s *tagKeyScanner) PeekSkipSpaces() rune {
-	ch := s.Peek()
-	for ch == ' ' {
-		s.Next() // Consume the ' '
-		ch = s.Peek()
-	}
-	return ch
-}
-
-func (s *tagKeyScanner) unexpectedTokenError(expected string, token string) error {
-	s.Error(s.Scanner, fmt.Sprintf("expected %s but got (%q)", expected, token))
-	return errors.Join(s.errs...)
+	return fmt.Sprintf("%v", a.Value)
 }

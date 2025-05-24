@@ -17,10 +17,10 @@ limitations under the License.
 package gengo
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
-	"text/scanner"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -208,8 +208,9 @@ func TestExtractExtendedCommentTags(t *testing.T) {
 			"+pfx2Foo(arg)=val2",
 			"+pfx3Bar(arg)",
 			"+pfx4Bar(arg)=val",
+			"+k8s:union",
 		},
-		prefixes: []string{"pfx1Foo", "pfx2Foo"},
+		prefixes: []string{"pfx1Foo", "pfx2Foo", "k8s:union"},
 		expect: map[string][]Tag{
 			"pfx1Foo": mktags(
 				Tag{"pfx1Foo", nil, ""},
@@ -217,6 +218,8 @@ func TestExtractExtendedCommentTags(t *testing.T) {
 			"pfx2Foo": mktags(
 				Tag{"pfx2Foo", nil, "val1"},
 				Tag{"pfx2Foo", mkstrs("arg"), "val2"}),
+			"k8s:union": mktags(
+				Tag{Name: "k8s:union"}),
 		},
 	}, {
 		name: "raw arg with =, ), and space",
@@ -224,7 +227,7 @@ func TestExtractExtendedCommentTags(t *testing.T) {
 			"+rawEq(`a=b c=d )`)=xyz",
 		},
 		expect: map[string][]Tag{
-			"rawEq": mktags(Tag{"rawEq", mkstrs("`a=b c=d )`"), "xyz"}),
+			"rawEq": mktags(Tag{"rawEq", mkstrs("a=b c=d )"), "xyz"}),
 		},
 	}, {
 		name: "raw arg no value",
@@ -232,7 +235,7 @@ func TestExtractExtendedCommentTags(t *testing.T) {
 			"+onlyRaw(`zzz`)",
 		},
 		expect: map[string][]Tag{
-			"onlyRaw": mktags(Tag{"onlyRaw", mkstrs("`zzz`"), ""}),
+			"onlyRaw": mktags(Tag{"onlyRaw", mkstrs("zzz"), ""}),
 		},
 	}, {
 		name: "raw string arg complex",
@@ -241,34 +244,150 @@ func TestExtractExtendedCommentTags(t *testing.T) {
 		},
 		expect: map[string][]Tag{
 			"rawTag": mktags(
-				Tag{"rawTag", mkstrs("`[self.foo==10, ()), {}}, \"foo\", 'foo']`"), "val"}),
-		},
-	}, {
-		name: "JSON object",
-		comments: []string{
-			`+rawTag({"a": 1, "b": "x"})=val`,
-		},
-		expect: map[string][]Tag{
-			"rawTag": mktags(
-				Tag{"rawTag", mkstrs(`{"a": 1, "b": "x"}`), "val"}),
+				Tag{"rawTag", mkstrs("[self.foo==10, ()), {}}, \"foo\", 'foo']"), "val"}),
 		},
 	}}
 
 	for _, tc := range cases {
-		result, _ := ExtractFunctionStyleCommentTags("+", tc.prefixes, tc.comments)
-		if !reflect.DeepEqual(result, tc.expect) {
-			t.Errorf("case %q: wrong result:\n%v", tc.name, cmp.Diff(tc.expect, result))
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := ExtractFunctionStyleCommentTags("+", tc.prefixes, tc.comments)
+			if err != nil {
+				t.Errorf("case %q: unexpected error: %v", tc.name, err)
+				return
+			}
+			if !reflect.DeepEqual(result, tc.expect) {
+				t.Errorf("case %q: wrong result:\n%v", tc.name, cmp.Diff(tc.expect, result))
+			}
+		})
+	}
+}
+
+func TestExtractAndParseTagsWithArgs(t *testing.T) {
+	mktags := func(t ...TypedTag) []TypedTag { return t }
+
+	cases := []struct {
+		name     string
+		comments []string
+		group    *string
+		expect   map[TagIdentifier][]TypedTag
+	}{
+		{
+			name: "positional params",
+			comments: []string{
+				"+quoted(\"value\")",
+				"+backticked(`value`)",
+				"+ident(value)",
+				"+integer(2)",
+				"+negative(-5)",
+				"+hex(0xFF00B3)",
+				"+octal(0o04167)",
+				"+binary(0b10101)",
+				"+true(true)",
+				"+false(false)",
+			},
+			expect: map[TagIdentifier][]TypedTag{
+				{Name: "quoted"}: mktags(
+					TypedTag{Name: "quoted", Args: []Arg{
+						{Value: "value"},
+					}},
+				),
+				{Name: "backticked"}: mktags(
+					TypedTag{Name: "backticked", Args: []Arg{
+						{Value: "value"},
+					}},
+				),
+				{Name: "ident"}: mktags(
+					TypedTag{Name: "ident", Args: []Arg{
+						{Value: "value"},
+					}},
+				),
+				{Name: "integer"}: mktags(
+					TypedTag{Name: "integer", Args: []Arg{
+						{Value: int64(2)},
+					}}),
+				{Name: "negative"}: mktags(
+					TypedTag{Name: "negative", Args: []Arg{
+						{Value: int64(-5)},
+					}}),
+				{Name: "hex"}: mktags(
+					TypedTag{Name: "hex", Args: []Arg{
+						{Value: int64(0xFF00B3)},
+					}}),
+				{Name: "octal"}: mktags(
+					TypedTag{Name: "octal", Args: []Arg{
+						{Value: int64(0o04167)},
+					}}),
+				{Name: "binary"}: mktags(
+					TypedTag{Name: "binary", Args: []Arg{
+						{Value: int64(0b10101)},
+					}}),
+				{Name: "true"}: mktags(
+					TypedTag{Name: "true", Args: []Arg{
+						{Value: true},
+					}}),
+				{Name: "false"}: mktags(
+					TypedTag{Name: "false", Args: []Arg{
+						{Value: false},
+					}}),
+			},
+		},
+		{
+			name: "named params",
+			comments: []string{
+				"+strings(q: \"value\", b: `value`, i: value)",
+				"+numbers(n1: 2, n2: -5, n3: 0xFF00B3, n4: 0o04167, n5: 0b10101)",
+				"+bools(t: true, f:false)",
+			},
+			expect: map[TagIdentifier][]TypedTag{
+				{Name: "strings"}: mktags(
+					TypedTag{Name: "strings", Args: []Arg{
+						{Name: "q", Value: "value"},
+						{Name: "b", Value: `value`},
+						{Name: "i", Value: "value"},
+					}}),
+				{Name: "numbers"}: mktags(
+					TypedTag{Name: "numbers", Args: []Arg{
+						{Name: "n1", Value: int64(2)},
+						{Name: "n2", Value: int64(-5)},
+						{Name: "n3", Value: int64(0xFF00B3)},
+						{Name: "n4", Value: int64(0o04167)},
+						{Name: "n5", Value: int64(0b10101)},
+					}}),
+				{Name: "bools"}: mktags(
+					TypedTag{Name: "bools", Args: []Arg{
+						{Name: "t", Value: true},
+						{Name: "f", Value: false},
+					}}),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := ExtractAndParseTagWithArgs("+", tc.group, tc.comments)
+			if err != nil {
+				t.Fatalf("case %q: unexpected error: %v", tc.name, err)
+			}
+			if !reflect.DeepEqual(result, tc.expect) {
+				t.Errorf("case %q: wrong result:\n%v", tc.name, cmp.Diff(tc.expect, result))
+			}
+		})
 	}
 }
 
 func TestParseTagKey(t *testing.T) {
-	mkss := func(s ...string) []string { return s }
+	mkss := func(s ...string) []Arg {
+		var args []Arg
+		for _, v := range s {
+			args = append(args, Arg{Value: v})
+		}
+		return args
+	}
 
 	cases := []struct {
 		input      string
 		expectKey  string
-		expectArgs []string
+		expectArgs []Arg
 		err        bool
 	}{
 		{"simple", "simple", nil, false},
@@ -276,40 +395,63 @@ func TestParseTagKey(t *testing.T) {
 		{"withArgLower(arg)", "withArgLower", mkss("arg"), false},
 		{"withArgUpper(ARG)", "withArgUpper", mkss("ARG"), false},
 		{"withArgMixed(ArG)", "withArgMixed", mkss("ArG"), false},
-		{"name({})", "name", mkss("{}"), false},
-		{`name({"a":1})`, "name", mkss(`{"a":1}`), false},
-		{"name([])", "name", mkss("[]"), false},
 		{"withArgs(arg1, arg2)", "", nil, true},
 		{"argWithDash(arg-name) ", "", nil, true},
-		{"withRaw(`a = b`)", "withRaw", mkss("`a = b`"), false},
+		{"withRaw(`a = b`)", "withRaw", mkss("a = b"), false},
 		{"badRaw(missing`)", "", nil, true},
 		{"badMix(arg,`raw`)", "", nil, true},
+		{`quoted(s: "value \" \\")`, "quoted", []Arg{
+			{Name: "s", Value: "value \" \\"},
+		}, false},
+		{"backticks(s: `value`)", "backticks", []Arg{
+			{Name: "s", Value: `value`},
+		}, false},
+		{"ident(k: value)", "ident", []Arg{
+			{Name: "k", Value: "value"},
+		}, false},
+		{"numbers(n1: 2, n2: -5, n3: 0xFF00B3, n4: 0o04167, n5: 0b10101)", "numbers", []Arg{
+			{Name: "n1", Value: int64(2)},
+			{Name: "n2", Value: int64(-5)},
+			{Name: "n3", Value: int64(0xFF00B3)},
+			{Name: "n4", Value: int64(0o04167)},
+			{Name: "n5", Value: int64(0b10101)},
+		}, false},
+		{"bools(t: true, f:false)", "bools", []Arg{
+			{Name: "t", Value: true},
+			{Name: "f", Value: false},
+		}, false},
+		{"mixed(s: `value`, i: 2, b: true)", "mixed", []Arg{
+			{Name: "s", Value: "value"},
+			{Name: "i", Value: int64(2)},
+			{Name: "b", Value: true},
+		}, false},
 	}
 	for _, tc := range cases {
-		s := initTagKeyScanner(tc.input)
-		key, args, err := s.parseTagKey(nil)
-		if err != nil && tc.err == false {
-			t.Errorf("[%q]: expected success, got: %v", tc.input, err)
-			continue
-		}
-		if err == nil {
-			if tc.err == true {
-				t.Errorf("[%q]: expected failure, got: %v(%v)", tc.input, key, args)
-				continue
+		t.Run(tc.input, func(t *testing.T) {
+			parsed, err := parseTagKey(tc.input)
+			if err != nil && tc.err == false {
+				t.Errorf("[%q]: expected success, got: %v", tc.input, err)
+				return
 			}
-			if key != tc.expectKey {
-				t.Errorf("[%q]\nexpected key: %q, got: %q", tc.input, tc.expectKey, key)
-			}
-			if len(args) != len(tc.expectArgs) {
-				t.Errorf("[%q]: expected %d args, got: %q", tc.input, len(tc.expectArgs), args)
-				continue
-			}
-			for i := range tc.expectArgs {
-				if want, got := tc.expectArgs[i], args[i]; got != want {
-					t.Errorf("[%q]\nexpected %q, got %q", tc.input, want, got)
+			if err == nil {
+				if tc.err == true {
+					t.Errorf("[%q]: expected failure, got: %v(%v)", tc.input, parsed.name, parsed.args)
+					return
+				}
+				if parsed.name != tc.expectKey {
+					t.Errorf("[%q]\nexpected key: %q, got: %q", tc.input, tc.expectKey, parsed.name)
+				}
+				if len(parsed.args) != len(tc.expectArgs) {
+					t.Errorf("[%q]: expected %d args, got: %q", tc.input, len(tc.expectArgs), parsed.args)
+					return
+				}
+				for i := range tc.expectArgs {
+					if want, got := tc.expectArgs[i], parsed.args[i]; got != want {
+						t.Errorf("[%q]\nexpected %q, got %q", tc.input, want, got)
+					}
 				}
 			}
-		}
+		})
 	}
 }
 
@@ -325,26 +467,21 @@ func TestParseTagKeyWithTagNames(t *testing.T) {
 		{input: "name", expectKey: "name"},
 		{input: "name()", expectKey: "name"},
 		{input: "name(arg)", expectKey: "name", expectArgs: mkss("arg")},
-		{input: "nameNoMatch", expectKey: ""},
-		{input: "nameNoMatch()", expectKey: ""},
-		{input: "nameNoMatch(arg)", expectKey: ""},
-
 		{input: "name()", expectKey: "name"},
 		{input: "name(lower)", expectKey: "name", expectArgs: mkss("lower")},
 		{input: "name(CAPITAL)", expectKey: "name", expectArgs: mkss("CAPITAL")},
 		{input: "name(MiXeD)", expectKey: "name", expectArgs: mkss("MiXeD")},
 		{input: "name(mIxEd)", expectKey: "name", expectArgs: mkss("mIxEd")},
 		{input: "name(_under)", expectKey: "name", expectArgs: mkss("_under")},
-		{input: `name("hasQuotes")`, expectKey: "name", expectArgs: mkss("\"hasQuotes\"")},
-		{input: "name(`hasRawQuotes`)", expectKey: "name", expectArgs: mkss("`hasRawQuotes`")},
+		{input: `name("hasQuotes")`, expectKey: "name", expectArgs: mkss("hasQuotes")},
+		{input: "name(`hasRawQuotes`)", expectKey: "name", expectArgs: mkss("hasRawQuotes")},
 		{input: "name(has space)", expectKey: "name", err: true},
 		{input: "name(has-dash)", expectKey: "name", err: true},
 		{input: "name(multiple, args)", expectKey: "name", err: true},
 		{input: "name(noClosingParen", expectKey: "name", err: true},
 	}
 	for _, tc := range cases {
-		s := initTagKeyScanner(tc.input)
-		key, args, err := s.parseTagKey([]string{"name"})
+		parsed, err := parseTagKey(tc.input)
 
 		if err != nil && tc.err == false {
 			t.Errorf("[%q]: expected success, got: %v", tc.input, err)
@@ -352,18 +489,18 @@ func TestParseTagKeyWithTagNames(t *testing.T) {
 		}
 		if err == nil {
 			if tc.err == true {
-				t.Errorf("[%q]: expected failure, got: %q", tc.input, key)
+				t.Errorf("[%q]: expected failure, got: %q", tc.input, parsed.name)
 				continue
 			}
-			if key != tc.expectKey {
-				t.Errorf("[%q]\nexpected key: %q, got: %q", tc.input, tc.expectKey, key)
+			if parsed.name != tc.expectKey {
+				t.Errorf("[%q]\nexpected key: %q, got: %q", tc.input, tc.expectKey, parsed.name)
 			}
-			if len(args) != len(tc.expectArgs) {
-				t.Errorf("[%q]: expected %d args, got: %q", tc.input, len(tc.expectArgs), args)
+			if len(parsed.args) != len(tc.expectArgs) {
+				t.Errorf("[%q]: expected %d args, got: %q", tc.input, len(tc.expectArgs), parsed.args)
 				continue
 			}
 			for i := range tc.expectArgs {
-				if want, got := tc.expectArgs[i], args[i]; got != want {
+				if want, got := tc.expectArgs[i], parsed.args[i]; fmt.Sprintf("%v", got.Value) != want {
 					t.Errorf("[%q]\nexpected %q, got %q", tc.input, want, got)
 				}
 			}
@@ -371,109 +508,98 @@ func TestParseTagKeyWithTagNames(t *testing.T) {
 	}
 }
 
-func TestParseJSON(t *testing.T) {
-	cases := []struct {
-		input      string
-		err        bool
-		incomplete bool
+func TestExtract(t *testing.T) {
+	k8sGroup := "k8s"
+	emptyGroup := ""
+	tests := []struct {
+		name   string
+		marker string
+		group  *string
+		lines  []string
+		want   map[TagIdentifier][]string
 	}{
 		{
-			input: `[]`,
+			name:   "example from documentation",
+			marker: "+",
+			group:  &k8sGroup,
+			lines: []string{
+				"Comment line without marker",
+				"+k8s:required",
+				"+listType=set",
+				"+k8s:format=k8s-long-name",
+			},
+			want: map[TagIdentifier][]string{
+				{Group: "k8s", Name: "required"}: {"required"},
+				{Group: "k8s", Name: "format"}:   {"format=k8s-long-name"},
+			},
 		},
 		{
-			input: `{}`,
+			name:   "empty lines",
+			marker: "+",
+			group:  &k8sGroup,
+			lines:  []string{},
+			want:   map[TagIdentifier][]string{},
 		},
 		{
-			input: `[1]`,
+			name:   "no matching lines",
+			marker: "+",
+			group:  &k8sGroup,
+			lines: []string{
+				"Comment line without marker",
+				"Another comment line",
+			},
+			want: map[TagIdentifier][]string{},
 		},
 		{
-			input: `{"a":1}`,
+			name:   "different marker",
+			marker: "@",
+			group:  &k8sGroup,
+			lines: []string{
+				"Comment line without marker",
+				"@k8s:required",
+				"@validation:required",
+				"+k8s:format=k8s-long-name",
+			},
+			want: map[TagIdentifier][]string{
+				{Group: "k8s", Name: "required"}: {"required"},
+			},
 		},
 		{
-			input: `[1, 2]`,
+			name:   "empty group",
+			marker: "+",
+			group:  &emptyGroup,
+			lines: []string{
+				"+k8s:required",
+				"+required",
+				"+format=special",
+			},
+			want: map[TagIdentifier][]string{
+				{Group: "", Name: "required"}: {"required"},
+				{Group: "", Name: "format"}:   {"format=special"},
+			},
 		},
 		{
-			input: `{"a": 1, "b": 2}`,
-		},
-		{
-			input: `1.1`,
-		},
-		{
-			input: `-4`,
-		},
-		{
-			input: `true`,
-		},
-		{
-			input: `false`,
-		},
-		{
-			input: `"string"`,
-		},
-		{
-			input: "null",
-		},
-		{
-			input: `{"key":"value" }`,
-		},
-		{
-			input: `[1 ]`,
-		},
-		{
-			input: `[1 ,2]`,
-		},
-
-		// invalid
-		{
-			input: `[1,]`,
-			err:   true,
-		},
-		{
-			input: `[1,]`,
-			err:   true,
-		},
-		{
-			input: `{"a":1,}`,
-			err:   true,
-		},
-		{
-			input: `{"a"`,
-			err:   true,
-		},
-		{
-			input: `"a`,
-			err:   true,
-		},
-		{
-			input: `UNKNOWN`,
-			err:   true,
-		},
-		{
-			input: `1.4e-10`, // parse consumes 1.4, not the full number
+			name:   "no group",
+			marker: "+",
+			group:  nil,
+			lines: []string{
+				"+k8s:required",
+				"+validation:required",
+				"+validation:format=special",
+			},
+			want: map[TagIdentifier][]string{
+				{Group: "k8s", Name: "required"}:        {"required"},
+				{Group: "validation", Name: "required"}: {"required"},
+				{Group: "validation", Name: "format"}:   {"format=special"},
+			},
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.input, func(t *testing.T) {
-			s := initTagKeyScanner(tc.input)
-			out, err := s.scanJSONFlavoredValue()
-			if err != nil && tc.err == false {
-				t.Errorf("[%q]: expected success, got: %v", tc.input, err)
-				return
-			}
-			if err == nil {
-				if tc.err == true {
-					t.Errorf("[%q]: expected failure, got: %q", tc.input, out)
-					return
-				}
-				if out != tc.input {
-					t.Errorf("expected %q got %q", tc.input, out)
-				}
-			}
-
-			gotIncomplete := s.Scan() != scanner.EOF
-			if tc.incomplete != gotIncomplete {
-				t.Errorf("Expected incomplete=%t but got %t", tc.incomplete, gotIncomplete)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ExtractTags(tt.marker, tt.group, tt.lines)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExtractTags() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -121,8 +121,6 @@ parseLoop:
 			switch {
 			case isIdentInterior(r):
 				tag.WriteRune(r)
-			case r == ':': // allowed in tag names
-				tag.WriteRune(r)
 			case r == '(':
 				incomplete = true
 				st = stArg

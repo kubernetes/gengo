@@ -262,14 +262,14 @@ func TestExtractExtendedCommentTags(t *testing.T) {
 	}
 }
 
-func TestExtractCommentTagsWithArgs(t *testing.T) {
+func TestExtractAndParseTagsWithArgs(t *testing.T) {
 	mktags := func(t ...TypedTag) []TypedTag { return t }
 
 	cases := []struct {
 		name     string
 		comments []string
-		prefixes []string
-		expect   map[string][]TypedTag
+		group    *string
+		expect   map[TagIdentifier][]TypedTag
 	}{
 		{
 			name: "positional params",
@@ -285,47 +285,47 @@ func TestExtractCommentTagsWithArgs(t *testing.T) {
 				"+true(true)",
 				"+false(false)",
 			},
-			expect: map[string][]TypedTag{
-				"quoted": mktags(
+			expect: map[TagIdentifier][]TypedTag{
+				{Name: "quoted"}: mktags(
 					TypedTag{Name: "quoted", Args: []Arg{
 						{Value: "value"},
 					}},
 				),
-				"backticked": mktags(
+				{Name: "backticked"}: mktags(
 					TypedTag{Name: "backticked", Args: []Arg{
 						{Value: "value"},
 					}},
 				),
-				"ident": mktags(
+				{Name: "ident"}: mktags(
 					TypedTag{Name: "ident", Args: []Arg{
 						{Value: "value"},
 					}},
 				),
-				"integer": mktags(
+				{Name: "integer"}: mktags(
 					TypedTag{Name: "integer", Args: []Arg{
 						{Value: int64(2)},
 					}}),
-				"negative": mktags(
+				{Name: "negative"}: mktags(
 					TypedTag{Name: "negative", Args: []Arg{
 						{Value: int64(-5)},
 					}}),
-				"hex": mktags(
+				{Name: "hex"}: mktags(
 					TypedTag{Name: "hex", Args: []Arg{
 						{Value: int64(0xFF00B3)},
 					}}),
-				"octal": mktags(
+				{Name: "octal"}: mktags(
 					TypedTag{Name: "octal", Args: []Arg{
 						{Value: int64(0o04167)},
 					}}),
-				"binary": mktags(
+				{Name: "binary"}: mktags(
 					TypedTag{Name: "binary", Args: []Arg{
 						{Value: int64(0b10101)},
 					}}),
-				"true": mktags(
+				{Name: "true"}: mktags(
 					TypedTag{Name: "true", Args: []Arg{
 						{Value: true},
 					}}),
-				"false": mktags(
+				{Name: "false"}: mktags(
 					TypedTag{Name: "false", Args: []Arg{
 						{Value: false},
 					}}),
@@ -338,14 +338,14 @@ func TestExtractCommentTagsWithArgs(t *testing.T) {
 				"+numbers(n1: 2, n2: -5, n3: 0xFF00B3, n4: 0o04167, n5: 0b10101)",
 				"+bools(t: true, f:false)",
 			},
-			expect: map[string][]TypedTag{
-				"strings": mktags(
+			expect: map[TagIdentifier][]TypedTag{
+				{Name: "strings"}: mktags(
 					TypedTag{Name: "strings", Args: []Arg{
 						{Name: "q", Value: "value"},
 						{Name: "b", Value: `value`},
 						{Name: "i", Value: "value"},
 					}}),
-				"numbers": mktags(
+				{Name: "numbers"}: mktags(
 					TypedTag{Name: "numbers", Args: []Arg{
 						{Name: "n1", Value: int64(2)},
 						{Name: "n2", Value: int64(-5)},
@@ -353,34 +353,20 @@ func TestExtractCommentTagsWithArgs(t *testing.T) {
 						{Name: "n4", Value: int64(0o04167)},
 						{Name: "n5", Value: int64(0b10101)},
 					}}),
-				"bools": mktags(
+				{Name: "bools"}: mktags(
 					TypedTag{Name: "bools", Args: []Arg{
 						{Name: "t", Value: true},
 						{Name: "f", Value: false},
 					}}),
 			},
 		},
-		{
-			name: "test excluded prefixes are not parsed",
-			comments: []string{
-				"+parsableNotSkipped",
-				"+parsableSkipped",
-				"+notParsableSkipped((",
-			},
-			prefixes: []string{"parsableNotSkipped"},
-			expect: map[string][]TypedTag{
-				"parsableNotSkipped": mktags(
-					TypedTag{Name: "parsableNotSkipped", Args: []Arg{}}),
-			},
-		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := ExtractCommentTagsWithArgs("+", tc.prefixes, tc.comments)
+			result, err := ExtractAndParseTagWithArgs("+", tc.group, tc.comments)
 			if err != nil {
-				t.Errorf("case %q: unexpected error: %v", tc.name, err)
-				return
+				t.Fatalf("case %q: unexpected error: %v", tc.name, err)
 			}
 			if !reflect.DeepEqual(result, tc.expect) {
 				t.Errorf("case %q: wrong result:\n%v", tc.name, cmp.Diff(tc.expect, result))
@@ -519,5 +505,102 @@ func TestParseTagKeyWithTagNames(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestExtract(t *testing.T) {
+	k8sGroup := "k8s"
+	emptyGroup := ""
+	tests := []struct {
+		name   string
+		marker string
+		group  *string
+		lines  []string
+		want   map[TagIdentifier][]string
+	}{
+		{
+			name:   "example from documentation",
+			marker: "+",
+			group:  &k8sGroup,
+			lines: []string{
+				"Comment line without marker",
+				"+k8s:required",
+				"+listType=set",
+				"+k8s:format=k8s-long-name",
+			},
+			want: map[TagIdentifier][]string{
+				{Group: "k8s", Name: "required"}: {"required"},
+				{Group: "k8s", Name: "format"}:   {"format=k8s-long-name"},
+			},
+		},
+		{
+			name:   "empty lines",
+			marker: "+",
+			group:  &k8sGroup,
+			lines:  []string{},
+			want:   map[TagIdentifier][]string{},
+		},
+		{
+			name:   "no matching lines",
+			marker: "+",
+			group:  &k8sGroup,
+			lines: []string{
+				"Comment line without marker",
+				"Another comment line",
+			},
+			want: map[TagIdentifier][]string{},
+		},
+		{
+			name:   "different marker",
+			marker: "@",
+			group:  &k8sGroup,
+			lines: []string{
+				"Comment line without marker",
+				"@k8s:required",
+				"@validation:required",
+				"+k8s:format=k8s-long-name",
+			},
+			want: map[TagIdentifier][]string{
+				{Group: "k8s", Name: "required"}: {"required"},
+			},
+		},
+		{
+			name:   "empty group",
+			marker: "+",
+			group:  &emptyGroup,
+			lines: []string{
+				"+k8s:required",
+				"+required",
+				"+format=special",
+			},
+			want: map[TagIdentifier][]string{
+				{Group: "", Name: "required"}: {"required"},
+				{Group: "", Name: "format"}:   {"format=special"},
+			},
+		},
+		{
+			name:   "no group",
+			marker: "+",
+			group:  nil,
+			lines: []string{
+				"+k8s:required",
+				"+validation:required",
+				"+validation:format=special",
+			},
+			want: map[TagIdentifier][]string{
+				{Group: "k8s", Name: "required"}:        {"required"},
+				{Group: "validation", Name: "required"}: {"required"},
+				{Group: "validation", Name: "format"}:   {"format=special"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ExtractTags(tt.marker, tt.group, tt.lines)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExtractTags() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

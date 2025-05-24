@@ -107,7 +107,7 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //   - 'marker' + "key(`raw string`)=value"
 //
 // The arg is optional. It may be a Go identifier, a raw string literal enclosed
-// in back-ticks or double-quotes, an integer (with support for hex, octal or
+// in back-ticks or double-quotes, an integer (with support for hex, octal, or
 // binary notation) or a boolean. If not specified (either as "key=value" or as
 // "key()=value"), the resulting Tag will have an empty Args list.
 //
@@ -116,7 +116,7 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //
 // Tag comment-lines may have a trailing end-of-line comment.
 //
-// The map returned here is keyed by the Tag's name without args.
+// The map returned here are keyed by the Tag's name without args.
 //
 // A tag can be specified more than one time and all values are returned.  If
 // the resulting map has an entry for a key, the value (a slice) is guaranteed
@@ -158,13 +158,24 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //
 // This function should be preferred instead of ExtractCommentTags.
 func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []string) (map[string][]Tag, error) {
-	typedTags, err := ExtractCommentTagsWithArgs(marker, tagNames, lines)
-	if err != nil {
-		return nil, err
-	}
 	out := map[string][]Tag{}
-	for name, tags := range typedTags {
-		for _, tag := range tags {
+
+	tagIdents := make([]TagIdentifier, len(tagNames))
+	for i, name := range tagNames {
+		tagIdents[i] = TagIdentifierFromString(name)
+	}
+
+	tags := ExtractTags(marker, nil, lines)
+	for tagIdent, tagLines := range tags {
+		if len(tagIdents) > 0 && !slices.Contains(tagIdents, tagIdent) {
+			continue
+		}
+		for _, line := range tagLines {
+			tag, err := ParseTagWithArgs(line)
+			if err != nil {
+				return nil, err
+			}
+
 			var stringArgs []string
 			for _, arg := range tag.Args {
 				if len(arg.Name) > 0 {
@@ -176,13 +187,15 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 					stringArgs = append(stringArgs, s)
 				}
 			}
-			out[name] = append(out[name], Tag{
+			tag.Name = tagIdent.String()
+			out[tag.Name] = append(out[tag.Name], Tag{
 				Name:  tag.Name,
 				Args:  stringArgs,
 				Value: tag.Value,
 			})
 		}
 	}
+
 	return out, nil
 }
 
@@ -212,11 +225,27 @@ func (t Tag) String() string {
 	return buf.String()
 }
 
-// ExtractCommentTagsWithArgs parses comments for special metadata tags.
-// This function supports all the functionality of ExtractFunctionStyleCommentTags, and also supports named parameters
-// and returns typed results.
-func ExtractCommentTagsWithArgs(marker string, tagNames []string, lines []string) (map[string][]TypedTag, error) {
-	out := map[string][]TypedTag{}
+// ExtractTags find comment lines that match the marker and group prefix. ExtractTags
+// then returns comment lines, with the marker and group prefixes removed, grouped by group/name identifier keys.
+// If group is nil, all groups are returned.  A group of "" represents comment lines without a group prefix.
+//
+// For example, the comment "+k8s:required" has a marker of "+" and a group of "k8s".
+//
+// Example: When called with "+" for 'marker', and "k8s" for group for these comment lines:
+//
+//	Comment line without marker
+//	+k8s:required
+//	+listType=set
+//	+k8s:format=k8s-long-name
+//
+// Then this function will return:
+//
+//	map[TagIdentifier][]string{
+//		{Group: "k8s", Name: "required"}: {"required"},
+//		{Group: "k8s", Name: "required"}: {"format=k8s-long-name"},
+//	}
+func ExtractTags(marker string, group *string, lines []string) map[TagIdentifier][]string {
+	out := map[TagIdentifier][]string{}
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, marker) {
@@ -224,30 +253,113 @@ func ExtractCommentTagsWithArgs(marker string, tagNames []string, lines []string
 		}
 		line = line[len(marker):]
 
-		if len(tagNames) > 0 {
-			var tagName string
-			if idx := strings.IndexFunc(line, func(r rune) bool { return r == '=' || r == '(' }); idx > 0 {
-				tagName = line[:idx]
-			} else {
-				tagName = line
-			}
-			if !slices.Contains(tagNames, tagName) {
-				continue
-			}
+		nameEnd := len(line)
+		if idx := strings.IndexAny(line, "(="); idx > 0 {
+			nameEnd = idx
 		}
+		ident := TagIdentifierFromString(line[:nameEnd])
 
-		parsed, err := parseTagKey(line)
-		if err != nil {
-			return nil, err
-		}
-		if parsed.name == "" {
+		if group != nil && ident.Group != *group {
 			continue
 		}
+		if ident.Group != "" {
+			line = line[len(ident.Group)+1:]
+		}
 
-		tag := TypedTag{Name: parsed.name, Args: parsed.args, Value: parsed.value}
-		out[parsed.name] = append(out[parsed.name], tag)
+		out[ident] = append(out[ident], line)
+	}
+	return out
+}
+
+// ParseTagWithArgs parses a single comment tag with typed args.
+// The tagText must not have a marker or group prefix.
+//
+// The tag may optionally contain function style arguments after the tag name.
+// Arguments may either be a single positional argument or any number of named
+// arguments, but not both. The tag may optionally contain a value following "=".
+// The value text is not parsed and is returned as a string.
+// Argument values may be double-quoted strings, backtick-quoted strings,
+// integers, booleans, or identifiers.
+//
+// Examples:
+//
+//	"tagName"
+//	"tagName=value"
+//	"tagName()"
+//	"tagName(arg)=value"
+//	"tagName("double-quoted")"
+//	"tagName(`backtick-quoted`)"
+//	"tagName(100)"
+//	"tagName(true)"
+//	"name(key1: value1)=value"
+//	"name(key1: value1, key2: value2)"
+//	"name(key1:`string value`)"
+//	"name(key1: 1)"
+//	"name(key1: true)"
+//
+// The tag grammar is:
+//
+// <tag> ::= <name> { "(" { <args> "}" ")" } { "=" <tagValue> }
+// <args> ::= <argValue> | <namedArgs>
+// <namedArgs> ::= <argNameAndValue> { "," <namedArgs> }
+// <argNameAndValue> ::= <identifier> ":" <argValue>
+// <argValue> ::= <identifier> | <string> | <int> | <bool>
+//
+// <identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
+// <string> ::= [`...` and "..." quoted strings with \\ and \" escaping]
+// <int> ::= [decimal, hex (0x), octal (0o) or binary (0b) notation with optional +/- prefix]
+// <bool> ::= "true" | "false"
+// <tagValue> ::= [all text after the = sign]
+func ParseTagWithArgs(tagText string) (TypedTag, error) {
+	tagText = strings.TrimSpace(tagText)
+	parsed, err := parseTagKey(tagText)
+	if err != nil {
+		return TypedTag{}, err
+	}
+	return TypedTag{Name: parsed.name, Args: parsed.args, Value: parsed.value}, nil
+}
+
+// ExtractAndParseTagWithArgs combines ExtractTags and ParseTagWithArgs.
+func ExtractAndParseTagWithArgs(marker string, group *string, lines []string) (map[TagIdentifier][]TypedTag, error) {
+	out := map[TagIdentifier][]TypedTag{}
+	for ident, lines := range ExtractTags(marker, group, lines) {
+		for _, line := range lines {
+			tag, err := ParseTagWithArgs(line)
+			if err != nil {
+				return nil, err
+			}
+			out[ident] = append(out[ident], tag)
+		}
 	}
 	return out, nil
+}
+
+// TagIdentifier represents a tag name with an optional group prefix.
+// Represented in string form as "<group>:<name>" or just "<name>".
+type TagIdentifier struct {
+	// Group is the optional group prefix of the tag.
+	Group string
+	Name  string
+}
+
+// TagIdentifierFromString parses a TagIdentifier from string form.
+// tagName may be of form "<group>:<name>" or just "<name>".
+func TagIdentifierFromString(tagName string) TagIdentifier {
+	var ident TagIdentifier
+	group, name, ok := strings.Cut(tagName, ":")
+	if ok {
+		ident = TagIdentifier{Group: group, Name: name}
+	} else {
+		ident = TagIdentifier{Group: "", Name: tagName}
+	}
+	return ident
+}
+
+func (t TagIdentifier) String() string {
+	if len(t.Group) > 0 {
+		return fmt.Sprintf("%s:%s", t.Group, t.Name)
+	}
+	return t.Name
 }
 
 // TypedTag represents a single comment tag with typed args.
@@ -260,11 +372,38 @@ type TypedTag struct {
 	Value string
 }
 
+func (t TypedTag) String() string {
+	buf := strings.Builder{}
+	buf.WriteString(t.Name)
+	if len(t.Args) > 0 {
+		buf.WriteString("(")
+		for i, a := range t.Args {
+			buf.WriteString(a.String())
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+		}
+		buf.WriteString(")")
+	}
+	if len(t.Value) > 0 {
+		buf.WriteString("=")
+		buf.WriteString(t.Value)
+	}
+	return buf.String()
+}
+
 // Arg represents a typed argument
 type Arg struct {
 	// Name is the name of a named argument. This is zero-valued for positional arguments.
 	Name string
 	// Value is the string value of an argument. It has been validated to match the Type.
-	// Value may be a string, int or bool.
+	// Value may be a string, int, or bool.
 	Value any
+}
+
+func (a Arg) String() string {
+	if len(a.Name) > 0 {
+		return fmt.Sprintf("%s: %v", a.Name, a.Value)
+	}
+	return fmt.Sprintf("%v", a.Value)
 }

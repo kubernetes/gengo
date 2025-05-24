@@ -223,14 +223,24 @@ func ExtractCommentTagsWithArgs(marker string, tagNames []string, lines []string
 			continue
 		}
 		line = line[len(marker):]
+
+		if len(tagNames) > 0 {
+			var tagName string
+			if idx := strings.IndexFunc(line, func(r rune) bool { return r == '=' || r == '(' }); idx > 0 {
+				tagName = line[:idx]
+			} else {
+				tagName = line
+			}
+			if !slices.Contains(tagNames, tagName) {
+				continue
+			}
+		}
+
 		parsed, err := parseTagKey(line)
 		if err != nil {
 			return nil, err
 		}
 		if parsed.name == "" {
-			continue
-		}
-		if len(tagNames) > 0 && !slices.Contains(tagNames, parsed.name) {
 			continue
 		}
 

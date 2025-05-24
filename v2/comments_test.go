@@ -262,7 +262,7 @@ func TestExtractExtendedCommentTags(t *testing.T) {
 	}
 }
 
-func TestExtractFunctionStyleCommentTypedTags(t *testing.T) {
+func TestExtractCommentTagsWithArgs(t *testing.T) {
 	mktags := func(t ...TypedTag) []TypedTag { return t }
 
 	cases := []struct {
@@ -358,6 +358,19 @@ func TestExtractFunctionStyleCommentTypedTags(t *testing.T) {
 						{Name: "t", Value: true},
 						{Name: "f", Value: false},
 					}}),
+			},
+		},
+		{
+			name: "test excluded prefixes are not parsed",
+			comments: []string{
+				"+parsableNotSkipped",
+				"+parsableSkipped",
+				"+notParsableSkipped((",
+			},
+			prefixes: []string{"parsableNotSkipped"},
+			expect: map[string][]TypedTag{
+				"parsableNotSkipped": mktags(
+					TypedTag{Name: "parsableNotSkipped", Args: []Arg{}}),
 			},
 		},
 	}

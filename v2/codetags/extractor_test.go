@@ -206,12 +206,16 @@ func TestExtractAndParse(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := ExtractAndParse("+", tc.comments)
-			if err != nil {
-				t.Fatalf("case %q: unexpected error: %v", tc.name, err)
+			out := map[string][]TypedTag{}
+			for name, matchedTags := range Extract("+", tc.comments) {
+				parsed, err := ParseAll(matchedTags)
+				if err != nil {
+					t.Fatalf("case %q: unexpected error: %v", tc.name, err)
+				}
+				out[name] = parsed
 			}
-			if !reflect.DeepEqual(result, tc.expect) {
-				t.Errorf("case %q: wrong result:\n%v", tc.name, cmp.Diff(tc.expect, result))
+			if !reflect.DeepEqual(out, tc.expect) {
+				t.Errorf("case %q: wrong result:\n%v", tc.name, cmp.Diff(tc.expect, out))
 			}
 		})
 	}

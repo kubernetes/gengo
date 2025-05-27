@@ -106,6 +106,19 @@ func Parse(tagText string) (TypedTag, error) {
 	return TypedTag{Name: parsed.name, Args: parsed.args, Value: parsed.value}, nil
 }
 
+// ParseAll calls Parse on each tag in the input slice.
+func ParseAll(tags []string) ([]TypedTag, error) {
+	var out []TypedTag
+	for _, tag := range tags {
+		parsed, err := Parse(tag)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, parsed)
+	}
+	return out, nil
+}
+
 func parseTagKey(input string) (tagKey, error) {
 	tag := bytes.Buffer{}   // current tag name
 	args := []Arg{}         // all tag arguments
@@ -310,7 +323,7 @@ parseLoop:
 			default:
 				break parseLoop
 			}
-		case stValue:
+		case stValue: // This is a terminal state, it consumes the rest of the input as an opaque value.
 			value.WriteRune(r)
 		case stMaybeComment:
 			switch {

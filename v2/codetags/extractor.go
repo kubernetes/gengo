@@ -30,6 +30,9 @@ import (
 //	+listType=set
 //	+k8s:format=k8s-long-name
 //
+// This function treats all characters before the first '=', '(' or end-of-line as the name
+// of the tag.
+//
 // Then this function will return:
 //
 //	map[string][]string{
@@ -45,6 +48,7 @@ func Extract(prefix string, lines []string) map[string][]string {
 		}
 		line = line[len(prefix):]
 
+		// Find the end of the presumed tag name.
 		nameEnd := len(line)
 		if idx := strings.IndexAny(line, "(="); idx > 0 {
 			nameEnd = idx
@@ -53,19 +57,4 @@ func Extract(prefix string, lines []string) map[string][]string {
 		out[name] = append(out[name], line)
 	}
 	return out
-}
-
-// ExtractAndParse combines Extract and Parse.
-func ExtractAndParse(prefix string, lines []string) (map[string][]TypedTag, error) {
-	out := map[string][]TypedTag{}
-	for name, lines := range Extract(prefix, lines) {
-		for _, line := range lines {
-			tag, err := Parse(line)
-			if err != nil {
-				return nil, err
-			}
-			out[name] = append(out[name], tag)
-		}
-	}
-	return out, nil
 }

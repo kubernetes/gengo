@@ -22,34 +22,6 @@ import (
 	"strings"
 )
 
-// TagIdentifier represents a tag name with an optional group prefix.
-// Represented in string form as "<group>:<name>" or just "<name>".
-type TagIdentifier struct {
-	// Group is the optional group prefix of the tag.
-	Group string
-	Name  string
-}
-
-// TagIdentifierFromString parses a TagIdentifier from string form.
-// tagName may be of form "<group>:<name>" or just "<name>".
-func TagIdentifierFromString(tagName string) TagIdentifier {
-	var ident TagIdentifier
-	group, name, ok := strings.Cut(tagName, ":")
-	if ok {
-		ident = TagIdentifier{Group: group, Name: name}
-	} else {
-		ident = TagIdentifier{Group: "", Name: tagName}
-	}
-	return ident
-}
-
-func (t TagIdentifier) String() string {
-	if len(t.Group) > 0 {
-		return fmt.Sprintf("%s:%s", t.Group, t.Name)
-	}
-	return t.Name
-}
-
 // TypedTag represents a single comment tag with typed args.
 type TypedTag struct {
 	// Name is the name of the tag with no arguments.

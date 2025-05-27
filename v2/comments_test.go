@@ -96,7 +96,7 @@ func TestExtractFunctionStyleCommentTags(t *testing.T) {
 	cases := []struct {
 		name     string
 		comments []string
-		prefixes []string
+		tagNames []string
 		expect   map[string][]Tag
 	}{{
 		name: "no args",
@@ -209,7 +209,7 @@ func TestExtractFunctionStyleCommentTags(t *testing.T) {
 			"+pfx4Bar(arg)=val",
 			"+k8s:union",
 		},
-		prefixes: []string{"pfx1Foo", "pfx2Foo", "k8s:union"},
+		tagNames: []string{"pfx1Foo", "pfx2Foo", "k8s:union"},
 		expect: map[string][]Tag{
 			"pfx1Foo": mktags(
 				Tag{"pfx1Foo", nil, ""},
@@ -249,7 +249,7 @@ func TestExtractFunctionStyleCommentTags(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := ExtractFunctionStyleCommentTags("+", tc.prefixes, tc.comments)
+			result, err := ExtractFunctionStyleCommentTags("+", tc.tagNames, tc.comments)
 			if err != nil {
 				t.Errorf("case %q: unexpected error: %v", tc.name, err)
 				return

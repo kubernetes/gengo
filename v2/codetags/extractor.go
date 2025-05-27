@@ -20,18 +20,10 @@ import (
 	"strings"
 )
 
-// Extract extracts comments for special metadata tags. The marker argument
-// and group should be unique enough to identify the tags needed.
+// Extract extracts comments for special metadata tags. Lines are filtered by a
+// string prefix that matching lines must start with.
 //
-// This function looks for input of the form:
-//
-//	+<group>:<tag>
-//
-// This function returns comment lines, with the marker and group prefixes
-// removed, grouped by group/name identifier keys. If group is nil, all groups
-// are returned. A group of "" represents comment lines without a group prefix.
-//
-// Example: When called with "+" for 'marker', and "k8s" for group for these comment lines:
+// Example: When called with prefix "+k8s:", lines:
 //
 //	Comment line without marker
 //	+k8s:required
@@ -40,47 +32,39 @@ import (
 //
 // Then this function will return:
 //
-//	map[TagIdentifier][]string{
-//		{Group: "k8s", Name: "required"}: {"required"},
-//		{Group: "k8s", Name: "required"}: {"format=k8s-long-name"},
+//	map[string][]string{
+//		"required": {"required"},
+//		"required": {"format=k8s-long-name"},
 //	}
-func Extract(marker string, group *string, lines []string) map[TagIdentifier][]string {
-	out := map[TagIdentifier][]string{}
+func Extract(prefix string, lines []string) map[string][]string {
+	out := map[string][]string{}
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, marker) {
+		if !strings.HasPrefix(line, prefix) {
 			continue
 		}
-		line = line[len(marker):]
+		line = line[len(prefix):]
 
 		nameEnd := len(line)
 		if idx := strings.IndexAny(line, "(="); idx > 0 {
 			nameEnd = idx
 		}
-		ident := TagIdentifierFromString(line[:nameEnd])
-
-		if group != nil && ident.Group != *group {
-			continue
-		}
-		if ident.Group != "" {
-			line = line[len(ident.Group)+1:]
-		}
-
-		out[ident] = append(out[ident], line)
+		name := line[:nameEnd]
+		out[name] = append(out[name], line)
 	}
 	return out
 }
 
 // ExtractAndParse combines Extract and Parse.
-func ExtractAndParse(marker string, group *string, lines []string) (map[TagIdentifier][]TypedTag, error) {
-	out := map[TagIdentifier][]TypedTag{}
-	for ident, lines := range Extract(marker, group, lines) {
+func ExtractAndParse(prefix string, lines []string) (map[string][]TypedTag, error) {
+	out := map[string][]TypedTag{}
+	for name, lines := range Extract(prefix, lines) {
 		for _, line := range lines {
 			tag, err := Parse(line)
 			if err != nil {
 				return nil, err
 			}
-			out[ident] = append(out[ident], tag)
+			out[name] = append(out[name], tag)
 		}
 	}
 	return out, nil

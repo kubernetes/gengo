@@ -47,10 +47,9 @@ type tagKey struct {
 	value string
 }
 
-// Parse parses a single comment tag with typed args.
-// The tagText must not have a marker or group prefix.
+// Parse parses a comment tag into a TypedTag, or returns an error if the tag fails to parse.
 //
-// This function looks for input of the following forms:
+// This function supports input of the following forms:
 //
 //	"key"
 //	"key=value"
@@ -58,6 +57,9 @@ type tagKey struct {
 //	"key(arg)=value"
 //	"key(arg1: argValue1)=value"
 //	"key(arg1: argValue1, arg2: argValue2)=value"
+//
+// When parsing Go comments, the Extract function it typically used to extract
+// tags matching a prefix, when then can be parsed with this function.
 //
 // The tag may optionally contain function style arguments after the tag name.
 // The arguments are optional. Arguments may either be a single positional
@@ -68,9 +70,12 @@ type tagKey struct {
 // The value is optional. If not specified, the resulting Tag will have "" as
 // the value.
 //
+// A trailing comment is allowed if the tag has no value. That is, if tag does
+// not end with "=<value>", then a " // <comment" is allowed.
+//
 // Examples:
 //
-//	"key("double-quoted")"
+//	"key("double-quoted") // comment is allowed here"
 //	"key(`backtick-quoted`)"
 //	"key(100)"
 //	"key(true)"
@@ -80,13 +85,14 @@ type tagKey struct {
 //
 // The tag grammar is:
 //
-// <tag> ::= <name> { "(" { <args> "}" ")" } { "=" <tagValue> }
+// <tag> ::= <tagName> { "(" { <args> "}" ")" } { "=" <tagValue> }
 // <args> ::= <argValue> | <namedArgs>
 // <namedArgs> ::= <argNameAndValue> { "," <namedArgs> }
 // <argNameAndValue> ::= <identifier> ":" <argValue>
 // <argValue> ::= <identifier> | <string> | <int> | <bool>
 //
-// <identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
+// <tagName> ::= <identifier> { ":" <identifier> }
+// <identifier> ::= [a-zA-Z_][a-zA-Z0-9_-.]*
 // <string> ::= [`...` and "..." quoted strings with \\ and \" escaping]
 // <int> ::= [decimal, hex (0x...), octal (0... or 0o...) or binary (0b...) notation with optional +/- prefix]
 // <bool> ::= "true" | "false"
@@ -118,7 +124,7 @@ func parseTagKey(input string) (tagKey, error) {
 		return unicode.IsLetter(r) || r == '_'
 	}
 	isIdentInterior := func(r rune) bool {
-		return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
+		return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '.' || r == '-'
 	}
 	saveInt := func() error {
 		s := buf.String()
@@ -175,7 +181,7 @@ parseLoop:
 			}
 		case stTag:
 			switch {
-			case isIdentInterior(r):
+			case isIdentInterior(r) || r == ':':
 				tag.WriteRune(r)
 			case r == '(':
 				incomplete = true

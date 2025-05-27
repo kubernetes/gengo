@@ -103,14 +103,9 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []string) (map[string][]Tag, error) {
 	out := map[string][]Tag{}
 
-	tagIdents := make([]codetags.TagIdentifier, len(tagNames))
-	for i, name := range tagNames {
-		tagIdents[i] = codetags.TagIdentifierFromString(name)
-	}
-
-	tags := codetags.Extract(marker, nil, lines)
-	for tagIdent, tagLines := range tags {
-		if len(tagIdents) > 0 && !slices.Contains(tagIdents, tagIdent) {
+	tags := codetags.Extract(marker, lines)
+	for tagName, tagLines := range tags {
+		if len(tagNames) > 0 && !slices.Contains(tagNames, tagName) {
 			continue
 		}
 		for _, line := range tagLines {
@@ -118,14 +113,11 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 			if err != nil {
 				return nil, err
 			}
-
 			tag, err := toTag(typedTag)
 			if err != nil {
 				return nil, err
 			}
-
-			tag.Name = tagIdent.String() //  Tag name is returned as group:name.
-			out[tag.Name] = append(out[tag.Name], tag)
+			out[tagName] = append(out[tagName], tag)
 		}
 	}
 

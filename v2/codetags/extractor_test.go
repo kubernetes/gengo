@@ -24,110 +24,87 @@ import (
 )
 
 func TestExtract(t *testing.T) {
-	k8sGroup := "k8s"
-	emptyGroup := ""
 	tests := []struct {
 		name   string
-		marker string
-		group  *string
+		prefix string
 		lines  []string
-		want   map[TagIdentifier][]string
+		want   map[string][]string
 	}{
 		{
-			name:   "example from documentation",
-			marker: "+",
-			group:  &k8sGroup,
+			name:   "prefix match",
+			prefix: "+k8s:",
 			lines: []string{
 				"Comment line without marker",
 				"+k8s:required",
 				"+listType=set",
 				"+k8s:format=k8s-long-name",
 			},
-			want: map[TagIdentifier][]string{
-				{Group: "k8s", Name: "required"}: {"required"},
-				{Group: "k8s", Name: "format"}:   {"format=k8s-long-name"},
+			want: map[string][]string{
+				"required": {"required"},
+				"format":   {"format=k8s-long-name"},
 			},
 		},
 		{
 			name:   "empty lines",
-			marker: "+",
-			group:  &k8sGroup,
+			prefix: "+k8s:",
 			lines:  []string{},
-			want:   map[TagIdentifier][]string{},
+			want:   map[string][]string{},
 		},
 		{
 			name:   "no matching lines",
-			marker: "+",
-			group:  &k8sGroup,
+			prefix: "+k8s:",
 			lines: []string{
 				"Comment line without marker",
 				"Another comment line",
 			},
-			want: map[TagIdentifier][]string{},
+			want: map[string][]string{},
 		},
 		{
 			name:   "different marker",
-			marker: "@",
-			group:  &k8sGroup,
+			prefix: "@k8s:",
 			lines: []string{
 				"Comment line without marker",
 				"@k8s:required",
 				"@validation:required",
 				"+k8s:format=k8s-long-name",
 			},
-			want: map[TagIdentifier][]string{
-				{Group: "k8s", Name: "required"}: {"required"},
-			},
-		},
-		{
-			name:   "empty group",
-			marker: "+",
-			group:  &emptyGroup,
-			lines: []string{
-				"+k8s:required",
-				"+required",
-				"+format=special",
-			},
-			want: map[TagIdentifier][]string{
-				{Group: "", Name: "required"}: {"required"},
-				{Group: "", Name: "format"}:   {"format=special"},
+			want: map[string][]string{
+				"required": {"required"},
 			},
 		},
 		{
 			name:   "no group",
-			marker: "+",
-			group:  nil,
+			prefix: "+",
 			lines: []string{
 				"+k8s:required",
 				"+validation:required",
 				"+validation:format=special",
 			},
-			want: map[TagIdentifier][]string{
-				{Group: "k8s", Name: "required"}:        {"required"},
-				{Group: "validation", Name: "required"}: {"required"},
-				{Group: "validation", Name: "format"}:   {"format=special"},
+			want: map[string][]string{
+				"k8s:required":        {"k8s:required"},
+				"validation:required": {"validation:required"},
+				"validation:format":   {"validation:format=special"},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Extract(tt.marker, tt.group, tt.lines)
+			got := Extract(tt.prefix, tt.lines)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Extract() = %v, want %v", got, tt.want)
+				t.Errorf("got:\n%v\nwant:\n%v\n", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestExtractAndParseTagsWithArgs(t *testing.T) {
+func TestExtractAndParse(t *testing.T) {
 	mktags := func(t ...TypedTag) []TypedTag { return t }
 
 	cases := []struct {
 		name     string
 		comments []string
-		group    *string
-		expect   map[TagIdentifier][]TypedTag
+		expect   map[string][]TypedTag
 	}{
 		{
 			name: "positional params",
@@ -143,50 +120,57 @@ func TestExtractAndParseTagsWithArgs(t *testing.T) {
 				"+true(true)",
 				"+false(false)",
 			},
-			expect: map[TagIdentifier][]TypedTag{
-				{Name: "quoted"}: mktags(
+			expect: map[string][]TypedTag{
+				"quoted": mktags(
 					TypedTag{Name: "quoted", Args: []Arg{
 						{Value: ArgString("value")},
 					}},
 				),
-				{Name: "backticked"}: mktags(
+				"backticked": mktags(
 					TypedTag{Name: "backticked", Args: []Arg{
 						{Value: ArgString("value")},
 					}},
 				),
-				{Name: "ident"}: mktags(
+				"ident": mktags(
 					TypedTag{Name: "ident", Args: []Arg{
 						{Value: ArgString("value")},
 					}},
 				),
-				{Name: "integer"}: mktags(
+				"integer": mktags(
 					TypedTag{Name: "integer", Args: []Arg{
 						{Value: MustArgInt("2")},
-					}}),
-				{Name: "negative"}: mktags(
+					}},
+				),
+				"negative": mktags(
 					TypedTag{Name: "negative", Args: []Arg{
 						{Value: MustArgInt("-5")},
-					}}),
-				{Name: "hex"}: mktags(
+					}},
+				),
+				"hex": mktags(
 					TypedTag{Name: "hex", Args: []Arg{
 						{Value: MustArgInt("0xFF00B3")},
-					}}),
-				{Name: "octal"}: mktags(
+					}},
+				),
+				"octal": mktags(
 					TypedTag{Name: "octal", Args: []Arg{
 						{Value: MustArgInt("0o04167")},
-					}}),
-				{Name: "binary"}: mktags(
+					}},
+				),
+				"binary": mktags(
 					TypedTag{Name: "binary", Args: []Arg{
 						{Value: MustArgInt("0b10101")},
-					}}),
-				{Name: "true"}: mktags(
+					}},
+				),
+				"true": mktags(
 					TypedTag{Name: "true", Args: []Arg{
 						{Value: ArgBool(true)},
-					}}),
-				{Name: "false"}: mktags(
+					}},
+				),
+				"false": mktags(
 					TypedTag{Name: "false", Args: []Arg{
 						{Value: ArgBool(false)},
-					}}),
+					}},
+				),
 			},
 		},
 		{
@@ -196,14 +180,14 @@ func TestExtractAndParseTagsWithArgs(t *testing.T) {
 				"+numbers(n1: 2, n2: -5, n3: 0xFF00B3, n4: 0o04167, n5: 0b10101)",
 				"+bools(t: true, f:false)",
 			},
-			expect: map[TagIdentifier][]TypedTag{
-				{Name: "strings"}: mktags(
+			expect: map[string][]TypedTag{
+				"strings": mktags(
 					TypedTag{Name: "strings", Args: []Arg{
 						{Name: "q", Value: ArgString("value")},
 						{Name: "b", Value: ArgString(`value`)},
 						{Name: "i", Value: ArgString("value")},
 					}}),
-				{Name: "numbers"}: mktags(
+				"numbers": mktags(
 					TypedTag{Name: "numbers", Args: []Arg{
 						{Name: "n1", Value: MustArgInt("2")},
 						{Name: "n2", Value: MustArgInt("-5")},
@@ -211,7 +195,7 @@ func TestExtractAndParseTagsWithArgs(t *testing.T) {
 						{Name: "n4", Value: MustArgInt("0o04167")},
 						{Name: "n5", Value: MustArgInt("0b10101")},
 					}}),
-				{Name: "bools"}: mktags(
+				"bools": mktags(
 					TypedTag{Name: "bools", Args: []Arg{
 						{Name: "t", Value: ArgBool(true)},
 						{Name: "f", Value: ArgBool(false)},
@@ -222,7 +206,7 @@ func TestExtractAndParseTagsWithArgs(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := ExtractAndParse("+", tc.group, tc.comments)
+			result, err := ExtractAndParse("+", tc.comments)
 			if err != nil {
 				t.Fatalf("case %q: unexpected error: %v", tc.name, err)
 			}

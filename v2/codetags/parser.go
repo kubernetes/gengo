@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package gengo
+package codetags
 
 import (
 	"bytes"
@@ -42,6 +42,59 @@ type tagKey struct {
 	name  string
 	args  []Arg
 	value string
+}
+
+// Parse parses a single comment tag with typed args.
+// The tagText must not have a marker or group prefix.
+//
+// This function looks for input of the following forms:
+//
+//	"key"
+//	"key=value"
+//	"key()=value"
+//	"key(arg)=value"
+//	"key(arg1: argValue1)=value"
+//	"key(arg1: argValue1, arg2: argValue2)=value"
+//
+// The tag may optionally contain function style arguments after the tag name.
+// The arguments are optional. Arguments may either be a single positional
+// argument or any number of named arguments, but not both. Argument values may
+// be double-quoted strings, backtick-quoted strings, integers, booleans, or
+// identifiers.
+//
+// The value is optional. If not specified, the resulting Tag will have "" as
+// the value.
+//
+// Examples:
+//
+//	"key("double-quoted")"
+//	"key(`backtick-quoted`)"
+//	"key(100)"
+//	"key(true)"
+//	"key(key1:`string value`)"
+//	"key(key1: 1)"
+//	"key(key1: true)"
+//
+// The tag grammar is:
+//
+// <tag> ::= <name> { "(" { <args> "}" ")" } { "=" <tagValue> }
+// <args> ::= <argValue> | <namedArgs>
+// <namedArgs> ::= <argNameAndValue> { "," <namedArgs> }
+// <argNameAndValue> ::= <identifier> ":" <argValue>
+// <argValue> ::= <identifier> | <string> | <int> | <bool>
+//
+// <identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
+// <string> ::= [`...` and "..." quoted strings with \\ and \" escaping]
+// <int> ::= [decimal, hex (0x), octal (0o) or binary (0b) notation with optional +/- prefix]
+// <bool> ::= "true" | "false"
+// <tagValue> ::= [all text after the = sign]
+func Parse(tagText string) (TypedTag, error) {
+	tagText = strings.TrimSpace(tagText)
+	parsed, err := parseTagKey(tagText)
+	if err != nil {
+		return TypedTag{}, err
+	}
+	return TypedTag{Name: parsed.name, Args: parsed.args, Value: parsed.value}, nil
 }
 
 func parseTagKey(input string) (tagKey, error) {

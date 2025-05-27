@@ -25,17 +25,20 @@ import (
 )
 
 const (
-	stBegin          = "stBegin"
-	stTag            = "stTag"
-	stArg            = "stArg"
-	stNumber         = "stNumber"
-	stPrefixedNumber = "stPrefixedNumber"
-	stQuotedString   = "stQuotedString"
-	stNakedString    = "stNakedString"
-	stEscape         = "stEscape"
-	stEndOfToken     = "stEndOfToken"
-	stMaybeValue     = "stMaybeValue"
-	stValue          = "stValue"
+	stBegin           = "stBegin"
+	stTag             = "stTag"
+	stArg             = "stArg"
+	stNumber          = "stNumber"
+	stPrefixedNumber  = "stPrefixedNumber"
+	stQuotedString    = "stQuotedString"
+	stNakedString     = "stNakedString"
+	stEscape          = "stEscape"
+	stEndOfToken      = "stEndOfToken"
+	stMaybeValue      = "stMaybeValue"
+	stValue           = "stValue"
+	stMaybeComment    = "stMaybeComment"
+	stTrailingSlash   = "stTrailingSlash"
+	stTrailingComment = "stTrailingComment"
 )
 
 type tagKey struct {
@@ -85,7 +88,7 @@ type tagKey struct {
 //
 // <identifier> ::= [a-zA-Z_][a-zA-Z0-9_]*
 // <string> ::= [`...` and "..." quoted strings with \\ and \" escaping]
-// <int> ::= [decimal, hex (0x), octal (0o) or binary (0b) notation with optional +/- prefix]
+// <int> ::= [decimal, hex (0x...), octal (0... or 0o...) or binary (0b...) notation with optional +/- prefix]
 // <bool> ::= "true" | "false"
 // <tagValue> ::= [all text after the = sign]
 func Parse(tagText string) (TypedTag, error) {
@@ -179,6 +182,8 @@ parseLoop:
 				st = stArg
 			case r == '=':
 				st = stValue
+			case unicode.IsSpace(r):
+				st = stMaybeComment
 			default:
 				break parseLoop
 			}
@@ -294,11 +299,34 @@ parseLoop:
 			switch {
 			case r == '=':
 				st = stValue
+			case unicode.IsSpace(r):
+				st = stMaybeComment
 			default:
 				break parseLoop
 			}
 		case stValue:
 			value.WriteRune(r)
+		case stMaybeComment:
+			switch {
+			case unicode.IsSpace(r):
+				continue
+			case r == '/':
+				incomplete = true
+				st = stTrailingSlash
+			default:
+				break parseLoop
+			}
+		case stTrailingSlash:
+			switch {
+			case r == '/':
+				incomplete = false
+				st = stTrailingComment
+			default:
+				break parseLoop
+			}
+		case stTrailingComment:
+			i = len(runes) - 1
+			break parseLoop
 		default:
 			panic("unknown state")
 		}

@@ -66,10 +66,10 @@ func (t TypedTag) String() string {
 	if len(t.Args) > 0 {
 		buf.WriteString("(")
 		for i, a := range t.Args {
-			buf.WriteString(a.String())
 			if i > 0 {
 				buf.WriteString(", ")
 			}
+			buf.WriteString(a.String())
 		}
 		buf.WriteString(")")
 	}

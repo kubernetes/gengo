@@ -24,7 +24,7 @@ func TestParse(t *testing.T) {
 	mkss := func(s ...string) []Arg {
 		var args []Arg
 		for _, v := range s {
-			args = append(args, Arg{Value: ArgString(v)})
+			args = append(args, Arg{Value: StringValue(v)})
 		}
 		return args
 	}
@@ -68,35 +68,35 @@ func TestParse(t *testing.T) {
 
 		// quotes
 		{input: `quoted(s: "value \" \\")`, expectKey: "quoted", expectArgs: []Arg{
-			{Name: "s", Value: ArgString("value \" \\")},
+			{Name: "s", Value: StringValue("value \" \\")},
 		}},
 		{input: "backticks(s: `value`)", expectKey: "backticks", expectArgs: []Arg{
-			{Name: "s", Value: ArgString(`value`)},
+			{Name: "s", Value: StringValue(`value`)},
 		}},
 		{input: "ident(k: value)", expectKey: "ident", expectArgs: []Arg{
-			{Name: "k", Value: ArgString("value")},
+			{Name: "k", Value: StringValue("value")},
 		}},
 
 		// numbers
 		{input: "numbers(n1: 2, n2: -5, n3: 0xFF00B3, n4: 0o04167, n5: 0b10101)", expectKey: "numbers", expectArgs: []Arg{
-			{Name: "n1", Value: MustArgInt("2")},
-			{Name: "n2", Value: MustArgInt("-5")},
-			{Name: "n3", Value: MustArgInt("0xFF00B3")},
-			{Name: "n4", Value: MustArgInt("0o04167")},
-			{Name: "n5", Value: MustArgInt("0b10101")},
+			{Name: "n1", Value: MustIntValue("2")},
+			{Name: "n2", Value: MustIntValue("-5")},
+			{Name: "n3", Value: MustIntValue("0xFF00B3")},
+			{Name: "n4", Value: MustIntValue("0o04167")},
+			{Name: "n5", Value: MustIntValue("0b10101")},
 		}},
 
 		// bools
 		{input: "bools(t: true, f:false)", expectKey: "bools", expectArgs: []Arg{
-			{Name: "t", Value: ArgBool(true)},
-			{Name: "f", Value: ArgBool(false)},
+			{Name: "t", Value: BoolValue(true)},
+			{Name: "f", Value: BoolValue(false)},
 		}},
 
 		// mixed type args
 		{input: "mixed(s: `value`, i: 2, b: true)", expectKey: "mixed", expectArgs: []Arg{
-			{Name: "s", Value: ArgString("value")},
-			{Name: "i", Value: MustArgInt("2")},
-			{Name: "b", Value: ArgBool(true)},
+			{Name: "s", Value: StringValue("value")},
+			{Name: "i", Value: MustIntValue("2")},
+			{Name: "b", Value: BoolValue(true)},
 		}},
 	}
 	for _, tc := range cases {

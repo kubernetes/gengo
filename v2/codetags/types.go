@@ -58,7 +58,7 @@ type Arg struct {
 	Name string
 	// Value is the string value of an argument. It has been validated to match the Type.
 	// Value may be a string, int, or bool.
-	Value ArgValue
+	Value TypedValue
 }
 
 // String returns the string representation of the argument.
@@ -69,66 +69,67 @@ func (a Arg) String() string {
 	return fmt.Sprintf("%v", a.Value)
 }
 
-// ArgValue represents a typed value of an argument.
-// It may be a string, int, or bool.
-type ArgValue interface {
+// TypedValue represents a parsed value.
+// It may be a string, int, or bool. TypedValue retains the original string representation
+// of the value that was parsed from the tag.
+type TypedValue interface {
 	// String returns the string representation of the value that was parsed from the tag.
 	String() string
 	// Type returns the type of the value.
-	Type() ArgType
+	Type() Type
 }
 
-// ArgType represents the type of an argument.
-type ArgType string
+// Type is the type of TypedValue.
+type Type string
 
 const (
-	ArgTypeString ArgType = "string"
-	ArgTypeInt    ArgType = "int"
-	ArgTypeBool   ArgType = "bool"
+	TypeString Type = "string"
+	TypeInt    Type = "int"
+	TypeBool   Type = "bool"
 )
 
-type ArgString string
+type StringValue string
 
-func (a ArgString) String() string {
+func (a StringValue) String() string {
 	return string(a)
 }
 
-func (a ArgString) Type() ArgType {
-	return ArgTypeString
+func (a StringValue) Type() Type {
+	return TypeString
 }
 
-// ArgInt represents an integer argument. The string representation is the original value
+// IntValue represents an integer argument. The string representation is the original value
 // that was parsed from the tag and may be in hex, octal, binary, or decimal notation.
-type ArgInt struct {
+type IntValue struct {
 	s string
 	i int64
 }
 
-// MustArgInt parses an int argument. Panics if the argument is invalid.
-func MustArgInt(s string) ArgInt {
+// MustIntValue parses an int argument. Panics if the argument is invalid.
+func MustIntValue(s string) IntValue {
 	i, err := strconv.ParseInt(s, 0, 64)
 	if err != nil {
 		panic(fmt.Sprintf("invalid int value: %q", s))
 	}
-	return ArgInt{s: s, i: i}
+	return IntValue{s: s, i: i}
 }
 
-func (a ArgInt) String() string {
+func (a IntValue) String() string {
 	return a.s
 }
 
 // Int returns the integer value of the argument.
-func (a ArgInt) Int() int64 {
+func (a IntValue) Int() int64 {
 	return a.i
 }
 
-func (a ArgInt) Type() ArgType {
-	return ArgTypeInt
+func (a IntValue) Type() Type {
+	return TypeInt
 }
 
-type ArgBool bool
+type BoolValue bool
 
-func (a ArgBool) String() string {
+func (a BoolValue) String() string {
 	if a == true {
 		return "true"
 	} else {
@@ -137,10 +138,10 @@ func (a ArgBool) String() string {
 }
 
 // Bool returns the boolean value of the argument.
-func (a ArgBool) Bool() bool {
+func (a BoolValue) Bool() bool {
 	return bool(a)
 }
 
-func (a ArgBool) Type() ArgType {
-	return ArgTypeBool
+func (a BoolValue) Type() Type {
+	return TypeBool
 }

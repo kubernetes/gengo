@@ -146,46 +146,46 @@ func TestExtractAndParseTagsWithArgs(t *testing.T) {
 			expect: map[TagIdentifier][]TypedTag{
 				{Name: "quoted"}: mktags(
 					TypedTag{Name: "quoted", Args: []Arg{
-						{Value: "value"},
+						{Value: ArgString("value")},
 					}},
 				),
 				{Name: "backticked"}: mktags(
 					TypedTag{Name: "backticked", Args: []Arg{
-						{Value: "value"},
+						{Value: ArgString("value")},
 					}},
 				),
 				{Name: "ident"}: mktags(
 					TypedTag{Name: "ident", Args: []Arg{
-						{Value: "value"},
+						{Value: ArgString("value")},
 					}},
 				),
 				{Name: "integer"}: mktags(
 					TypedTag{Name: "integer", Args: []Arg{
-						{Value: int64(2)},
+						{Value: MustArgInt("2")},
 					}}),
 				{Name: "negative"}: mktags(
 					TypedTag{Name: "negative", Args: []Arg{
-						{Value: int64(-5)},
+						{Value: MustArgInt("-5")},
 					}}),
 				{Name: "hex"}: mktags(
 					TypedTag{Name: "hex", Args: []Arg{
-						{Value: int64(0xFF00B3)},
+						{Value: MustArgInt("0xFF00B3")},
 					}}),
 				{Name: "octal"}: mktags(
 					TypedTag{Name: "octal", Args: []Arg{
-						{Value: int64(0o04167)},
+						{Value: MustArgInt("0o04167")},
 					}}),
 				{Name: "binary"}: mktags(
 					TypedTag{Name: "binary", Args: []Arg{
-						{Value: int64(0b10101)},
+						{Value: MustArgInt("0b10101")},
 					}}),
 				{Name: "true"}: mktags(
 					TypedTag{Name: "true", Args: []Arg{
-						{Value: true},
+						{Value: ArgBool(true)},
 					}}),
 				{Name: "false"}: mktags(
 					TypedTag{Name: "false", Args: []Arg{
-						{Value: false},
+						{Value: ArgBool(false)},
 					}}),
 			},
 		},
@@ -199,22 +199,22 @@ func TestExtractAndParseTagsWithArgs(t *testing.T) {
 			expect: map[TagIdentifier][]TypedTag{
 				{Name: "strings"}: mktags(
 					TypedTag{Name: "strings", Args: []Arg{
-						{Name: "q", Value: "value"},
-						{Name: "b", Value: `value`},
-						{Name: "i", Value: "value"},
+						{Name: "q", Value: ArgString("value")},
+						{Name: "b", Value: ArgString(`value`)},
+						{Name: "i", Value: ArgString("value")},
 					}}),
 				{Name: "numbers"}: mktags(
 					TypedTag{Name: "numbers", Args: []Arg{
-						{Name: "n1", Value: int64(2)},
-						{Name: "n2", Value: int64(-5)},
-						{Name: "n3", Value: int64(0xFF00B3)},
-						{Name: "n4", Value: int64(0o04167)},
-						{Name: "n5", Value: int64(0b10101)},
+						{Name: "n1", Value: MustArgInt("2")},
+						{Name: "n2", Value: MustArgInt("-5")},
+						{Name: "n3", Value: MustArgInt("0xFF00B3")},
+						{Name: "n4", Value: MustArgInt("0o04167")},
+						{Name: "n5", Value: MustArgInt("0b10101")},
 					}}),
 				{Name: "bools"}: mktags(
 					TypedTag{Name: "bools", Args: []Arg{
-						{Name: "t", Value: true},
-						{Name: "f", Value: false},
+						{Name: "t", Value: ArgBool(true)},
+						{Name: "f", Value: ArgBool(false)},
 					}}),
 			},
 		},
@@ -237,7 +237,7 @@ func TestParseTagKey(t *testing.T) {
 	mkss := func(s ...string) []Arg {
 		var args []Arg
 		for _, v := range s {
-			args = append(args, Arg{Value: v})
+			args = append(args, Arg{Value: ArgString(v)})
 		}
 		return args
 	}
@@ -259,29 +259,29 @@ func TestParseTagKey(t *testing.T) {
 		{"badRaw(missing`)", "", nil, true},
 		{"badMix(arg,`raw`)", "", nil, true},
 		{`quoted(s: "value \" \\")`, "quoted", []Arg{
-			{Name: "s", Value: "value \" \\"},
+			{Name: "s", Value: ArgString("value \" \\")},
 		}, false},
 		{"backticks(s: `value`)", "backticks", []Arg{
-			{Name: "s", Value: `value`},
+			{Name: "s", Value: ArgString(`value`)},
 		}, false},
 		{"ident(k: value)", "ident", []Arg{
-			{Name: "k", Value: "value"},
+			{Name: "k", Value: ArgString("value")},
 		}, false},
 		{"numbers(n1: 2, n2: -5, n3: 0xFF00B3, n4: 0o04167, n5: 0b10101)", "numbers", []Arg{
-			{Name: "n1", Value: int64(2)},
-			{Name: "n2", Value: int64(-5)},
-			{Name: "n3", Value: int64(0xFF00B3)},
-			{Name: "n4", Value: int64(0o04167)},
-			{Name: "n5", Value: int64(0b10101)},
+			{Name: "n1", Value: MustArgInt("2")},
+			{Name: "n2", Value: MustArgInt("-5")},
+			{Name: "n3", Value: MustArgInt("0xFF00B3")},
+			{Name: "n4", Value: MustArgInt("0o04167")},
+			{Name: "n5", Value: MustArgInt("0b10101")},
 		}, false},
 		{"bools(t: true, f:false)", "bools", []Arg{
-			{Name: "t", Value: true},
-			{Name: "f", Value: false},
+			{Name: "t", Value: ArgBool(true)},
+			{Name: "f", Value: ArgBool(false)},
 		}, false},
 		{"mixed(s: `value`, i: 2, b: true)", "mixed", []Arg{
-			{Name: "s", Value: "value"},
-			{Name: "i", Value: int64(2)},
-			{Name: "b", Value: true},
+			{Name: "s", Value: ArgString("value")},
+			{Name: "i", Value: MustArgInt("2")},
+			{Name: "b", Value: ArgBool(true)},
 		}, false},
 	}
 	for _, tc := range cases {

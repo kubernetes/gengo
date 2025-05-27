@@ -141,10 +141,10 @@ func toTag(tag codetags.TypedTag) (Tag, error) {
 		if len(arg.Name) > 0 {
 			return Tag{}, fmt.Errorf("unexpected named argument: %q", arg.Name)
 		}
-		if s, ok := arg.Value.(string); !ok {
+		if s, ok := arg.Value.(codetags.ArgString); !ok {
 			return Tag{}, fmt.Errorf("unexpected argument type: %T", arg.Value)
 		} else {
-			stringArgs = append(stringArgs, s)
+			stringArgs = append(stringArgs, s.String())
 		}
 	}
 	return Tag{

@@ -18,6 +18,7 @@ package codetags
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -85,12 +86,89 @@ type Arg struct {
 	Name string
 	// Value is the string value of an argument. It has been validated to match the Type.
 	// Value may be a string, int, or bool.
-	Value any
+	Value ArgValue
 }
 
+// String returns the string representation of the argument.
 func (a Arg) String() string {
 	if len(a.Name) > 0 {
 		return fmt.Sprintf("%s: %v", a.Name, a.Value)
 	}
 	return fmt.Sprintf("%v", a.Value)
+}
+
+// ArgValue represents a typed value of an argument.
+// It may be a string, int, or bool.
+type ArgValue interface {
+	// String returns the string representation of the value that was parsed from the tag.
+	String() string
+	// Type returns the type of the value.
+	Type() ArgType
+}
+
+// ArgType represents the type of an argument.
+type ArgType string
+
+const (
+	ArgTypeString ArgType = "string"
+	ArgTypeInt    ArgType = "int"
+	ArgTypeBool   ArgType = "bool"
+)
+
+type ArgString string
+
+func (a ArgString) String() string {
+	return string(a)
+}
+
+func (a ArgString) Type() ArgType {
+	return ArgTypeString
+}
+
+// ArgInt represents an integer argument. The string representation is the original value
+// that was parsed from the tag and may be in hex, octal, binary, or decimal notation.
+type ArgInt struct {
+	s string
+	i int64
+}
+
+// MustArgInt parses an int argument. Panics if the argument is invalid.
+func MustArgInt(s string) ArgInt {
+	i, err := strconv.ParseInt(s, 0, 64)
+	if err != nil {
+		panic(fmt.Sprintf("invalid int value: %q", s))
+	}
+	return ArgInt{s: s, i: i}
+}
+
+func (a ArgInt) String() string {
+	return a.s
+}
+
+// Int returns the integer value of the argument.
+func (a ArgInt) Int() int64 {
+	return a.i
+}
+
+func (a ArgInt) Type() ArgType {
+	return ArgTypeInt
+}
+
+type ArgBool bool
+
+func (a ArgBool) String() string {
+	if a == true {
+		return "true"
+	} else {
+		return "false"
+	}
+}
+
+// Bool returns the boolean value of the argument.
+func (a ArgBool) Bool() bool {
+	return bool(a)
+}
+
+func (a ArgBool) Type() ArgType {
+	return ArgTypeBool
 }

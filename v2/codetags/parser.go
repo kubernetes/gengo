@@ -122,7 +122,7 @@ func parseTagKey(input string) (tagKey, error) {
 		if ival, err := strconv.ParseInt(s, 0, 64); err != nil {
 			return fmt.Errorf("invalid number %q", s)
 		} else {
-			cur.Value = ival
+			cur.Value = ArgInt{s: s, i: ival}
 		}
 		args = append(args, cur)
 		cur = Arg{}
@@ -131,7 +131,7 @@ func parseTagKey(input string) (tagKey, error) {
 	}
 	saveString := func() {
 		s := buf.String()
-		cur.Value = s
+		cur.Value = ArgString(s)
 		args = append(args, cur)
 		cur = Arg{}
 		buf.Reset()
@@ -139,11 +139,11 @@ func parseTagKey(input string) (tagKey, error) {
 	saveBoolOrString := func() {
 		s := buf.String()
 		if s == "true" {
-			cur.Value = true
+			cur.Value = ArgBool(true)
 		} else if s == "false" {
-			cur.Value = false
+			cur.Value = ArgBool(false)
 		} else {
-			cur.Value = s
+			cur.Value = ArgString(s)
 		}
 		args = append(args, cur)
 		cur = Arg{}

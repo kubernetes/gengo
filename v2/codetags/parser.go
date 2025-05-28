@@ -24,29 +24,6 @@ import (
 	"unicode"
 )
 
-const (
-	stBegin           = "stBegin"
-	stTag             = "stTag"
-	stArg             = "stArg"
-	stNumber          = "stNumber"
-	stPrefixedNumber  = "stPrefixedNumber"
-	stQuotedString    = "stQuotedString"
-	stNakedString     = "stNakedString"
-	stEscape          = "stEscape"
-	stEndOfToken      = "stEndOfToken"
-	stMaybeValue      = "stMaybeValue"
-	stValue           = "stValue"
-	stMaybeComment    = "stMaybeComment"
-	stTrailingSlash   = "stTrailingSlash"
-	stTrailingComment = "stTrailingComment"
-)
-
-type tagKey struct {
-	name  string
-	args  []Arg
-	value string
-}
-
 // Parse parses a comment tag into a TypedTag, or returns an error if the tag
 // string fails to parse.
 //
@@ -121,11 +98,7 @@ type tagKey struct {
 // <tagValue>      ::= /* All text following the "=" sign to the end of the string. */
 func Parse(tagText string) (TypedTag, error) {
 	tagText = strings.TrimSpace(tagText)
-	parsed, err := parseTagKey(tagText)
-	if err != nil {
-		return TypedTag{}, err
-	}
-	return TypedTag{Name: parsed.name, Args: parsed.args, Value: parsed.value}, nil
+	return parseTagKey(tagText)
 }
 
 // ParseAll calls Parse on each tag in the input slice.
@@ -141,7 +114,24 @@ func ParseAll(tags []string) ([]TypedTag, error) {
 	return out, nil
 }
 
-func parseTagKey(input string) (tagKey, error) {
+const (
+	stBegin           = "stBegin"
+	stTag             = "stTag"
+	stArg             = "stArg"
+	stNumber          = "stNumber"
+	stPrefixedNumber  = "stPrefixedNumber"
+	stQuotedString    = "stQuotedString"
+	stNakedString     = "stNakedString"
+	stEscape          = "stEscape"
+	stEndOfToken      = "stEndOfToken"
+	stMaybeValue      = "stMaybeValue"
+	stValue           = "stValue"
+	stMaybeComment    = "stMaybeComment"
+	stTrailingSlash   = "stTrailingSlash"
+	stTrailingComment = "stTrailingComment"
+)
+
+func parseTagKey(input string) (TypedTag, error) {
 	tag := bytes.Buffer{}   // current tag name
 	args := []Arg{}         // all tag arguments
 	value := bytes.Buffer{} // current tag value
@@ -253,18 +243,18 @@ parseLoop:
 				continue
 			case r == ',':
 				if err := saveInt(); err != nil {
-					return tagKey{}, err
+					return TypedTag{}, err
 				}
 				st = stArg
 			case r == ')':
 				if err := saveInt(); err != nil {
-					return tagKey{}, err
+					return TypedTag{}, err
 				}
 				incomplete = false
 				st = stMaybeValue
 			case unicode.IsSpace(r):
 				if err := saveInt(); err != nil {
-					return tagKey{}, err
+					return TypedTag{}, err
 				}
 				st = stEndOfToken
 			default:
@@ -297,7 +287,7 @@ parseLoop:
 				buf.WriteRune(r)
 				st = stQuotedString
 			default:
-				return tagKey{}, fmt.Errorf("unhandled escaped character %q", r)
+				return TypedTag{}, fmt.Errorf("unhandled escaped character %q", r)
 			}
 		case stNakedString:
 			switch {
@@ -364,28 +354,28 @@ parseLoop:
 			i = len(runes) - 1
 			break parseLoop
 		default:
-			return tagKey{}, fmt.Errorf("unknown state reached in parser: %s at position %d", st, i)
+			return TypedTag{}, fmt.Errorf("unknown state reached in parser: %s at position %d", st, i)
 		}
 	}
 	if i != len(runes)-1 {
-		return tagKey{}, fmt.Errorf("unexpected character %q at position %d", r, i)
+		return TypedTag{}, fmt.Errorf("unexpected character %q at position %d", r, i)
 	}
 	if incomplete {
-		return tagKey{}, fmt.Errorf("unexpected end of input")
+		return TypedTag{}, fmt.Errorf("unexpected end of input")
 	}
 	usingNamedArgs := false
 	for i, arg := range args {
 		if (usingNamedArgs && arg.Name == "") || (!usingNamedArgs && arg.Name != "" && i > 0) {
-			return tagKey{}, fmt.Errorf("can't mix named and positional arguments")
+			return TypedTag{}, fmt.Errorf("can't mix named and positional arguments")
 		}
 		if arg.Name != "" {
 			usingNamedArgs = true
 		}
 	}
 	if !usingNamedArgs && len(args) > 1 {
-		return tagKey{}, fmt.Errorf("multiple arguments must use 'name: value' syntax")
+		return TypedTag{}, fmt.Errorf("multiple arguments must use 'name: value' syntax")
 	}
-	return tagKey{name: tag.String(), args: args, value: value.String()}, nil
+	return TypedTag{Name: tag.String(), Args: args, Value: value.String()}, nil
 }
 
 func isIdentBegin(r rune) bool {

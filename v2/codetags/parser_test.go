@@ -21,7 +21,7 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	mkss := func(s ...string) []Arg {
+	mksa := func(s ...string) []Arg {
 		var args []Arg
 		for _, v := range s {
 			args = append(args, Arg{Value: v, Type: ArgTypeString})
@@ -42,27 +42,27 @@ func TestParse(t *testing.T) {
 		{input: "name.dot", expectKey: "name.dot"},
 		{input: "name:colon", expectKey: "name:colon"},
 		{input: "name()", expectKey: "name"},
-		{input: "name(arg)", expectKey: "name", expectArgs: mkss("arg")},
-		{input: "name(arg) // comment", expectKey: "name", expectArgs: mkss("arg")},
-		{input: "name(ARG)", expectKey: "name", expectArgs: mkss("ARG")},
-		{input: "name(ArG)", expectKey: "name", expectArgs: mkss("ArG")},
-		{input: "name(has-dash)", expectKey: "name", expectArgs: mkss("has-dash")},
-		{input: "name(has.dot)", expectKey: "name", expectArgs: mkss("has.dot")},
+		{input: "name(arg)", expectKey: "name", expectArgs: mksa("arg")},
+		{input: "name(arg) // comment", expectKey: "name", expectArgs: mksa("arg")},
+		{input: "name(ARG)", expectKey: "name", expectArgs: mksa("ARG")},
+		{input: "name(ArG)", expectKey: "name", expectArgs: mksa("ArG")},
+		{input: "name(has-dash)", expectKey: "name", expectArgs: mksa("has-dash")},
+		{input: "name(has.dot)", expectKey: "name", expectArgs: mksa("has.dot")},
 		{input: "name()", expectKey: "name"},
-		{input: "name(lower)", expectKey: "name", expectArgs: mkss("lower")},
-		{input: "name(CAPITAL)", expectKey: "name", expectArgs: mkss("CAPITAL")},
-		{input: "name(MiXeD)", expectKey: "name", expectArgs: mkss("MiXeD")},
-		{input: "name(mIxEd)", expectKey: "name", expectArgs: mkss("mIxEd")},
-		{input: "name(_under)", expectKey: "name", expectArgs: mkss("_under")},
-		{input: `name("hasQuotes")`, expectKey: "name", expectArgs: mkss("hasQuotes")},
-		{input: "name(`hasRawQuotes`)", expectKey: "name", expectArgs: mkss("hasRawQuotes")},
+		{input: "name(lower)", expectKey: "name", expectArgs: mksa("lower")},
+		{input: "name(CAPITAL)", expectKey: "name", expectArgs: mksa("CAPITAL")},
+		{input: "name(MiXeD)", expectKey: "name", expectArgs: mksa("MiXeD")},
+		{input: "name(mIxEd)", expectKey: "name", expectArgs: mksa("mIxEd")},
+		{input: "name(_under)", expectKey: "name", expectArgs: mksa("_under")},
+		{input: `name("hasQuotes")`, expectKey: "name", expectArgs: mksa("hasQuotes")},
+		{input: "name(`hasRawQuotes`)", expectKey: "name", expectArgs: mksa("hasRawQuotes")},
 		{input: "name(has space)", expectKey: "name", err: true},
 		{input: "name(multiple, args)", expectKey: "name", err: true},
 		{input: "name(noClosingParen", expectKey: "name", err: true},
+		{input: "withRaw(`a = b`)", expectKey: "withRaw", expectArgs: mksa("a = b")},
 
 		// invalid args
 		{input: "name(arg1, arg2)", err: true},
-		{input: "withRaw(`a = b`)", expectKey: "withRaw", expectArgs: mkss("a = b")},
 		{input: "badRaw(missing`)", err: true},
 		{input: "badMix(arg,`raw`)", err: true},
 
@@ -108,18 +108,18 @@ func TestParse(t *testing.T) {
 			}
 			if err == nil {
 				if tc.err == true {
-					t.Errorf("[%q]: expected failure, got: %v(%v)", tc.input, parsed.name, parsed.args)
+					t.Errorf("[%q]: expected failure, got: %v(%v)", tc.input, parsed.Name, parsed.Args)
 					return
 				}
-				if parsed.name != tc.expectKey {
-					t.Errorf("[%q]\nexpected key: %q, got: %q", tc.input, tc.expectKey, parsed.name)
+				if parsed.Name != tc.expectKey {
+					t.Errorf("[%q]\nexpected key: %q, got: %q", tc.input, tc.expectKey, parsed.Name)
 				}
-				if len(parsed.args) != len(tc.expectArgs) {
-					t.Errorf("[%q]: expected %d args, got: %q", tc.input, len(tc.expectArgs), parsed.args)
+				if len(parsed.Args) != len(tc.expectArgs) {
+					t.Errorf("[%q]: expected %d args, got: %q", tc.input, len(tc.expectArgs), parsed.Args)
 					return
 				}
 				for i := range tc.expectArgs {
-					if want, got := tc.expectArgs[i], parsed.args[i]; got != want {
+					if want, got := tc.expectArgs[i], parsed.Args[i]; got != want {
 						t.Errorf("[%q]\nexpected %q, got %q", tc.input, want, got)
 					}
 				}

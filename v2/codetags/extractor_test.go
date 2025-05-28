@@ -64,7 +64,7 @@ func TestExtract(t *testing.T) {
 			},
 		},
 		{
-			name:   "empty lines",
+			name:   "empty name",
 			prefix: "+k8s:",
 			lines:  []string{},
 			want:   map[string][]string{},
@@ -106,14 +106,33 @@ func TestExtract(t *testing.T) {
 			},
 		},
 		{
-			name:   "empty",
+			name:   "no name",
 			prefix: "+",
 			lines: []string{
 				"+",
 				"+ ",
 				"+ // comment",
 			},
-			want: map[string][]string{},
+			want: map[string][]string{
+				"": {"", " ", " // comment"},
+			},
+		},
+		{
+			name:   "whitespace",
+			prefix: "+",
+			lines: []string{
+				" +name",
+				" \t \t +name",
+				"  +name",
+				" +name ",
+				" +name  ",
+				" +name= value",
+				"  +name = value",
+				" +name =value ",
+			},
+			want: map[string][]string{
+				"name": {"name", "name", "name", "name ", "name  ", "name= value", "name = value", "name =value "},
+			},
 		},
 	}
 
@@ -121,7 +140,7 @@ func TestExtract(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := Extract(tt.prefix, tt.lines)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("got:\n%v\nwant:\n%v\n", got, tt.want)
+				t.Errorf("got:\n%#+v\nwant:\n%#+v\n", got, tt.want)
 			}
 		})
 	}

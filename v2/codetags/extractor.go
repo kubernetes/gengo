@@ -53,7 +53,7 @@ import (
 func Extract(prefix string, lines []string) map[string][]string {
 	out := map[string][]string{}
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
+		line = strings.TrimLeft(line, " \t")
 		if !strings.HasPrefix(line, prefix) {
 			continue
 		}
@@ -61,9 +61,6 @@ func Extract(prefix string, lines []string) map[string][]string {
 
 		// Find the end of the presumed tag name.
 		nameEnd := findNameEnd(line)
-		if nameEnd == 0 {
-			continue
-		}
 		name := line[:nameEnd]
 		out[name] = append(out[name], line)
 	}

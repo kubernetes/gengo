@@ -364,7 +364,7 @@ parseLoop:
 			i = len(runes) - 1
 			break parseLoop
 		default:
-			return tagKey{}, fmt.Errorf("unexpected character %q at position %d", r, i)
+			return tagKey{}, fmt.Errorf("unknown state reached in parser: %s at position %d", st, i)
 		}
 	}
 	if i != len(runes)-1 {

@@ -76,7 +76,6 @@ func ExtractCommentTags(marker string, lines []string) map[string][]string {
 //
 // This function is a wrapper around codetags.Extract and codetags.Parse, but only supports tags with
 // a single position arg of type string, and a value of type bool.
-// This function uses the full group:name identifier as the returned Tag.name.
 func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lines []string) (bool, error) {
 	tags, err := ExtractFunctionStyleCommentTags(marker, []string{key}, lines)
 	if err != nil {
@@ -99,7 +98,6 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //
 // This function is a wrapper around codetags.Extract and codetags.Parse, but only supports tags with
 // a single position arg of type string.
-// This function uses the full group:name identifier as the returned Tag.name.
 func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []string) (map[string][]Tag, error) {
 	out := map[string][]Tag{}
 

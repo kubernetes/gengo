@@ -133,12 +133,6 @@ func parseTagKey(input string) (tagKey, error) {
 	var incomplete bool
 	var quote rune
 
-	isIdentBegin := func(r rune) bool {
-		return unicode.IsLetter(r) || r == '_'
-	}
-	isIdentInterior := func(r rune) bool {
-		return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '.' || r == '-'
-	}
 	saveInt := func() error {
 		s := buf.String()
 		if ival, err := strconv.ParseInt(s, 0, 64); err != nil {
@@ -347,7 +341,7 @@ parseLoop:
 			i = len(runes) - 1
 			break parseLoop
 		default:
-			panic("unknown state")
+			return tagKey{}, fmt.Errorf("unexpected character %q at position %d", r, i)
 		}
 	}
 	if i != len(runes)-1 {
@@ -369,4 +363,12 @@ parseLoop:
 		return tagKey{}, fmt.Errorf("multiple arguments must use 'name: value' syntax")
 	}
 	return tagKey{name: tag.String(), args: args, value: value.String()}, nil
+}
+
+func isIdentBegin(r rune) bool {
+	return unicode.IsLetter(r) || r == '_'
+}
+
+func isIdentInterior(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '.' || r == '-'
 }

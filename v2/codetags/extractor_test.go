@@ -31,17 +31,36 @@ func TestExtract(t *testing.T) {
 		want   map[string][]string
 	}{
 		{
-			name:   "prefix match",
+			name:   "example",
 			prefix: "+k8s:",
 			lines: []string{
 				"Comment line without marker",
-				"+k8s:required",
-				"+listType=set",
-				"+k8s:format=k8s-long-name",
+				"+k8s:noArgs // comment",
+				"+withValue=value1",
+				"+withValue=value2",
+				"+k8s:withArg(arg1)=value1",
+				"+k8s:withArg(arg2)=value2 // comment",
+				"+k8s:withNamedArgs(arg1=value1, arg2=value2)=value",
 			},
 			want: map[string][]string{
-				"required": {"required"},
-				"format":   {"format=k8s-long-name"},
+				"noArgs":        {"noArgs // comment"},
+				"withArg":       {"withArg(arg1)=value1", "withArg(arg2)=value2 // comment"},
+				"withNamedArgs": {"withNamedArgs(arg1=value1, arg2=value2)=value"},
+			},
+		},
+		{
+			name:   "with args and values",
+			prefix: "+",
+			lines: []string{
+				"+a:t1=tagValue",
+				"+b:t1(arg)",
+				"+b:t1(arg)=tagValue",
+				"+a:t1(arg: value)",
+				"+a:t1(arg: value)=tagValue",
+			},
+			want: map[string][]string{
+				"a:t1": {"a:t1=tagValue", "a:t1(arg: value)", "a:t1(arg: value)=tagValue"},
+				"b:t1": {"b:t1(arg)", "b:t1(arg)=tagValue"},
 			},
 		},
 		{
@@ -85,6 +104,16 @@ func TestExtract(t *testing.T) {
 				"validation:required": {"validation:required"},
 				"validation:format":   {"validation:format=special"},
 			},
+		},
+		{
+			name:   "empty",
+			prefix: "+",
+			lines: []string{
+				"+",
+				"+ ",
+				"+ // comment",
+			},
+			want: map[string][]string{},
 		},
 	}
 

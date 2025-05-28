@@ -45,7 +45,7 @@ import (
 //
 //	map[string][]string{"foo":{"value1, "value2"}, "bar": {""}, "baz": {`"qux"`}}
 //
-// Deprecated: Prefer codetags.Extract, codetags.Parse and codetags.ExtractAndParse.
+// Deprecated: Prefer codetags.Extract and codetags.Parse.
 func ExtractCommentTags(marker string, lines []string) map[string][]string {
 	out := map[string][]string{}
 	for _, line := range lines {
@@ -131,10 +131,10 @@ func toTag(tag codetags.TypedTag) (Tag, error) {
 		if len(arg.Name) > 0 {
 			return Tag{}, fmt.Errorf("unexpected named argument: %q", arg.Name)
 		}
-		if s, ok := arg.Value.(codetags.StringValue); !ok {
-			return Tag{}, fmt.Errorf("unexpected argument type: %T", arg.Value)
+		if arg.Type != codetags.ArgTypeString {
+			return Tag{}, fmt.Errorf("unexpected argument type: %s", arg.Type)
 		} else {
-			stringArgs = append(stringArgs, s.String())
+			stringArgs = append(stringArgs, arg.Value)
 		}
 	}
 	return Tag{

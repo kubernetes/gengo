@@ -24,7 +24,7 @@ func TestParse(t *testing.T) {
 	mkss := func(s ...string) []Arg {
 		var args []Arg
 		for _, v := range s {
-			args = append(args, Arg{Value: StringValue(v)})
+			args = append(args, Arg{Value: v, Type: ArgTypeString})
 		}
 		return args
 	}
@@ -68,35 +68,35 @@ func TestParse(t *testing.T) {
 
 		// quotes
 		{input: `quoted(s: "value \" \\")`, expectKey: "quoted", expectArgs: []Arg{
-			{Name: "s", Value: StringValue("value \" \\")},
+			{Name: "s", Value: "value \" \\", Type: ArgTypeString},
 		}},
 		{input: "backticks(s: `value`)", expectKey: "backticks", expectArgs: []Arg{
-			{Name: "s", Value: StringValue(`value`)},
+			{Name: "s", Value: `value`, Type: ArgTypeString},
 		}},
 		{input: "ident(k: value)", expectKey: "ident", expectArgs: []Arg{
-			{Name: "k", Value: StringValue("value")},
+			{Name: "k", Value: "value", Type: ArgTypeString},
 		}},
 
 		// numbers
 		{input: "numbers(n1: 2, n2: -5, n3: 0xFF00B3, n4: 0o04167, n5: 0b10101)", expectKey: "numbers", expectArgs: []Arg{
-			{Name: "n1", Value: MustIntValue("2")},
-			{Name: "n2", Value: MustIntValue("-5")},
-			{Name: "n3", Value: MustIntValue("0xFF00B3")},
-			{Name: "n4", Value: MustIntValue("0o04167")},
-			{Name: "n5", Value: MustIntValue("0b10101")},
+			{Name: "n1", Value: "2", Type: ArgTypeInt},
+			{Name: "n2", Value: "-5", Type: ArgTypeInt},
+			{Name: "n3", Value: "0xFF00B3", Type: ArgTypeInt},
+			{Name: "n4", Value: "0o04167", Type: ArgTypeInt},
+			{Name: "n5", Value: "0b10101", Type: ArgTypeInt},
 		}},
 
 		// bools
 		{input: "bools(t: true, f:false)", expectKey: "bools", expectArgs: []Arg{
-			{Name: "t", Value: BoolValue(true)},
-			{Name: "f", Value: BoolValue(false)},
+			{Name: "t", Value: "true", Type: ArgTypeBool},
+			{Name: "f", Value: "false", Type: ArgTypeBool},
 		}},
 
 		// mixed type args
 		{input: "mixed(s: `value`, i: 2, b: true)", expectKey: "mixed", expectArgs: []Arg{
-			{Name: "s", Value: StringValue("value")},
-			{Name: "i", Value: MustIntValue("2")},
-			{Name: "b", Value: BoolValue(true)},
+			{Name: "s", Value: "value", Type: ArgTypeString},
+			{Name: "i", Value: "2", Type: ArgTypeInt},
+			{Name: "b", Value: "true", Type: ArgTypeBool},
 		}},
 	}
 	for _, tc := range cases {

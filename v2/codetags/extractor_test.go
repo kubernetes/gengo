@@ -152,52 +152,52 @@ func TestExtractAndParse(t *testing.T) {
 			expect: map[string][]TypedTag{
 				"quoted": mktags(
 					TypedTag{Name: "quoted", Args: []Arg{
-						{Value: StringValue("value")},
+						{Value: "value", Type: ArgTypeString},
 					}},
 				),
 				"backticked": mktags(
 					TypedTag{Name: "backticked", Args: []Arg{
-						{Value: StringValue("value")},
+						{Value: "value", Type: ArgTypeString},
 					}},
 				),
 				"ident": mktags(
 					TypedTag{Name: "ident", Args: []Arg{
-						{Value: StringValue("value")},
+						{Value: "value", Type: ArgTypeString},
 					}},
 				),
 				"integer": mktags(
 					TypedTag{Name: "integer", Args: []Arg{
-						{Value: MustIntValue("2")},
+						{Value: "2", Type: ArgTypeInt},
 					}},
 				),
 				"negative": mktags(
 					TypedTag{Name: "negative", Args: []Arg{
-						{Value: MustIntValue("-5")},
+						{Value: "-5", Type: ArgTypeInt},
 					}},
 				),
 				"hex": mktags(
 					TypedTag{Name: "hex", Args: []Arg{
-						{Value: MustIntValue("0xFF00B3")},
+						{Value: "0xFF00B3", Type: ArgTypeInt},
 					}},
 				),
 				"octal": mktags(
 					TypedTag{Name: "octal", Args: []Arg{
-						{Value: MustIntValue("0o04167")},
+						{Value: "0o04167", Type: ArgTypeInt},
 					}},
 				),
 				"binary": mktags(
 					TypedTag{Name: "binary", Args: []Arg{
-						{Value: MustIntValue("0b10101")},
+						{Value: "0b10101", Type: ArgTypeInt},
 					}},
 				),
 				"true": mktags(
 					TypedTag{Name: "true", Args: []Arg{
-						{Value: BoolValue(true)},
+						{Value: "true", Type: ArgTypeBool},
 					}},
 				),
 				"false": mktags(
 					TypedTag{Name: "false", Args: []Arg{
-						{Value: BoolValue(false)},
+						{Value: "false", Type: ArgTypeBool},
 					}},
 				),
 			},
@@ -212,22 +212,22 @@ func TestExtractAndParse(t *testing.T) {
 			expect: map[string][]TypedTag{
 				"strings": mktags(
 					TypedTag{Name: "strings", Args: []Arg{
-						{Name: "q", Value: StringValue("value")},
-						{Name: "b", Value: StringValue(`value`)},
-						{Name: "i", Value: StringValue("value")},
+						{Name: "q", Value: "value", Type: ArgTypeString},
+						{Name: "b", Value: `value`, Type: ArgTypeString},
+						{Name: "i", Value: "value", Type: ArgTypeString},
 					}}),
 				"numbers": mktags(
 					TypedTag{Name: "numbers", Args: []Arg{
-						{Name: "n1", Value: MustIntValue("2")},
-						{Name: "n2", Value: MustIntValue("-5")},
-						{Name: "n3", Value: MustIntValue("0xFF00B3")},
-						{Name: "n4", Value: MustIntValue("0o04167")},
-						{Name: "n5", Value: MustIntValue("0b10101")},
+						{Name: "n1", Value: "2", Type: ArgTypeInt},
+						{Name: "n2", Value: "-5", Type: ArgTypeInt},
+						{Name: "n3", Value: "0xFF00B3", Type: ArgTypeInt},
+						{Name: "n4", Value: "0o04167", Type: ArgTypeInt},
+						{Name: "n5", Value: "0b10101", Type: ArgTypeInt},
 					}}),
 				"bools": mktags(
 					TypedTag{Name: "bools", Args: []Arg{
-						{Name: "t", Value: BoolValue(true)},
-						{Name: "f", Value: BoolValue(false)},
+						{Name: "t", Value: "true", Type: ArgTypeBool},
+						{Name: "f", Value: "false", Type: ArgTypeBool},
 					}}),
 			},
 		},

@@ -47,56 +47,78 @@ type tagKey struct {
 	value string
 }
 
-// Parse parses a comment tag into a TypedTag, or returns an error if the tag fails to parse.
+// Parse parses a comment tag into a TypedTag, or returns an error if the tag
+// string fails to parse.
 //
-// This function supports input of the following forms:
+// A tag consists of a name, optional arguments, and an optional value. For example,
 //
-//	"key"
-//	"key=value"
-//	"key()=value"
-//	"key(arg)=value"
-//	"key(arg1: argValue1)=value"
-//	"key(arg1: argValue1, arg2: argValue2)=value"
+//	"name"
+//	"name=50"
+//	"name("featureX")=50"
+//	"name(limit: 10, path: "/xyz")=text value"
 //
-// When parsing Go comments, the Extract function it typically used to extract
-// tags matching a prefix, when then can be parsed with this function.
+// Arguments are optional and may be either:
+//   - A single positional argument.
+//   - One or more named arguments (in the format `name: value`).
+//   - (Positional and named arguments cannot be mixed.)
 //
-// The tag may optionally contain function style arguments after the tag name.
-// The arguments are optional. Arguments may either be a single positional
-// argument or any number of named arguments, but not both. Argument values may
-// be double-quoted strings, backtick-quoted strings, integers, booleans, or
-// identifiers.
+// For example,
 //
-// The value is optional. If not specified, the resulting Tag will have "" as
-// the value.
+//	"name()"
+//	"name(arg)"
+//	"name(namedArg1: argValue1)"
+//	"name(namedArg1: argValue1, namedArg2: argValue2)"
 //
-// A trailing comment is allowed if the tag has no value. That is, if tag does
-// not end with "=<value>", then a " // <comment" is allowed.
+// Argument values may be strings, ints, booleans, or identifiers.
 //
-// Examples:
+// For example,
 //
-//	"key("double-quoted") // comment is allowed here"
-//	"key(`backtick-quoted`)"
-//	"key(100)"
-//	"key(true)"
-//	"key(key1:`string value`)"
-//	"key(key1: 1)"
-//	"key(key1: true)"
+//	"name("double-quoted")"
+//	"name(`backtick-quoted`)"
+//	"name(100)"
+//	"name(true)"
+//	"name(arg1: identifier)"
+//	"name(arg1:`string value`)"
+//	"name(arg1: 100)"
+//	"name(arg1: true)"
 //
-// The tag grammar is:
+// Note: When processing Go source code comments, the Extract function is
+// typically used first to find and isolate tag strings matching a specific
+// prefix. Those extracted strings can then be parsed using this function.
 //
-// <tag> ::= <tagName> { "(" { <args> "}" ")" } { "=" <tagValue> }
-// <args> ::= <argValue> | <namedArgs>
-// <namedArgs> ::= <argNameAndValue> { "," <namedArgs> }
+// The value part of the tag is optional and follows an equals sign "=".
+// If no equals sign and value are present, the `Value` field of the
+// resulting TypedTag will be an empty string.
+//
+// For example,
+//
+//	"name" // no value
+//	"name=value"
+//	"name=values include all the content after the = sign including any special characters (@*#^&...)"
+//
+// Comments are treated as part of the value, if a value is present.
+//
+// For example,
+//
+//	"key // This tag has no value, so this comment is ignored"
+//	"key=value // Comments after values are treated as part of the value"
+//
+// Formal Grammar:
+//
+// <tag>             ::= <tagName> [ "(" [ <args> ] ")" ] [ "=" <tagValue> ]
+// <args>            ::= <argValue> | <namedArgs>
+// <namedArgs>       ::= <argNameAndValue> [ "," <namedArgs> ]*
 // <argNameAndValue> ::= <identifier> ":" <argValue>
-// <argValue> ::= <identifier> | <string> | <int> | <bool>
+// <argValue>        ::= <identifier> | <string> | <int> | <bool>
 //
-// <tagName> ::= <identifier> { ":" <identifier> }
-// <identifier> ::= [a-zA-Z_][a-zA-Z0-9_-.]*
-// <string> ::= [`...` and "..." quoted strings with \\ and \" escaping]
-// <int> ::= [decimal, hex (0x...), octal (0... or 0o...) or binary (0b...) notation with optional +/- prefix]
-// <bool> ::= "true" | "false"
-// <tagValue> ::= [all text after the = sign]
+// <tagName>       ::= [a-zA-Z_][a-zA-Z0-9_-.:]*
+// <identifier>    ::= [a-zA-Z_][a-zA-Z0-9_-.]*
+// <string>        ::= /* Go-style double-quoted or backtick-quoted strings,
+// ...                    with standard Go escape sequences for double-quoted strings. */
+// <int>           ::= /* Standard Go integer literals (decimal, 0x hex, 0o octal, 0b binary),
+// ...                    with an optional +/- prefix. */
+// <bool>          ::= "true" | "false"
+// <tagValue>      ::= /* All text following the "=" sign to the end of the string. */
 func Parse(tagText string) (TypedTag, error) {
 	tagText = strings.TrimSpace(tagText)
 	parsed, err := parseTagKey(tagText)
@@ -135,10 +157,11 @@ func parseTagKey(input string) (tagKey, error) {
 
 	saveInt := func() error {
 		s := buf.String()
-		if ival, err := strconv.ParseInt(s, 0, 64); err != nil {
+		if _, err := strconv.ParseInt(s, 0, 64); err != nil {
 			return fmt.Errorf("invalid number %q", s)
 		} else {
-			cur.Value = IntValue{s: s, i: ival}
+			cur.Value = s
+			cur.Type = ArgTypeInt
 		}
 		args = append(args, cur)
 		cur = Arg{}
@@ -147,19 +170,20 @@ func parseTagKey(input string) (tagKey, error) {
 	}
 	saveString := func() {
 		s := buf.String()
-		cur.Value = StringValue(s)
+		cur.Value = s
+		cur.Type = ArgTypeString
 		args = append(args, cur)
 		cur = Arg{}
 		buf.Reset()
 	}
 	saveBoolOrString := func() {
 		s := buf.String()
-		if s == "true" {
-			cur.Value = BoolValue(true)
-		} else if s == "false" {
-			cur.Value = BoolValue(false)
+		if s == "true" || s == "false" {
+			cur.Value = s
+			cur.Type = ArgTypeBool
 		} else {
-			cur.Value = StringValue(s)
+			cur.Value = s
+			cur.Type = ArgTypeString
 		}
 		args = append(args, cur)
 		cur = Arg{}
@@ -174,7 +198,6 @@ func parseTagKey(input string) (tagKey, error) {
 	st := stBegin
 parseLoop:
 	for i, r = range runes {
-		//fmt.Printf("state: %s, char: %q\n", st, r)
 		switch st {
 		case stBegin:
 			switch {

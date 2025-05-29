@@ -41,6 +41,8 @@ func (t JSON) String() string {
 	if t.Omitempty {
 		tag += ",omitempty"
 	}
+	// "inline" isn't (yet) a standard json tag, but it is used by
+	// gengo to indicate that the field should be inlined.
 	if t.Inline {
 		tag += ",inline"
 	}
@@ -53,7 +55,9 @@ func LookupJSON(m types.Member) (JSON, bool) {
 		return JSON{Omit: true}, true
 	}
 	name, opts := parse(tag)
-	inline := opts.Contains("inline")
+	// "inline" isn't (yet) a standard json tag, but it is used by
+	// gengo to indicate that the field should be inlined.
+	inline := (m.Embedded && name == "") || opts.Contains("inline")
 	omitempty := opts.Contains("omitempty")
 	if !inline && name == "" {
 		name = m.Name

@@ -73,6 +73,16 @@ func TestJSON(t *testing.T) {
 			member:   member("T1", "E"),
 			expected: JSON{Name: "E"},
 		},
+		{
+			name:     "embedded struct",
+			member:   member("T1", "T2"),
+			expected: JSON{Name: "", Inline: true},
+		},
+		{
+			name:     "embedded pointer",
+			member:   member("T1", "T3"),
+			expected: JSON{Name: "", Inline: true},
+		},
 	}
 
 	for _, tt := range tests {

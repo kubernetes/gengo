@@ -17,6 +17,7 @@ limitations under the License.
 package codetags
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -30,10 +31,14 @@ func TestParse(t *testing.T) {
 	}
 
 	cases := []struct {
-		input      string
-		expectKey  string
-		expectArgs []Arg
-		err        bool
+		input           string
+		parseOptions    *ParseOptions
+		expectKey       string
+		expectArgs      []Arg
+		expectValue     string
+		expectValueType ValueType
+		expectValueTag  *TypedTag
+		err             bool
 	}{
 		// string args
 		{input: "name", expectKey: "name"},
@@ -65,6 +70,9 @@ func TestParse(t *testing.T) {
 		{input: "name(arg1, arg2)", err: true},
 		{input: "badRaw(missing`)", err: true},
 		{input: "badMix(arg,`raw`)", err: true},
+		{input: "name=+name(arg1, arg2)", err: true},
+		{input: "name=+badRaw(missing`)", err: true},
+		{input: "name=+badMix(arg,`raw`)", err: true},
 
 		// quotes
 		{input: `quoted(s: "value \" \\")`, expectKey: "quoted", expectArgs: []Arg{
@@ -98,21 +106,63 @@ func TestParse(t *testing.T) {
 			{Name: "i", Value: "2", Type: ArgTypeInt},
 			{Name: "b", Value: "true", Type: ArgTypeBool},
 		}},
+
+		// scalar values
+		{input: `key=1`, expectKey: "key", expectValue: "1", expectValueType: ValueTypeInt},
+		{input: `key=true`, expectKey: "key", expectValue: "true", expectValueType: ValueTypeBool},
+		{input: `key=false`, expectKey: "key", expectValue: "false", expectValueType: ValueTypeBool},
+		{input: `key=ident`, expectKey: "key", expectValue: "ident", expectValueType: ValueTypeString},
+		{input: `key="quoted"`, expectKey: "key", expectValue: "quoted", expectValueType: ValueTypeString},
+		{input: "key=`quoted`", expectKey: "key", expectValue: "quoted", expectValueType: ValueTypeString},
+
+		// scalar values with comments
+		{input: `key=1 // comment`, expectKey: "key", expectValue: "1", expectValueType: ValueTypeInt},
+		{input: `key=true // comment`, expectKey: "key", expectValue: "true", expectValueType: ValueTypeBool},
+		{input: `key=false // comment`, expectKey: "key", expectValue: "false", expectValueType: ValueTypeBool},
+		{input: `key=ident // comment`, expectKey: "key", expectValue: "ident", expectValueType: ValueTypeString},
+		{input: `key="quoted" // comment`, expectKey: "key", expectValue: "quoted", expectValueType: ValueTypeString},
+		{input: "key=`quoted` // comment", expectKey: "key", expectValue: "quoted", expectValueType: ValueTypeString},
+
+		// tag values
+		{input: `key=+key2`, expectKey: "key", expectValueTag: &TypedTag{Name: "key2", Args: []Arg{}}, expectValueType: ValueTypeTag},
+		{input: `key=+key2()`, expectKey: "key", expectValueTag: &TypedTag{Name: "key2", Args: []Arg{}}, expectValueType: ValueTypeTag},
+		{input: `key=+key2(arg)`, expectKey: "key", expectValueTag: &TypedTag{Name: "key2", Args: []Arg{{Value: "arg", Type: ArgTypeString}}}, expectValueType: ValueTypeTag},
+		{input: `key=+key2(k1: v1, k2: v2)`, expectKey: "key", expectValueTag: &TypedTag{Name: "key2", Args: []Arg{{Name: "k1", Value: "v1", Type: ArgTypeString}, {Name: "k2", Value: "v2", Type: ArgTypeString}}}, expectValueType: ValueTypeTag},
+		{input: `key=+key2=+key3`, expectKey: "key", expectValueTag: &TypedTag{Name: "key2", Args: []Arg{}, ValueType: ValueTypeTag, ValueTag: &TypedTag{Name: "key3", Args: []Arg{}}}, expectValueType: ValueTypeTag},
+
+		// tag values with comments
+		{input: `key=+key2 // comment`, expectKey: "key", expectValueTag: &TypedTag{Name: "key2", Args: []Arg{}}, expectValueType: ValueTypeTag},
+		{input: `key=+key2() // comment`, expectKey: "key", expectValueTag: &TypedTag{Name: "key2", Args: []Arg{}}, expectValueType: ValueTypeTag},
+		{input: `key=+key2(arg) // comment`, expectKey: "key", expectValueTag: &TypedTag{Name: "key2", Args: []Arg{{Value: "arg", Type: ArgTypeString}}}, expectValueType: ValueTypeTag},
+		{input: `key=+key2(k1: v1, k2: v2) // comment`, expectKey: "key", expectValueTag: &TypedTag{Name: "key2", Args: []Arg{{Name: "k1", Value: "v1", Type: ArgTypeString}, {Name: "k2", Value: "v2", Type: ArgTypeString}}}, expectValueType: ValueTypeTag},
+		{input: `key=+key2=+key3 // comment`, expectKey: "key", expectValueTag: &TypedTag{Name: "key2", Args: []Arg{}, ValueType: ValueTypeTag, ValueTag: &TypedTag{Name: "key3", Args: []Arg{}}}, expectValueType: ValueTypeTag},
+
+		// raw values
+		{input: `key=this is \ arbitrary content !!`, parseOptions: &ParseOptions{RawValues: true}, expectKey: "key", expectValue: "this is \\ arbitrary content !!", expectValueType: ValueTypeRaw},
+		{input: `key=true // comment`, parseOptions: &ParseOptions{RawValues: true}, expectKey: "key", expectValue: "true // comment", expectValueType: ValueTypeRaw},
+		{input: `key=+key2`, parseOptions: &ParseOptions{RawValues: true}, expectKey: "key", expectValue: "+key2", expectValueType: ValueTypeRaw},
+		{input: `key`, parseOptions: &ParseOptions{RawValues: true}, expectKey: "key", expectValueType: ""},
+		{input: `key=`, parseOptions: &ParseOptions{RawValues: true}, expectKey: "key", expectValueType: ValueTypeRaw},
 	}
 	for _, tc := range cases {
 		t.Run(tc.input, func(t *testing.T) {
-			parsed, err := parseTagKey(tc.input)
+			parseOptions := ParseOptions{}
+			if tc.parseOptions != nil {
+				parseOptions = *tc.parseOptions
+			}
+			parsed, err := parseTag(tc.input, parseOptions)
 			if err != nil && tc.err == false {
 				t.Errorf("[%q]: expected success, got: %v", tc.input, err)
 				return
 			}
+
 			if err == nil {
 				if tc.err == true {
 					t.Errorf("[%q]: expected failure, got: %v(%v)", tc.input, parsed.Name, parsed.Args)
 					return
 				}
 				if parsed.Name != tc.expectKey {
-					t.Errorf("[%q]\nexpected key: %q, got: %q", tc.input, tc.expectKey, parsed.Name)
+					t.Errorf("[%q]: expected key: %q, got: %q", tc.input, tc.expectKey, parsed.Name)
 				}
 				if len(parsed.Args) != len(tc.expectArgs) {
 					t.Errorf("[%q]: expected %d args, got: %q", tc.input, len(tc.expectArgs), parsed.Args)
@@ -120,8 +170,17 @@ func TestParse(t *testing.T) {
 				}
 				for i := range tc.expectArgs {
 					if want, got := tc.expectArgs[i], parsed.Args[i]; got != want {
-						t.Errorf("[%q]\nexpected %q, got %q", tc.input, want, got)
+						t.Errorf("[%q]: expected %q, got %q", tc.input, want, got)
 					}
+				}
+				if parsed.Value != tc.expectValue {
+					t.Errorf("[%q]: expected value: %q, got: %q", tc.input, tc.expectValue, parsed.Value)
+				}
+				if parsed.ValueType != tc.expectValueType {
+					t.Errorf("[%q]: expected value type: %q, got: %q", tc.input, tc.expectValueType, parsed.ValueType)
+				}
+				if tc.expectValueTag != nil && !reflect.DeepEqual(tc.expectValueTag, parsed.ValueTag) {
+					t.Errorf("[%q]: expected value tag: %q, got: %q", tc.input, tc.expectValueTag.String(), parsed.ValueTag.String())
 				}
 			}
 		})

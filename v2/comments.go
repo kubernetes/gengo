@@ -107,7 +107,7 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 			continue
 		}
 		for _, line := range tagLines {
-			typedTag, err := codetags.Parse(line)
+			typedTag, err := codetags.Parse(line, codetags.ParseOptions{RawValues: true})
 			if err != nil {
 				return nil, err
 			}

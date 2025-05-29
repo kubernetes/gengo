@@ -27,8 +27,20 @@ type TypedTag struct {
 	Name string
 	// Args is a list of optional arguments to the tag.
 	Args []Arg
-	// Value is the value of the tag.
+	// Value is the string representation of the tag value.
+	// Only set when ValueType is ValueTypeString, ValueTypeBool, ValueTypeInt or ValueTypeRaw.
 	Value string
+
+	// ValueTag is another tag parsed from the value of the tag.
+	// Only set when ValueType is ValueTypeTag.
+	ValueTag *TypedTag
+
+	// ValueType is the type of the value.
+	// If ValueType is ValueTypeTag, ValueTag is set.
+	// If ValueType is ValueTypeString, ValueTypeBool or ValueTypeInt, Value is the string representation of the value.
+	// If ValueType is ValueTypeRaw, Value is the unparsed text following the "=" sign.
+	// If ValueType is empty, the tag has no value.
+	ValueType ValueType
 }
 
 func (t TypedTag) String() string {
@@ -44,9 +56,14 @@ func (t TypedTag) String() string {
 		}
 		buf.WriteString(")")
 	}
-	if len(t.Value) > 0 {
-		buf.WriteString("=")
-		buf.WriteString(t.Value)
+	if len(t.ValueType) > 0 || len(t.Value) > 0 {
+		if t.ValueType == ValueTypeTag {
+			buf.WriteString("=+")
+			buf.WriteString(t.ValueTag.String())
+		} else {
+			buf.WriteString("=")
+			buf.WriteString(t.Value)
+		}
 	}
 	return buf.String()
 }
@@ -69,7 +86,10 @@ func (a Arg) String() string {
 	if len(a.Name) > 0 {
 		return fmt.Sprintf("%s: %v", a.Name, a.Value)
 	}
-	return fmt.Sprintf("%v", a.Value)
+	if findNameEnd(a.Value) == len(a.Value) { // identifiers are unquoted
+		return fmt.Sprintf("%v", a.Value)
+	}
+	return fmt.Sprintf("%q", a.Value)
 }
 
 // ArgType is an argument's type.
@@ -87,4 +107,28 @@ const (
 	// ArgTypeBool identifies bool values. Values of this type must either be the
 	// string "true" or "false".
 	ArgTypeBool ArgType = "bool"
+)
+
+// ValueType is a tag's value type.
+type ValueType string
+
+const (
+	// ValueTypeString identifies string values.
+	ValueTypeString ValueType = "string"
+
+	// ValueTypeInt identifies int values. Values of this type may be in decimal,
+	// octal, hex or binary string representations. Consider using strconv.ParseInt
+	// to parse, as it supports all these string representations.
+	ValueTypeInt ValueType = "int"
+
+	// ValueTypeBool identifies bool values. Values of this type must either be the
+	// string "true" or "false".
+	ValueTypeBool ValueType = "bool"
+
+	// ValueTypeTag identifies that the value is another tag.
+	ValueTypeTag ValueType = "tag"
+
+	// ValueTypeRaw identifies that the value is the unparsed text following the "=" sign.
+	// Only set when ParseOptions.RawValues is true.
+	ValueTypeRaw ValueType = "raw"
 )

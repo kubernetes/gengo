@@ -17,7 +17,7 @@ limitations under the License.
 package codetags
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -28,17 +28,18 @@ type TypedTag struct {
 	// Args is a list of optional arguments to the tag.
 	Args []Arg
 	// Value is the string representation of the tag value.
-	// Only set when ValueType is ValueTypeString, ValueTypeBool, ValueTypeInt or ValueTypeRaw.
+	// Only used when ValueType is ValueTypeString, ValueTypeBool, ValueTypeInt or ValueTypeRaw.
 	Value string
 
-	// ValueTag is another tag parsed from the value of the tag.
-	// Only set when ValueType is ValueTypeTag.
+	// ValueTag is another tag parsed from the value of this tag.
+	// Only used when ValueType is ValueTypeTag.
 	ValueTag *TypedTag
 
 	// ValueType is the type of the value.
 	// If ValueType is ValueTypeTag, ValueTag is set.
-	// If ValueType is ValueTypeString, ValueTypeBool or ValueTypeInt, Value is the string representation of the value.
-	// If ValueType is ValueTypeRaw, Value is the unparsed text following the "=" sign.
+	// If ValueType is ValueTypeString, ValueTypeBool or ValueTypeInt, Value is the string representation
+	// of the typed value.
+	// If ValueType is ValueTypeRaw, Value is the exact text following the "=" sign.
 	// If ValueType is empty, the tag has no value.
 	ValueType ValueType
 }
@@ -62,7 +63,11 @@ func (t TypedTag) String() string {
 			buf.WriteString(t.ValueTag.String())
 		} else {
 			buf.WriteString("=")
-			buf.WriteString(t.Value)
+			if t.ValueType == ValueTypeString {
+				buf.WriteString(strconv.Quote(t.Value))
+			} else {
+				buf.WriteString(t.Value)
+			}
 		}
 	}
 	return buf.String()
@@ -83,13 +88,17 @@ type Arg struct {
 
 // String returns the string representation of the argument.
 func (a Arg) String() string {
+	buf := strings.Builder{}
 	if len(a.Name) > 0 {
-		return fmt.Sprintf("%s: %v", a.Name, a.Value)
+		buf.WriteString(a.Name)
+		buf.WriteString(": ")
 	}
-	if findNameEnd(a.Value) == len(a.Value) { // identifiers are unquoted
-		return fmt.Sprintf("%v", a.Value)
+	if a.Type == ArgTypeString { // identifiers are unquoted
+		buf.WriteString(strconv.Quote(a.Value))
+	} else {
+		buf.WriteString(a.Value)
 	}
-	return fmt.Sprintf("%q", a.Value)
+	return buf.String()
 }
 
 // ArgType is an argument's type.

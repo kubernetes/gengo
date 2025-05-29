@@ -162,7 +162,7 @@ func parseTag(input string, opts ParseOptions) (TypedTag, error) {
 	var startTag, endTag *TypedTag // both ends of the chain when parsing chained tags
 
 	tag := bytes.Buffer{}   // current tag name
-	args := []Arg{}         // all tag arguments
+	var args []Arg          // all tag arguments
 	value := bytes.Buffer{} // current tag value
 	var valueType ValueType // current value type
 	var hasValue bool       // true if the tag has a value
@@ -237,7 +237,7 @@ func parseTag(input string, opts ParseOptions) (TypedTag, error) {
 			endTag.ValueType = ValueTypeTag
 			endTag = newTag
 		}
-		args = []Arg{}
+		args = nil // Reset to nil instead of empty slice
 		tag.Reset()
 		return nil
 	}
@@ -523,6 +523,7 @@ parseLoop:
 	if err := saveTag(); err != nil {
 		return TypedTag{}, err
 	}
+
 	if hasValue {
 		saveValue()
 	}

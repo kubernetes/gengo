@@ -50,7 +50,7 @@ func TestExtractSingleBoolCommentTag(t *testing.T) {
 	commentLines := []string{
 		"Human comment that is ignored.",
 		"+TRUE=true",
-		"+FALSE=false",
+		"+FALSE=false // comment",
 		"+MULTI=true",
 		"+MULTI=false",
 		"+MULTI=multi",
@@ -94,10 +94,12 @@ func TestExtractFunctionStyleCommentTags(t *testing.T) {
 	mkstrs := func(s ...string) []string { return s }
 
 	cases := []struct {
-		name     string
-		comments []string
-		tagNames []string
-		expect   map[string][]Tag
+		name        string
+		comments    []string
+		tagNames    []string
+		parseValues bool
+		expectError bool
+		expect      map[string][]Tag
 	}{{
 		name: "no args",
 		comments: []string{
@@ -245,11 +247,70 @@ func TestExtractFunctionStyleCommentTags(t *testing.T) {
 			"rawTag": mktags(
 				Tag{"rawTag", mkstrs("[self.foo==10, ()), {}}, \"foo\", 'foo']"), "val"}),
 		},
+	}, {
+		name: "ParseValues - valid values",
+		comments: []string{
+			"+boolTag=true",
+			"+intTag=42",
+			"+stringTag=\"quoted string\"",
+			"+rawStringTag=`raw string`",
+			"+identTag=identifier",
+		},
+		parseValues: true,
+		expect: map[string][]Tag{
+			"boolTag":      mktags(Tag{"boolTag", nil, "true"}),
+			"intTag":       mktags(Tag{"intTag", nil, "42"}),
+			"stringTag":    mktags(Tag{"stringTag", nil, "quoted string"}),
+			"rawStringTag": mktags(Tag{"rawStringTag", nil, "raw string"}),
+			"identTag":     mktags(Tag{"identTag", nil, "identifier"}),
+		},
+	}, {
+		name: "ParseValues - comments ignored",
+		comments: []string{
+			"+boolTag=true // this is a boolean",
+			"+intTag=42 // this is an integer",
+			"+stringTag=\"quoted string\" // this is a string",
+		},
+		parseValues: true,
+		expect: map[string][]Tag{
+			"boolTag":   mktags(Tag{"boolTag", nil, "true"}),
+			"intTag":    mktags(Tag{"intTag", nil, "42"}),
+			"stringTag": mktags(Tag{"stringTag", nil, "quoted string"}),
+		},
+	}, {
+		name: "ParseValues enabled - invalid value",
+		comments: []string{
+			"+invalidTag=\"unclosed string",
+		},
+		parseValues: true,
+		expectError: true,
+	}, {
+		name: "raw values with comments",
+		comments: []string{
+			"+boolTag=true // this is a boolean",
+			"+intTag=42 // this is an integer",
+			"+stringTag=\"quoted string\" // this is a string",
+			"+invalidTag=\"unclosed string",
+		},
+		expect: map[string][]Tag{
+			"boolTag":    mktags(Tag{"boolTag", nil, "true // this is a boolean"}),
+			"intTag":     mktags(Tag{"intTag", nil, "42 // this is an integer"}),
+			"stringTag":  mktags(Tag{"stringTag", nil, "\"quoted string\" // this is a string"}),
+			"invalidTag": mktags(Tag{"invalidTag", nil, "\"unclosed string"}),
+		},
 	}}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := ExtractFunctionStyleCommentTags("+", tc.tagNames, tc.comments)
+			result, err := ExtractFunctionStyleCommentTags("+", tc.tagNames, tc.comments, ParseValues(tc.parseValues))
+
+			if tc.expectError {
+				if err == nil {
+					t.Errorf("case %q: expected error but got none", tc.name)
+				}
+				return
+			}
+
 			if err != nil {
 				t.Errorf("case %q: unexpected error: %v", tc.name, err)
 				return

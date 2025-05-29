@@ -49,7 +49,7 @@ func TestParse(t *testing.T) {
 	cases := []struct {
 		name         string
 		input        string
-		parseOptions ParseOptions
+		parseOptions []ParseOption
 		expect       TypedTag
 		err          bool
 	}{
@@ -293,6 +293,28 @@ func TestParse(t *testing.T) {
 			expect: mktv("key", "quoted", ValueTypeString),
 		},
 
+		// Error cases for scalar values
+		{
+			name:  "space in value",
+			input: "key=one two",
+			err:   true,
+		},
+		{
+			name:  "unclosed backtick quoted string",
+			input: "key=`unclosed",
+			err:   true,
+		},
+		{
+			name:  "unclosed double-quoted string",
+			input: `key="unclosed`,
+			err:   true,
+		},
+		{
+			name:  "illegal identifier",
+			input: `key=x@y`,
+			err:   true,
+		},
+
 		// Scalar values with comments
 		{
 			name:   "integer value with comment",
@@ -397,38 +419,38 @@ func TestParse(t *testing.T) {
 		{
 			name:         "raw arbitrary content",
 			input:        `key=this is \ arbitrary content !!`,
-			parseOptions: ParseOptions{RawValues: true},
+			parseOptions: []ParseOption{RawValues(true)},
 			expect:       mktv("key", "this is \\ arbitrary content !!", ValueTypeRaw),
 		},
 		{
 			name:         "raw value with comment",
 			input:        `key=true // comment`,
-			parseOptions: ParseOptions{RawValues: true},
+			parseOptions: []ParseOption{RawValues(true)},
 			expect:       mktv("key", "true // comment", ValueTypeRaw),
 		},
 		{
 			name:         "raw value with tag syntax",
 			input:        `key=+key2`,
-			parseOptions: ParseOptions{RawValues: true},
+			parseOptions: []ParseOption{RawValues(true)},
 			expect:       mktv("key", "+key2", ValueTypeRaw),
 		},
 		{
 			name:         "raw with key only",
 			input:        `key`,
-			parseOptions: ParseOptions{RawValues: true},
+			parseOptions: []ParseOption{RawValues(true)},
 			expect:       TypedTag{Name: "key"},
 		},
 		{
 			name:         "raw with empty value",
 			input:        `key=`,
-			parseOptions: ParseOptions{RawValues: true},
+			parseOptions: []ParseOption{RawValues(true)},
 			expect:       mktv("key", "", ValueTypeRaw),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			parsed, err := parseTag(tc.input, tc.parseOptions)
+			parsed, err := Parse(tc.input, tc.parseOptions...)
 			if err != nil {
 				if !tc.err {
 					t.Errorf("Expected success, got error: %v", err)
@@ -444,7 +466,7 @@ func TestParse(t *testing.T) {
 			}
 
 			// round-trip testing
-			roundTripped, err := parseTag(parsed.String(), tc.parseOptions)
+			roundTripped, err := Parse(parsed.String(), tc.parseOptions...)
 			if err != nil {
 				t.Errorf("Failed to reparse tag: %v", err)
 				return

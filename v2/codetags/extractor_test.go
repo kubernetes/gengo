@@ -256,7 +256,7 @@ func TestExtractAndParse(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			out := map[string][]TypedTag{}
 			for name, matchedTags := range Extract("+", tc.comments) {
-				parsed, err := ParseAll(matchedTags, ParseOptions{})
+				parsed, err := ParseAll(matchedTags)
 				if err != nil {
 					t.Fatalf("case %q: unexpected error: %v", tc.name, err)
 				}

@@ -27,8 +27,8 @@ import (
 // Parse parses a tag string into a TypedTag, or returns an error if the tag
 // string fails to parse.
 //
-// Any enabled ParseOptions modify the behavior of the parser. The below
-// describes only the default behavior.
+// ParseOption may be provided to modify the behavior of the parser. The below
+// describes the default behavior.
 //
 // A tag consists of a name, optional arguments, and an optional scalar value or
 // tag value. For example,
@@ -82,8 +82,8 @@ import (
 //	"name=+anotherTag"
 //	"name=+anotherTag(size: 100)"
 //
-// Trailing comments are ignored unless opts.ParseValues=false, in which case they
-// are treated as part of the value. See ParseValues.RawValues for details.
+// Trailing comments are ignored unless the RawValues option is enabled, in which
+// case they are treated as part of the value.
 //
 // For example,
 //
@@ -104,30 +104,44 @@ import (
 // <int>           ::= /* Standard Go integer literals (decimal, 0x hex, 0o octal, 0b binary),
 // ...                    with an optional +/- prefix. */
 // <bool>          ::= "true" | "false"
-func Parse(tag string, opts ParseOptions) (TypedTag, error) {
+func Parse(tag string, options ...ParseOption) (TypedTag, error) {
+	opts := parseOpts{}
+	for _, o := range options {
+		o(&opts)
+	}
+
 	tag = strings.TrimSpace(tag)
 	return parseTag(tag, opts)
 }
 
-// ParseOptions controls the behavior of Parse.
-type ParseOptions struct {
-	// RawValues disables parsing of the value part of the tag. If true, the Value
-	// field will contain all text following the "=" sign, up to the last
-	// non-whitespace character, and ValueType will be set to ValueTypeRaw.
-	RawValues bool
-}
-
 // ParseAll calls Parse on each tag in the input slice.
-func ParseAll(tags []string, opts ParseOptions) ([]TypedTag, error) {
+func ParseAll(tags []string, options ...ParseOption) ([]TypedTag, error) {
 	var out []TypedTag
 	for _, tag := range tags {
-		parsed, err := Parse(tag, opts)
+		parsed, err := Parse(tag, options...)
 		if err != nil {
 			return nil, err
 		}
 		out = append(out, parsed)
 	}
 	return out, nil
+}
+
+type parseOpts struct {
+	rawValues bool
+}
+
+// ParseOption provides a parser option.
+type ParseOption func(*parseOpts)
+
+// RawValues skips parsing of the value part of the tag. If enabled, the Value
+// in the parse response will contain all text following the "=" sign, up to the last
+// non-whitespace character, and ValueType will be set to ValueTypeRaw.
+// Default: disabled
+func RawValues(enabled bool) ParseOption {
+	return func(opts *parseOpts) {
+		opts.rawValues = enabled
+	}
 }
 
 const (
@@ -158,7 +172,7 @@ const (
 	stTrailingComment = "stTrailingComment"
 )
 
-func parseTag(input string, opts ParseOptions) (TypedTag, error) {
+func parseTag(input string, opts parseOpts) (TypedTag, error) {
 	var startTag, endTag *TypedTag // both ends of the chain when parsing chained tags
 
 	tag := bytes.Buffer{}   // current tag name
@@ -243,7 +257,7 @@ func parseTag(input string, opts ParseOptions) (TypedTag, error) {
 	}
 	saveValue := func() {
 		endTag.Value = value.String()
-		if opts.RawValues {
+		if opts.rawValues {
 			endTag.ValueType = ValueTypeRaw
 			return
 		}
@@ -402,7 +416,7 @@ parseLoop:
 			}
 		case stValue:
 			switch {
-			case opts.RawValues: // When enabled, consume all remaining chars
+			case opts.rawValues: // When enabled, consume all remaining chars
 				value.WriteRune(r)
 			case r == '+':
 				st = stValueTagOrNumber // Might be a tag or a number so stValueTagOrNumber peeks
@@ -415,6 +429,7 @@ parseLoop:
 				valueType = ValueTypeInt
 				st = stValueNumber
 			case r == '"' || r == '`':
+				incomplete = true
 				quote = r
 				valueType = ValueTypeString
 				st = stValueQuotedString
@@ -468,6 +483,7 @@ parseLoop:
 			case r == '\\':
 				st = stValueEscape
 			case r == quote:
+				incomplete = false
 				st = stMaybeComment
 			default:
 				value.WriteRune(r)

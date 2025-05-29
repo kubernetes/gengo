@@ -137,7 +137,8 @@ const (
 	// ValueTypeTag identifies that the value is another tag.
 	ValueTypeTag ValueType = "tag"
 
-	// ValueTypeRaw identifies that the value is the unparsed text following the "=" sign.
-	// Only set when ParseOptions.RawValues is true.
+	// ValueTypeRaw identifies that the value is raw, untyped content and contains
+	// all text from the tag declaration following the "=" sign, up to the last
+	// non-whitespace character.
 	ValueTypeRaw ValueType = "raw"
 )

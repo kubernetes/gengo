@@ -145,28 +145,13 @@ func RawValues(enabled bool) ParseOption {
 }
 
 const (
-	stBegin = "stBegin"
-	stTag   = "stTag"
-	stArg   = "stArg"
-
-	// arg value parsing states
-	stArgNumber         = "stArgNumber"
-	stArgPrefixedNumber = "stArgPrefixedNumber"
-	stArgQuotedString   = "stArgQuotedString"
-	stArgNakedString    = "stArgNakedString"
-	stArgEscape         = "stArgEscape"
-	stArgEndOfToken     = "stArgEndOfToken"
-
-	// tag value parsing states
-	stMaybeValue          = "stMaybeValue"
-	stValue               = "stValue"
-	stValueTagOrNumber    = "stValueTagOrNumber"
-	stValueNumber         = "stValueNumber"
-	stValuePrefixedNumber = "stValuePrefixedNumber"
-	stValueQuotedString   = "stValueQuotedString"
-	stValueNakedString    = "stValueNakedString"
-	stValueEscape         = "stValueEscape"
-
+	stBegin           = "stBegin"
+	stTag             = "stTag"
+	stMaybeArgs       = "stMaybeArgs"
+	stArg             = "stArg"
+	stArgEndOfToken   = "stArgEndOfToken"
+	stMaybeValue      = "stMaybeValue"
+	stValue           = "stValue"
 	stMaybeComment    = "stMaybeComment"
 	stTrailingSlash   = "stTrailingSlash"
 	stTrailingComment = "stTrailingComment"
@@ -185,10 +170,8 @@ func parseTag(input string, opts parseOpts) (TypedTag, error) {
 	buf := bytes.Buffer{} // string accumulator
 
 	// These are defined outside the loop to make errors easier.
-	var i int
-	var r rune
+	s := scanner{buf: []rune(input)}
 	var incomplete bool
-	var quote rune
 
 	saveInt := func() error {
 		s := buf.String()
@@ -266,32 +249,42 @@ func parseTag(input string, opts parseOpts) (TypedTag, error) {
 			endTag.ValueType = ValueTypeBool
 		}
 	}
-	runes := []rune(input)
 	st := stBegin
 parseLoop:
-	for i, r = range runes {
+	for r := s.peek(); r != EOF; r = s.peek() {
 		switch st {
 		case stBegin:
 			switch {
 			case unicode.IsSpace(r):
+				s.next()
 				continue
 			case isIdentBegin(r):
-				tag.WriteRune(r)
 				st = stTag
 			default:
 				break parseLoop
 			}
 		case stTag:
 			switch {
-			case isIdentInterior(r) || r == ':':
-				tag.WriteRune(r)
+			case isIdentBegin(r):
+				ident, err := s.nextIdent(isTagNameInterior)
+				if err != nil {
+					return TypedTag{}, err
+				}
+				tag.WriteString(ident)
+				st = stMaybeArgs
+			}
+		case stMaybeArgs:
+			switch {
 			case r == '(':
+				s.next()
 				incomplete = true
 				st = stArg
 			case r == '=':
+				s.next()
 				hasValue = true
 				st = stValue
 			case unicode.IsSpace(r):
+				s.next()
 				st = stMaybeComment
 			default:
 				break parseLoop
@@ -299,106 +292,59 @@ parseLoop:
 		case stArg:
 			switch {
 			case unicode.IsSpace(r):
+				s.next()
 				continue
 			case r == ')':
+				s.next()
 				incomplete = false
 				st = stMaybeValue
-			case r == '0':
-				buf.WriteRune(r)
-				st = stArgPrefixedNumber
 			case r == '-' || r == '+' || unicode.IsDigit(r):
-				buf.WriteRune(r)
-				st = stArgNumber
-			case r == '"' || r == '`':
-				quote = r
-				st = stArgQuotedString
-			case isIdentBegin(r):
-				buf.WriteRune(r)
-				st = stArgNakedString
-			default:
-				break parseLoop
-			}
-		case stArgNumber:
-			hexits := "abcdefABCDEF"
-			switch {
-			case unicode.IsDigit(r) || strings.Contains(hexits, string(r)):
-				buf.WriteRune(r)
-				continue
-			case r == ',':
-				if err := saveInt(); err != nil {
+				number, err := s.nextNumber()
+				if err != nil {
 					return TypedTag{}, err
 				}
-				st = stArg
-			case r == ')':
-				if err := saveInt(); err != nil {
-					return TypedTag{}, err
-				}
-				incomplete = false
-				st = stMaybeValue
-			case unicode.IsSpace(r):
+				buf.WriteString(number)
 				if err := saveInt(); err != nil {
 					return TypedTag{}, err
 				}
 				st = stArgEndOfToken
-			default:
-				break parseLoop
-			}
-		case stArgPrefixedNumber:
-			switch {
-			case unicode.IsDigit(r):
-				buf.WriteRune(r)
-				st = stArgNumber
-			case r == 'x' || r == 'o' || r == 'b':
-				buf.WriteRune(r)
-				st = stArgNumber
-			default:
-				break parseLoop
-			}
-		case stArgQuotedString:
-			switch {
-			case r == '\\':
-				st = stArgEscape
-			case r == quote:
+			case r == '"' || r == '`':
+				str, err := s.nextString()
+				if err != nil {
+					return TypedTag{}, err
+				}
+				buf.WriteString(str)
 				saveString()
 				st = stArgEndOfToken
-			default:
-				buf.WriteRune(r)
-			}
-		case stArgEscape:
-			switch {
-			case r == quote || r == '\\':
-				buf.WriteRune(r)
-				st = stArgQuotedString
-			default:
-				return TypedTag{}, fmt.Errorf("unhandled escaped character %q", r)
-			}
-		case stArgNakedString:
-			switch {
-			case isIdentInterior(r):
-				buf.WriteRune(r)
-			case r == ',':
-				saveBoolOrString()
-				st = stArg
-			case r == ')':
-				saveBoolOrString()
-				incomplete = false
-				st = stMaybeValue
-			case unicode.IsSpace(r):
-				saveBoolOrString()
-				st = stArgEndOfToken
-			case r == ':':
-				saveName()
-				st = stArg
+			case isIdentBegin(r):
+				str, err := s.nextIdent(isIdentInterior)
+				if err != nil {
+					return TypedTag{}, err
+				}
+				buf.WriteString(str)
+				r = s.peek()
+				switch {
+				case r == ',' || r == ')' || unicode.IsSpace(r):
+					saveBoolOrString()
+					st = stArgEndOfToken
+				case r == ':':
+					s.next()
+					saveName()
+					st = stArg
+				}
 			default:
 				break parseLoop
 			}
 		case stArgEndOfToken:
 			switch {
 			case unicode.IsSpace(r):
+				s.next()
 				continue
 			case r == ',':
+				s.next()
 				st = stArg
 			case r == ')':
+				s.next()
 				incomplete = false
 				st = stMaybeValue
 			default:
@@ -407,9 +353,11 @@ parseLoop:
 		case stMaybeValue:
 			switch {
 			case r == '=':
+				s.next()
 				hasValue = true
 				st = stValue
 			case unicode.IsSpace(r):
+				s.next()
 				st = stMaybeComment
 			default:
 				break parseLoop
@@ -417,90 +365,36 @@ parseLoop:
 		case stValue:
 			switch {
 			case opts.rawValues: // When enabled, consume all remaining chars
-				value.WriteRune(r)
-			case r == '+':
-				st = stValueTagOrNumber // Might be a tag or a number so stValueTagOrNumber peeks
-			case r == '0':
-				value.WriteRune(r)
-				valueType = ValueTypeInt
-				st = stValuePrefixedNumber
-			case r == '-' || unicode.IsDigit(r):
-				value.WriteRune(r)
-				valueType = ValueTypeInt
-				st = stValueNumber
-			case r == '"' || r == '`':
-				incomplete = true
-				quote = r
-				valueType = ValueTypeString
-				st = stValueQuotedString
-			case isIdentBegin(r):
-				value.WriteRune(r)
-				valueType = ValueTypeString
-				st = stValueNakedString
-			default:
-				break parseLoop
-			}
-		case stValueTagOrNumber: // Both tags and numbers can start with a +
-			switch {
-			case unicode.IsDigit(r):
-				value.WriteRune(r)
-				st = stValueNumber
-			case isIdentBegin(r):
+				value.WriteRune(s.next())
+			case r == '+' && isIdentBegin(s.peekN(1)): // tag value
+				s.next() // consume +
 				if err := saveTag(); err != nil {
 					return TypedTag{}, err
 				}
-				incomplete = false
-				st = stMaybeValue
-				tag.WriteRune(r)
 				st = stTag
-			default:
-				break parseLoop
-			}
-		case stValueNumber:
-			hexits := "abcdefABCDEF"
-			switch {
-			case unicode.IsDigit(r) || strings.Contains(hexits, string(r)):
-				value.WriteRune(r)
-				continue
-			case unicode.IsSpace(r):
+			case r == '-' || r == '+' || unicode.IsDigit(r):
+				number, err := s.nextNumber()
+				valueType = ValueTypeInt
+				if err != nil {
+					return TypedTag{}, err
+				}
+				value.WriteString(number)
 				st = stMaybeComment
-			default:
-				break parseLoop
-			}
-		case stValuePrefixedNumber:
-			switch {
-			case unicode.IsDigit(r):
-				value.WriteRune(r)
-				st = stValueNumber
-			case r == 'x' || r == 'o' || r == 'b':
-				value.WriteRune(r)
-				st = stValueNumber
-			default:
-				break parseLoop
-			}
-		case stValueQuotedString:
-			switch {
-			case r == '\\':
-				st = stValueEscape
-			case r == quote:
-				incomplete = false
+			case r == '"' || r == '`':
+				str, err := s.nextString()
+				if err != nil {
+					return TypedTag{}, err
+				}
+				value.WriteString(str)
+				valueType = ValueTypeString
 				st = stMaybeComment
-			default:
-				value.WriteRune(r)
-			}
-		case stValueEscape:
-			switch {
-			case r == quote || r == '\\':
-				value.WriteRune(r)
-				st = stValueQuotedString
-			default:
-				return TypedTag{}, fmt.Errorf("unhandled escaped character %q", r)
-			}
-		case stValueNakedString:
-			switch {
-			case isIdentInterior(r):
-				value.WriteRune(r)
-			case unicode.IsSpace(r):
+			case isIdentBegin(r):
+				str, err := s.nextIdent(isIdentInterior)
+				if err != nil {
+					return TypedTag{}, err
+				}
+				value.WriteString(str)
+				valueType = ValueTypeString
 				st = stMaybeComment
 			default:
 				break parseLoop
@@ -508,8 +402,10 @@ parseLoop:
 		case stMaybeComment:
 			switch {
 			case unicode.IsSpace(r):
+				s.next()
 				continue
 			case r == '/':
+				s.next()
 				incomplete = true
 				st = stTrailingSlash
 			default:
@@ -518,20 +414,22 @@ parseLoop:
 		case stTrailingSlash:
 			switch {
 			case r == '/':
+				s.next()
 				incomplete = false
 				st = stTrailingComment
 			default:
 				break parseLoop
 			}
 		case stTrailingComment:
-			i = len(runes) - 1
+			s.next()
+			s.pos = len(s.buf)
 			break parseLoop
 		default:
-			return TypedTag{}, fmt.Errorf("unexpected internal parser error: unknown state: %s at position %d", st, i)
+			return TypedTag{}, fmt.Errorf("unexpected internal parser error: unknown state: %s at position %d", st, s.pos)
 		}
 	}
-	if i != len(runes)-1 {
-		return TypedTag{}, fmt.Errorf("unexpected character %q at position %d", r, i)
+	if s.peek() != EOF {
+		return TypedTag{}, fmt.Errorf("unexpected character %q at position %d", s.next(), s.pos)
 	}
 	if incomplete {
 		return TypedTag{}, fmt.Errorf("unexpected end of input")
@@ -554,4 +452,8 @@ func isIdentBegin(r rune) bool {
 
 func isIdentInterior(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '.' || r == '-'
+}
+
+func isTagNameInterior(r rune) bool {
+	return isIdentInterior(r) || r == ':'
 }

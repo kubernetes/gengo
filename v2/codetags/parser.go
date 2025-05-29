@@ -523,12 +523,11 @@ parseLoop:
 	if err := saveTag(); err != nil {
 		return TypedTag{}, err
 	}
-
 	if hasValue {
 		saveValue()
 	}
 	if startTag == nil {
-		return TypedTag{}, fmt.Errorf("unexpected internal parser error: no start tag")
+		return TypedTag{}, fmt.Errorf("unexpected internal parser error: no tags parsed")
 	}
 	return *startTag, nil
 }

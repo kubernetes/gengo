@@ -25,22 +25,19 @@ import (
 type TypedTag struct {
 	// Name is the name of the tag with no arguments.
 	Name string
+
 	// Args is a list of optional arguments to the tag.
 	Args []Arg
+
 	// Value is the string representation of the tag value.
-	// Only used when ValueType is ValueTypeString, ValueTypeBool, ValueTypeInt or ValueTypeRaw.
+	// Provides the tag value when ValueType is ValueTypeString, ValueTypeBool, ValueTypeInt or ValueTypeRaw.
 	Value string
 
 	// ValueTag is another tag parsed from the value of this tag.
-	// Only used when ValueType is ValueTypeTag.
+	// Provides the tag value when ValueType is ValueTypeTag.
 	ValueTag *TypedTag
 
 	// ValueType is the type of the value.
-	// If ValueType is ValueTypeTag, ValueTag is set.
-	// If ValueType is ValueTypeString, ValueTypeBool or ValueTypeInt, Value is the string representation
-	// of the typed value.
-	// If ValueType is ValueTypeRaw, Value is the exact text following the "=" sign.
-	// If ValueType is empty, the tag has no value.
 	ValueType ValueType
 }
 
@@ -57,7 +54,7 @@ func (t TypedTag) String() string {
 		}
 		buf.WriteString(")")
 	}
-	if len(t.ValueType) > 0 || len(t.Value) > 0 {
+	if t.ValueType != ValueTypeNone {
 		if t.ValueType == ValueTypeTag {
 			buf.WriteString("=+")
 			buf.WriteString(t.ValueTag.String())
@@ -77,6 +74,7 @@ func (t TypedTag) String() string {
 type Arg struct {
 	// Name is the name of a named argument. This is zero-valued for positional arguments.
 	Name string
+
 	// Value is the string value of an argument. It has been validated to match the Type.
 	// See the ArgType const godoc for further details on how to parse the value for the
 	// Type.
@@ -86,14 +84,13 @@ type Arg struct {
 	Type ArgType
 }
 
-// String returns the string representation of the argument.
 func (a Arg) String() string {
 	buf := strings.Builder{}
 	if len(a.Name) > 0 {
 		buf.WriteString(a.Name)
 		buf.WriteString(": ")
 	}
-	if a.Type == ArgTypeString { // identifiers are unquoted
+	if a.Type == ArgTypeString {
 		buf.WriteString(strconv.Quote(a.Value))
 	} else {
 		buf.WriteString(a.Value)
@@ -122,6 +119,9 @@ const (
 type ValueType string
 
 const (
+	// ValueTypeNone indicates that the tag has no value.
+	ValueTypeNone ValueType = ""
+
 	// ValueTypeString identifies string values.
 	ValueTypeString ValueType = "string"
 

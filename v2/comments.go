@@ -76,8 +76,8 @@ func ExtractCommentTags(marker string, lines []string) map[string][]string {
 //
 // This function is a wrapper around codetags.Extract and codetags.Parse, but only supports tags with
 // a single position arg of type string, and a value of type bool.
-func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lines []string) (bool, error) {
-	tags, err := ExtractFunctionStyleCommentTags(marker, []string{key}, lines)
+func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lines []string, options ...TagOpt) (bool, error) {
+	tags, err := ExtractFunctionStyleCommentTags(marker, []string{key}, lines, options...)
 	if err != nil {
 		return false, err
 	}
@@ -98,7 +98,12 @@ func ExtractSingleBoolCommentTag(marker string, key string, defaultVal bool, lin
 //
 // This function is a wrapper around codetags.Extract and codetags.Parse, but only supports tags with
 // a single position arg of type string.
-func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []string) (map[string][]Tag, error) {
+func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []string, options ...TagOpt) (map[string][]Tag, error) {
+	opts := tagOpts{}
+	for _, o := range options {
+		o(opts)
+	}
+
 	out := map[string][]Tag{}
 
 	tags := codetags.Extract(marker, lines)
@@ -107,7 +112,7 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 			continue
 		}
 		for _, line := range tagLines {
-			typedTag, err := codetags.Parse(line, codetags.ParseOptions{RawValues: true})
+			typedTag, err := codetags.Parse(line, codetags.ParseOptions{RawValues: !opts.parseValues})
 			if err != nil {
 				return nil, err
 			}
@@ -120,6 +125,23 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 	}
 
 	return out, nil
+}
+
+// TagOpt provides options for extracting tags.
+type TagOpt func(opts tagOpts)
+
+// TagOptParseValues enables parsing of tag values. When enabled, tag values must
+// be valid quoted strings, ints, booleans, identifiers, or tags. Otherwise, a
+// parse error will be returned. Also, when enabled, trailing comments are
+// ignored.
+func TagOptParseValues() func(opts tagOpts) {
+	return func(opts tagOpts) {
+		opts.parseValues = true
+	}
+}
+
+type tagOpts struct {
+	parseValues bool
 }
 
 func toTag(tag codetags.TypedTag) (Tag, error) {

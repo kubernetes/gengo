@@ -267,6 +267,8 @@ parseLoop:
 				}
 				tag.WriteString(ident)
 				st = stMaybeArgs
+			default:
+				break parseLoop
 			}
 		case stMaybeArgs:
 			switch {

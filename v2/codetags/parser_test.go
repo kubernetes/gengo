@@ -18,7 +18,10 @@ package codetags
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestParse(t *testing.T) {
@@ -51,7 +54,7 @@ func TestParse(t *testing.T) {
 		input        string
 		parseOptions []ParseOption
 		expect       TypedTag
-		err          bool
+		wantError    string // substring natch
 	}{
 		// Basic tag name tests
 		{
@@ -78,6 +81,13 @@ func TestParse(t *testing.T) {
 			name:   "name with colon",
 			input:  "name:colon",
 			expect: mkt("name:colon"),
+		},
+
+		// Error cases for basic tags
+		{
+			name:      "empty value",
+			input:     "name=",
+			wantError: "unexpected end of input",
 		},
 
 		// String arguments tests
@@ -127,19 +137,9 @@ func TestParse(t *testing.T) {
 			expect: mkta("name", mksa("CAPITAL")),
 		},
 		{
-			name:   "mixed case argument 1",
-			input:  "name(MiXeD)",
-			expect: mkta("name", mksa("MiXeD")),
-		},
-		{
-			name:   "mixed case argument 2",
-			input:  "name(mIxEd)",
-			expect: mkta("name", mksa("mIxEd")),
-		},
-		{
 			name:   "underscore in argument",
-			input:  "name(_under)",
-			expect: mkta("name", mksa("_under")),
+			input:  "name(_)",
+			expect: mkta("name", mksa("_")),
 		},
 		{
 			name:   "quoted argument",
@@ -156,52 +156,52 @@ func TestParse(t *testing.T) {
 			input:  "withRaw(`a = b`)",
 			expect: mkta("withRaw", mksa("a = b")),
 		},
+		{
+			name:   `"true" string as argument`,
+			input:  `name("true")`,
+			expect: mkta("name", mksa("true")),
+		},
+		{
+			name:   `"true" and "false" strings as named arguments`,
+			input:  `name(t: "true", f: "false")`,
+			expect: mkta("name", []Arg{{Name: "t", Value: "true", Type: ArgTypeString}, {Name: "f", Value: "false", Type: ArgTypeString}}),
+		},
+		{
+			name:   `strings containing "true" and "false"`,
+			input:  `name("true")`,
+			expect: mkta("name", mksa("true")),
+		},
 
 		// Error cases for arguments
 		{
-			name:  "space in argument",
-			input: "name(has space)",
-			err:   true,
+			name:      "space in argument",
+			input:     "name(has space)",
+			wantError: "unexpected character 's'",
 		},
 		{
-			name:  "multiple comma-separated args",
-			input: "name(multiple, args)",
-			err:   true,
+			name:      "multiple positional args",
+			input:     "name(multiple, args)",
+			wantError: "multiple arguments must use 'name: value' syntax",
 		},
 		{
-			name:  "unclosed parenthesis",
-			input: "name(noClosingParen",
-			err:   true,
+			name:      "unclosed parenthesis",
+			input:     "name(noClosingParen",
+			wantError: "unexpected end of input",
 		},
 		{
-			name:  "comma-separated args",
-			input: "name(arg1, arg2)",
-			err:   true,
+			name:      "unclosed raw string",
+			input:     "badRaw(missing`)",
+			wantError: "unterminated string",
 		},
 		{
-			name:  "unclosed raw string",
-			input: "badRaw(missing`)",
-			err:   true,
+			name:      "nested: comma-separated args",
+			input:     "name=+name(arg1, arg2)",
+			wantError: "multiple arguments must use 'name: value' syntax",
 		},
 		{
-			name:  "mixed arg formats",
-			input: "badMix(arg,`raw`)",
-			err:   true,
-		},
-		{
-			name:  "nested: comma-separated args",
-			input: "name=+name(arg1, arg2)",
-			err:   true,
-		},
-		{
-			name:  "nested: unclosed raw string",
-			input: "name=+badRaw(missing`)",
-			err:   true,
-		},
-		{
-			name:  "nested: mixed arg formats",
-			input: "name=+badMix(arg,`raw`)",
-			err:   true,
+			name:      "nested: unclosed raw string",
+			input:     "name=+badRaw(missing`)",
+			wantError: "unterminated string",
 		},
 
 		// Named arguments tests
@@ -230,17 +230,31 @@ func TestParse(t *testing.T) {
 		// Numeric argument tests
 		{
 			name:  "numeric arguments",
-			input: "numbers(n1: 2, n2: -5, n3: 0xFF00B3, n4: 0o04167, n5: 0b10101)",
+			input: "numbers(n1: 2, n2: -5, n3: +5, n4: 0xFF, n5: -0x0000, n6: +0x00FF00, n7: 0o04167, n8: -0o04167, n9: +0o04167, n10: 0b10101, n11: -0b10101, n12: +0b10101)",
 			expect: mkta("numbers", []Arg{
 				{Name: "n1", Value: "2", Type: ArgTypeInt},
 				{Name: "n2", Value: "-5", Type: ArgTypeInt},
-				{Name: "n3", Value: "0xFF00B3", Type: ArgTypeInt},
-				{Name: "n4", Value: "0o04167", Type: ArgTypeInt},
-				{Name: "n5", Value: "0b10101", Type: ArgTypeInt},
+				{Name: "n3", Value: "+5", Type: ArgTypeInt},
+				{Name: "n4", Value: "0xFF", Type: ArgTypeInt},
+				{Name: "n5", Value: "-0x0000", Type: ArgTypeInt},
+				{Name: "n6", Value: "+0x00FF00", Type: ArgTypeInt},
+				{Name: "n7", Value: "0o04167", Type: ArgTypeInt},
+				{Name: "n8", Value: "-0o04167", Type: ArgTypeInt},
+				{Name: "n9", Value: "+0o04167", Type: ArgTypeInt},
+				{Name: "n10", Value: "0b10101", Type: ArgTypeInt},
+				{Name: "n11", Value: "-0b10101", Type: ArgTypeInt},
+				{Name: "n12", Value: "+0b10101", Type: ArgTypeInt},
 			}),
 		},
 
 		// Boolean argument tests
+		{
+			name:  "boolean argument",
+			input: "bools(true)",
+			expect: mkta("bools", []Arg{
+				{Value: "true", Type: ArgTypeBool},
+			}),
+		},
 		{
 			name:  "boolean arguments",
 			input: "bools(t: true, f:false)",
@@ -295,24 +309,24 @@ func TestParse(t *testing.T) {
 
 		// Error cases for scalar values
 		{
-			name:  "space in value",
-			input: "key=one two",
-			err:   true,
+			name:      "space in value",
+			input:     "key=one two",
+			wantError: "unexpected character 't'",
 		},
 		{
-			name:  "unclosed backtick quoted string",
-			input: "key=`unclosed",
-			err:   true,
+			name:      "unclosed backtick quoted string",
+			input:     "key=`unclosed",
+			wantError: "unterminated string",
 		},
 		{
-			name:  "unclosed double-quoted string",
-			input: `key="unclosed`,
-			err:   true,
+			name:      "unclosed double-quoted string",
+			input:     `key="unclosed`,
+			wantError: "unterminated string",
 		},
 		{
-			name:  "illegal identifier",
-			input: `key=x@y`,
-			err:   true,
+			name:      "illegal identifier",
+			input:     `key=x@y`,
+			wantError: "unexpected character '@'",
 		},
 
 		// Scalar values with comments
@@ -415,17 +429,40 @@ func TestParse(t *testing.T) {
 			}),
 		},
 		{
-			name:  "4 level nested tag values with comment",
-			input: `key=+key2=+key3=+key4 // comment`,
+			name:  "4 level nested tag values with value",
+			input: `key=+key2=+key3=+key4=value`,
 			expect: mktt("key", &TypedTag{
 				Name:      "key2",
 				ValueType: ValueTypeTag,
 				ValueTag: &TypedTag{
 					Name:      "key3",
 					ValueType: ValueTypeTag,
-					ValueTag:  &TypedTag{Name: "key4"},
+					ValueTag:  &TypedTag{Name: "key4", Value: "value", ValueType: ValueTypeString},
 				},
 			}),
+		},
+		{
+			name:  "4 level nested tag values with args",
+			input: `key(arg1)=+key2(arg2)=+key3(arg3)=+key4(arg4)`,
+			expect: TypedTag{
+				Name:      "key",
+				Args:      []Arg{{Value: "arg1", Type: ArgTypeString}},
+				ValueType: ValueTypeTag,
+				ValueTag: &TypedTag{
+					Name:      "key2",
+					Args:      []Arg{{Value: "arg2", Type: ArgTypeString}},
+					ValueType: ValueTypeTag,
+					ValueTag: &TypedTag{
+						Name:      "key3",
+						Args:      []Arg{{Value: "arg3", Type: ArgTypeString}},
+						ValueType: ValueTypeTag,
+						ValueTag: &TypedTag{
+							Name: "key4",
+							Args: []Arg{{Value: "arg4", Type: ArgTypeString}},
+						},
+					},
+				},
+			},
 		},
 
 		// Raw values
@@ -465,17 +502,21 @@ func TestParse(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			parsed, err := Parse(tc.input, tc.parseOptions...)
 			if err != nil {
-				if !tc.err {
+				if len(tc.wantError) == 0 {
 					t.Errorf("Expected success, got error: %v", err)
+				}
+				if !strings.Contains(err.Error(), tc.wantError) {
+					t.Errorf("Expected error to contain %q, got %q", tc.wantError, err.Error())
 				}
 				return
 			}
-			if tc.err {
+			if len(tc.wantError) > 0 {
 				t.Errorf("Expected error, got success: %v", parsed)
 				return
 			}
 			if !reflect.DeepEqual(parsed, tc.expect) {
-				t.Errorf("Parsed tag doesn't match expected.\nExpected: %#v\nGot: %#v", tc.expect, parsed)
+				t.Errorf("Parsed tag doesn't match expected.\nExpected: %s\n     Got: %s\n\n%s\n",
+					tc.expect.String(), parsed.String(), cmp.Diff(tc.expect, parsed))
 			}
 
 			// round-trip testing

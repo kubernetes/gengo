@@ -39,31 +39,42 @@ func (s *scanner) next() rune {
 }
 
 func (s *scanner) peek() rune {
-	if s.pos >= len(s.buf) {
-		return EOF
-	}
-	return s.buf[s.pos]
+	return s.peekN(0)
 }
 
 func (s *scanner) peekN(n int) rune {
-	if s.pos >= len(s.buf) {
+	if s.pos+n >= len(s.buf) {
 		return EOF
 	}
 	return s.buf[s.pos+n]
+}
+
+func (s *scanner) skipWhitespace() bool {
+	found := false
+	for r := s.peek(); unicode.IsSpace(r); r = s.peek() {
+		s.next()
+		found = true
+	}
+	return found
+}
+
+func (s *scanner) remainder() string {
+	result := string(s.buf[s.pos:])
+	s.pos = len(s.buf)
+	return result
 }
 
 const (
 	EOF = -1
 )
 
-const (
-	stNumber       = "stNumber"
-	stPrefixNumber = "stPrefixNumber"
-)
-
 func (s *scanner) nextNumber() (string, error) {
+	const (
+		stPrefix = "stPrefix"
+		stPosNeg = "stPosNeg"
+		stNumber = "stNumber"
+	)
 	var buf bytes.Buffer
-	var incomplete bool
 	st := stBegin
 
 parseLoop:
@@ -71,45 +82,51 @@ parseLoop:
 		switch st {
 		case stBegin:
 			switch {
-			case r == '+':
-				s.next() // consume +
 			case r == '0':
 				buf.WriteRune(s.next())
-				st = stPrefixNumber
-			case r == '-' || unicode.IsDigit(r):
+				st = stPrefix
+			case r == '+' || r == '-':
+				buf.WriteRune(s.next())
+				st = stPosNeg
+			case unicode.IsDigit(r):
 				buf.WriteRune(s.next())
 				st = stNumber
 			default:
-				return "", fmt.Errorf("expected number at position %d", s.pos)
+				break parseLoop
 			}
-		case stPrefixNumber:
+		case stPosNeg:
+			switch {
+			case r == '0':
+				buf.WriteRune(s.next())
+				st = stPrefix
+			case unicode.IsDigit(r):
+				buf.WriteRune(s.next())
+				st = stNumber
+			default:
+				break parseLoop
+			}
+		case stPrefix:
 			switch {
 			case unicode.IsDigit(r):
 				buf.WriteRune(s.next())
 				st = stNumber
 			case r == 'x' || r == 'o' || r == 'b':
-				incomplete = true
 				buf.WriteRune(s.next())
 				st = stNumber
 			default:
 				break parseLoop
 			}
 		case stNumber:
-			hexits := "abcdefABCDEF"
+			const hexits = "abcdefABCDEF"
 			switch {
 			case unicode.IsDigit(r) || strings.Contains(hexits, string(r)):
 				buf.WriteRune(s.next())
-				incomplete = false
-				continue
 			default:
 				break parseLoop
 			}
 		default:
 			return "", fmt.Errorf("unexpected internal parser error: unknown state: %s at position %d", st, s.pos)
 		}
-	}
-	if incomplete {
-		return "", fmt.Errorf("unterminated number at position %d", s.pos)
 	}
 	numStr := buf.String()
 	if _, err := strconv.ParseInt(numStr, 0, 64); err != nil {
@@ -118,12 +135,11 @@ parseLoop:
 	return numStr, nil
 }
 
-const (
-	stQuotedString = "stQuotedString"
-	stEscape       = "stEscape"
-)
-
 func (s *scanner) nextString() (string, error) {
+	const (
+		stQuotedString = "stQuotedString"
+		stEscape       = "stEscape"
+	)
 	var buf bytes.Buffer
 	var quote rune
 	var incomplete bool
@@ -171,11 +187,10 @@ parseLoop:
 	return buf.String(), nil
 }
 
-const (
-	stInterior = "stInterior"
-)
-
 func (s *scanner) nextIdent(isInteriorChar func(r rune) bool) (string, error) {
+	const (
+		stInterior = "stInterior"
+	)
 	var buf bytes.Buffer
 	st := stBegin
 

@@ -17,7 +17,6 @@ limitations under the License.
 package codetags
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 	"unicode"
@@ -159,52 +158,34 @@ const (
 func parseTag(input string, opts parseOpts) (TypedTag, error) {
 	var startTag, endTag *TypedTag // both ends of the chain when parsing chained tags
 
-	tag := bytes.Buffer{}   // current tag name
-	var args []Arg          // all tag arguments
-	value := bytes.Buffer{} // current tag value
+	// accumulators
+	var tagName string      // current tag name
+	var value string        // current value
 	var valueType ValueType // current value type
-	var hasValue bool       // true if the tag has a value
+	cur := Arg{}            // current argument
+	var args []Arg          // current arguments slice
 
-	cur := Arg{}          // current argument accumulator
-	buf := bytes.Buffer{} // string accumulator
+	s := scanner{buf: []rune(input)} // scanner for parsing the tag string
+	var incomplete bool              // tracks if a token is incomplete
 
 	// These are defined outside the loop to make errors easier.
-	s := scanner{buf: []rune(input)}
-	var incomplete bool
-
-	saveInt := func() error {
-		s := buf.String()
-		cur.Value = s
-		cur.Type = ArgTypeInt
+	saveArg := func(v string, t ArgType) {
+		cur.Value = v
+		cur.Type = t
 		args = append(args, cur)
 		cur = Arg{}
-		buf.Reset()
-		return nil
 	}
-	saveString := func() {
-		s := buf.String()
-		cur.Value = s
-		cur.Type = ArgTypeString
-		args = append(args, cur)
-		cur = Arg{}
-		buf.Reset()
-	}
-	saveBoolOrString := func() {
-		s := buf.String()
-		if s == "true" || s == "false" {
-			cur.Value = s
-			cur.Type = ArgTypeBool
+	saveInt := func(v string) { saveArg(v, ArgTypeInt) }
+	saveString := func(v string) { saveArg(v, ArgTypeString) }
+	saveBoolOrString := func(value string) {
+		if value == "true" || value == "false" {
+			saveArg(value, ArgTypeBool)
 		} else {
-			cur.Value = s
-			cur.Type = ArgTypeString
+			saveArg(value, ArgTypeString)
 		}
-		args = append(args, cur)
-		cur = Arg{}
-		buf.Reset()
 	}
-	saveName := func() {
-		cur.Name = buf.String()
-		buf.Reset()
+	saveName := func(value string) {
+		cur.Name = value
 	}
 	saveTag := func() error {
 		usingNamedArgs := false
@@ -219,8 +200,7 @@ func parseTag(input string, opts parseOpts) (TypedTag, error) {
 		if !usingNamedArgs && len(args) > 1 {
 			return fmt.Errorf("multiple arguments must use 'name: value' syntax")
 		}
-
-		newTag := &TypedTag{Name: tag.String(), Args: args}
+		newTag := &TypedTag{Name: tagName, Args: args}
 		if startTag == nil {
 			startTag = newTag
 			endTag = newTag
@@ -230,19 +210,11 @@ func parseTag(input string, opts parseOpts) (TypedTag, error) {
 			endTag = newTag
 		}
 		args = nil // Reset to nil instead of empty slice
-		tag.Reset()
 		return nil
 	}
 	saveValue := func() {
-		endTag.Value = value.String()
-		if opts.rawValues {
-			endTag.ValueType = ValueTypeRaw
-			return
-		}
+		endTag.Value = value
 		endTag.ValueType = valueType
-		if valueType == ValueTypeString && (endTag.Value == "true" || endTag.Value == "false") {
-			endTag.ValueType = ValueTypeBool
-		}
 	}
 	st := stBegin
 parseLoop:
@@ -250,22 +222,22 @@ parseLoop:
 		switch st {
 		case stBegin:
 			switch {
-			case unicode.IsSpace(r):
-				s.next()
-				continue
+			case s.skipWhitespace():
 			case isIdentBegin(r):
+				// did not consume
 				st = stTag
 			default:
 				break parseLoop
 			}
 		case stTag:
 			switch {
+			case s.skipWhitespace():
 			case isIdentBegin(r):
 				ident, err := s.nextIdent(isTagNameInterior)
 				if err != nil {
 					return TypedTag{}, err
 				}
-				tag.WriteString(ident)
+				tagName = ident
 				st = stMaybeArgs
 			default:
 				break parseLoop
@@ -278,19 +250,20 @@ parseLoop:
 				st = stArg
 			case r == '=':
 				s.next()
-				hasValue = true
+				if opts.rawValues {
+					valueType = ValueTypeRaw
+				} else {
+					incomplete = true
+				}
 				st = stValue
-			case unicode.IsSpace(r):
-				s.next()
+			case s.skipWhitespace():
 				st = stMaybeComment
 			default:
 				break parseLoop
 			}
 		case stArg:
 			switch {
-			case unicode.IsSpace(r):
-				s.next()
-				continue
+			case s.skipWhitespace():
 			case r == ')':
 				s.next()
 				incomplete = false
@@ -300,33 +273,28 @@ parseLoop:
 				if err != nil {
 					return TypedTag{}, err
 				}
-				buf.WriteString(number)
-				if err := saveInt(); err != nil {
-					return TypedTag{}, err
-				}
+				saveInt(number)
 				st = stArgEndOfToken
 			case r == '"' || r == '`':
 				str, err := s.nextString()
 				if err != nil {
 					return TypedTag{}, err
 				}
-				buf.WriteString(str)
-				saveString()
+				saveString(str)
 				st = stArgEndOfToken
 			case isIdentBegin(r):
-				str, err := s.nextIdent(isIdentInterior)
+				identifier, err := s.nextIdent(isIdentInterior)
 				if err != nil {
 					return TypedTag{}, err
 				}
-				buf.WriteString(str)
-				r = s.peek()
+				r = s.peek() // reset r after nextIdent
 				switch {
-				case r == ',' || r == ')' || unicode.IsSpace(r):
-					saveBoolOrString()
+				case r == ',' || r == ')' || s.skipWhitespace():
+					saveBoolOrString(identifier)
 					st = stArgEndOfToken
 				case r == ':':
 					s.next()
-					saveName()
+					saveName(identifier)
 					st = stArg
 				}
 			default:
@@ -334,9 +302,7 @@ parseLoop:
 			}
 		case stArgEndOfToken:
 			switch {
-			case unicode.IsSpace(r):
-				s.next()
-				continue
+			case s.skipWhitespace():
 			case r == ',':
 				s.next()
 				st = stArg
@@ -351,18 +317,21 @@ parseLoop:
 			switch {
 			case r == '=':
 				s.next()
-				hasValue = true
+				if opts.rawValues {
+					valueType = ValueTypeRaw
+				}
 				st = stValue
-			case unicode.IsSpace(r):
-				s.next()
+			case s.skipWhitespace():
 				st = stMaybeComment
 			default:
 				break parseLoop
 			}
 		case stValue:
+			incomplete = false
 			switch {
 			case opts.rawValues: // When enabled, consume all remaining chars
-				value.WriteRune(s.next())
+				value = s.remainder()
+				break parseLoop
 			case r == '+' && isIdentBegin(s.peekN(1)): // tag value
 				s.next() // consume +
 				if err := saveTag(); err != nil {
@@ -375,14 +344,14 @@ parseLoop:
 				if err != nil {
 					return TypedTag{}, err
 				}
-				value.WriteString(number)
+				value = number
 				st = stMaybeComment
 			case r == '"' || r == '`':
 				str, err := s.nextString()
 				if err != nil {
 					return TypedTag{}, err
 				}
-				value.WriteString(str)
+				value = str
 				valueType = ValueTypeString
 				st = stMaybeComment
 			case isIdentBegin(r):
@@ -390,17 +359,19 @@ parseLoop:
 				if err != nil {
 					return TypedTag{}, err
 				}
-				value.WriteString(str)
-				valueType = ValueTypeString
+				value = str
+				if str == "true" || str == "false" {
+					valueType = ValueTypeBool
+				} else {
+					valueType = ValueTypeString
+				}
 				st = stMaybeComment
 			default:
 				break parseLoop
 			}
 		case stMaybeComment:
 			switch {
-			case unicode.IsSpace(r):
-				s.next()
-				continue
+			case s.skipWhitespace():
 			case r == '/':
 				s.next()
 				incomplete = true
@@ -434,7 +405,7 @@ parseLoop:
 	if err := saveTag(); err != nil {
 		return TypedTag{}, err
 	}
-	if hasValue {
+	if len(valueType) > 0 {
 		saveValue()
 	}
 	if startTag == nil {

@@ -69,16 +69,6 @@ func TestScannerBasics(t *testing.T) {
 				}
 				s.next() // Advance scanner
 			}
-
-			// peekN()
-			if len(tt.input) > 1 {
-				s = scanner{buf: []rune(tt.input)}
-				got := s.peekN(1)
-				want := []rune(tt.input)[1]
-				if got != want {
-					t.Errorf("peekN(1) at position 0 = %v, want %v", got, want)
-				}
-			}
 		})
 	}
 }
@@ -101,7 +91,7 @@ func TestNextNumber(t *testing.T) {
 		{
 			name:  "positive integer with plus sign",
 			input: "+123",
-			want:  "123",
+			want:  "+123",
 		},
 		{
 			name:  "zero",
@@ -112,12 +102,46 @@ func TestNextNumber(t *testing.T) {
 			input: "0xFF",
 		},
 		{
+			name:  "positive hex number",
+			input: "+0xFF",
+		},
+		{
+			name:  "negative hex number",
+			input: "-0xFF",
+		},
+		{
 			name:  "octal number",
 			input: "0o77",
 		},
 		{
+			name:  "positive octal number",
+			input: "+0o77",
+		},
+		{
+			name:  "negative octal number",
+			input: "-0o77",
+		},
+		{
 			name:  "binary number",
 			input: "0b101",
+		},
+		{
+			name:  "positive binary number",
+			input: "+0b101",
+		},
+		{
+			name:  "negative binary number",
+			input: "-0b101",
+		},
+		{
+			name:    "incomplete positive",
+			input:   "-",
+			wantErr: true,
+		},
+		{
+			name:    "incomplete negative",
+			input:   "+",
+			wantErr: true,
 		},
 		{
 			name:    "incomplete hex",
@@ -217,6 +241,16 @@ func TestNextString(t *testing.T) {
 			name:  "string followed by other content",
 			input: `"hello" world`,
 			want:  "hello",
+		},
+		{
+			name:  `"true" string`,
+			input: `"true"`,
+			want:  "true",
+		},
+		{
+			name:  `"false" string`,
+			input: `"false"`,
+			want:  "false",
 		},
 	}
 

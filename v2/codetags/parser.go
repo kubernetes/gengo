@@ -22,7 +22,7 @@ import (
 	"unicode"
 )
 
-// Parse parses a tag string into a TypedTag, or returns an error if the tag
+// Parse parses a tag string into a Tag, or returns an error if the tag
 // string fails to parse.
 //
 // ParseOption may be provided to modify the behavior of the parser. The below
@@ -102,7 +102,7 @@ import (
 // <int>           ::= /* Standard Go integer literals (decimal, 0x hex, 0o octal, 0b binary),
 // ...                    with an optional +/- prefix. */
 // <bool>          ::= "true" | "false"
-func Parse(tag string, options ...ParseOption) (TypedTag, error) {
+func Parse(tag string, options ...ParseOption) (Tag, error) {
 	opts := parseOpts{}
 	for _, o := range options {
 		o(&opts)
@@ -113,8 +113,8 @@ func Parse(tag string, options ...ParseOption) (TypedTag, error) {
 }
 
 // ParseAll calls Parse on each tag in the input slice.
-func ParseAll(tags []string, options ...ParseOption) ([]TypedTag, error) {
-	var out []TypedTag
+func ParseAll(tags []string, options ...ParseOption) ([]Tag, error) {
+	var out []Tag
 	for _, tag := range tags {
 		parsed, err := Parse(tag, options...)
 		if err != nil {
@@ -155,8 +155,8 @@ const (
 	stTrailingComment = "stTrailingComment"
 )
 
-func parseTag(input string, opts parseOpts) (TypedTag, error) {
-	var startTag, endTag *TypedTag // both ends of the chain when parsing chained tags
+func parseTag(input string, opts parseOpts) (Tag, error) {
+	var startTag, endTag *Tag // both ends of the chain when parsing chained tags
 
 	// accumulators
 	var tagName string      // current tag name
@@ -200,7 +200,7 @@ func parseTag(input string, opts parseOpts) (TypedTag, error) {
 		if !usingNamedArgs && len(args) > 1 {
 			return fmt.Errorf("multiple arguments must use 'name: value' syntax")
 		}
-		newTag := &TypedTag{Name: tagName, Args: args}
+		newTag := &Tag{Name: tagName, Args: args}
 		if startTag == nil {
 			startTag = newTag
 			endTag = newTag
@@ -235,7 +235,7 @@ parseLoop:
 			case isIdentBegin(r):
 				ident, err := s.nextIdent(isTagNameInterior)
 				if err != nil {
-					return TypedTag{}, err
+					return Tag{}, err
 				}
 				tagName = ident
 				st = stMaybeArgs
@@ -271,21 +271,21 @@ parseLoop:
 			case r == '-' || r == '+' || unicode.IsDigit(r):
 				number, err := s.nextNumber()
 				if err != nil {
-					return TypedTag{}, err
+					return Tag{}, err
 				}
 				saveInt(number)
 				st = stArgEndOfToken
 			case r == '"' || r == '`':
 				str, err := s.nextString()
 				if err != nil {
-					return TypedTag{}, err
+					return Tag{}, err
 				}
 				saveString(str)
 				st = stArgEndOfToken
 			case isIdentBegin(r):
 				identifier, err := s.nextIdent(isIdentInterior)
 				if err != nil {
-					return TypedTag{}, err
+					return Tag{}, err
 				}
 				r = s.peek() // reset r after nextIdent
 				switch {
@@ -335,21 +335,21 @@ parseLoop:
 			case r == '+' && isIdentBegin(s.peekN(1)): // tag value
 				s.next() // consume +
 				if err := saveTag(); err != nil {
-					return TypedTag{}, err
+					return Tag{}, err
 				}
 				st = stTag
 			case r == '-' || r == '+' || unicode.IsDigit(r):
 				number, err := s.nextNumber()
 				valueType = ValueTypeInt
 				if err != nil {
-					return TypedTag{}, err
+					return Tag{}, err
 				}
 				value = number
 				st = stMaybeComment
 			case r == '"' || r == '`':
 				str, err := s.nextString()
 				if err != nil {
-					return TypedTag{}, err
+					return Tag{}, err
 				}
 				value = str
 				valueType = ValueTypeString
@@ -357,7 +357,7 @@ parseLoop:
 			case isIdentBegin(r):
 				str, err := s.nextIdent(isIdentInterior)
 				if err != nil {
-					return TypedTag{}, err
+					return Tag{}, err
 				}
 				value = str
 				if str == "true" || str == "false" {
@@ -393,23 +393,23 @@ parseLoop:
 			s.pos = len(s.buf)
 			break parseLoop
 		default:
-			return TypedTag{}, fmt.Errorf("unexpected internal parser error: unknown state: %s at position %d", st, s.pos)
+			return Tag{}, fmt.Errorf("unexpected internal parser error: unknown state: %s at position %d", st, s.pos)
 		}
 	}
 	if s.peek() != EOF {
-		return TypedTag{}, fmt.Errorf("unexpected character %q at position %d", s.next(), s.pos)
+		return Tag{}, fmt.Errorf("unexpected character %q at position %d", s.next(), s.pos)
 	}
 	if incomplete {
-		return TypedTag{}, fmt.Errorf("unexpected end of input")
+		return Tag{}, fmt.Errorf("unexpected end of input")
 	}
 	if err := saveTag(); err != nil {
-		return TypedTag{}, err
+		return Tag{}, err
 	}
 	if len(valueType) > 0 {
 		saveValue()
 	}
 	if startTag == nil {
-		return TypedTag{}, fmt.Errorf("unexpected internal parser error: no tags parsed")
+		return Tag{}, fmt.Errorf("unexpected internal parser error: no tags parsed")
 	}
 	return *startTag, nil
 }

@@ -33,27 +33,27 @@ func TestParse(t *testing.T) {
 		return args
 	}
 
-	mkt := func(name string) TypedTag {
-		return TypedTag{Name: name}
+	mkt := func(name string) Tag {
+		return Tag{Name: name}
 	}
 
-	mkta := func(name string, args []Arg) TypedTag {
-		return TypedTag{Name: name, Args: args}
+	mkta := func(name string, args []Arg) Tag {
+		return Tag{Name: name, Args: args}
 	}
 
-	mktv := func(name, value string, valueType ValueType) TypedTag {
-		return TypedTag{Name: name, Value: value, ValueType: valueType}
+	mktv := func(name, value string, valueType ValueType) Tag {
+		return Tag{Name: name, Value: value, ValueType: valueType}
 	}
 
-	mktt := func(name string, valueTag *TypedTag) TypedTag {
-		return TypedTag{Name: name, ValueTag: valueTag, ValueType: ValueTypeTag}
+	mktt := func(name string, valueTag *Tag) Tag {
+		return Tag{Name: name, ValueTag: valueTag, ValueType: ValueTypeTag}
 	}
 
 	cases := []struct {
 		name         string
 		input        string
 		parseOptions []ParseOption
-		expect       TypedTag
+		expect       Tag
 		wantError    string // substring natch
 	}{
 		// Basic tag name tests
@@ -365,22 +365,22 @@ func TestParse(t *testing.T) {
 		{
 			name:   "simple tag value",
 			input:  `key=+key2`,
-			expect: mktt("key", &TypedTag{Name: "key2"}),
+			expect: mktt("key", &Tag{Name: "key2"}),
 		},
 		{
 			name:   "tag value with empty parentheses",
 			input:  `key=+key2()`,
-			expect: mktt("key", &TypedTag{Name: "key2"}),
+			expect: mktt("key", &Tag{Name: "key2"}),
 		},
 		{
 			name:   "tag value with argument",
 			input:  `key=+key2(arg)`,
-			expect: mktt("key", &TypedTag{Name: "key2", Args: []Arg{{Value: "arg", Type: ArgTypeString}}}),
+			expect: mktt("key", &Tag{Name: "key2", Args: []Arg{{Value: "arg", Type: ArgTypeString}}}),
 		},
 		{
 			name:  "tag value with named arguments",
 			input: `key=+key2(k1: v1, k2: v2)`,
-			expect: mktt("key", &TypedTag{Name: "key2", Args: []Arg{
+			expect: mktt("key", &Tag{Name: "key2", Args: []Arg{
 				{Name: "k1", Value: "v1", Type: ArgTypeString},
 				{Name: "k2", Value: "v2", Type: ArgTypeString},
 			}}),
@@ -388,10 +388,10 @@ func TestParse(t *testing.T) {
 		{
 			name:  "nested tag values",
 			input: `key=+key2=+key3`,
-			expect: mktt("key", &TypedTag{
+			expect: mktt("key", &Tag{
 				Name:      "key2",
 				ValueType: ValueTypeTag,
-				ValueTag:  &TypedTag{Name: "key3"},
+				ValueTag:  &Tag{Name: "key3"},
 			}),
 		},
 
@@ -399,22 +399,22 @@ func TestParse(t *testing.T) {
 		{
 			name:   "simple tag value with comment",
 			input:  `key=+key2 // comment`,
-			expect: mktt("key", &TypedTag{Name: "key2"}),
+			expect: mktt("key", &Tag{Name: "key2"}),
 		},
 		{
 			name:   "tag value with empty parentheses and comment",
 			input:  `key=+key2() // comment`,
-			expect: mktt("key", &TypedTag{Name: "key2"}),
+			expect: mktt("key", &Tag{Name: "key2"}),
 		},
 		{
 			name:   "tag value with argument and comment",
 			input:  `key=+key2(arg) // comment`,
-			expect: mktt("key", &TypedTag{Name: "key2", Args: []Arg{{Value: "arg", Type: ArgTypeString}}}),
+			expect: mktt("key", &Tag{Name: "key2", Args: []Arg{{Value: "arg", Type: ArgTypeString}}}),
 		},
 		{
 			name:  "tag value with named arguments and comment",
 			input: `key=+key2(k1: v1, k2: v2) // comment`,
-			expect: mktt("key", &TypedTag{Name: "key2", Args: []Arg{
+			expect: mktt("key", &Tag{Name: "key2", Args: []Arg{
 				{Name: "k1", Value: "v1", Type: ArgTypeString},
 				{Name: "k2", Value: "v2", Type: ArgTypeString},
 			}}),
@@ -422,41 +422,41 @@ func TestParse(t *testing.T) {
 		{
 			name:  "3 level nested tag values with comment",
 			input: `key=+key2=+key3 // comment`,
-			expect: mktt("key", &TypedTag{
+			expect: mktt("key", &Tag{
 				Name:      "key2",
 				ValueType: ValueTypeTag,
-				ValueTag:  &TypedTag{Name: "key3"},
+				ValueTag:  &Tag{Name: "key3"},
 			}),
 		},
 		{
 			name:  "4 level nested tag values with value",
 			input: `key=+key2=+key3=+key4=value`,
-			expect: mktt("key", &TypedTag{
+			expect: mktt("key", &Tag{
 				Name:      "key2",
 				ValueType: ValueTypeTag,
-				ValueTag: &TypedTag{
+				ValueTag: &Tag{
 					Name:      "key3",
 					ValueType: ValueTypeTag,
-					ValueTag:  &TypedTag{Name: "key4", Value: "value", ValueType: ValueTypeString},
+					ValueTag:  &Tag{Name: "key4", Value: "value", ValueType: ValueTypeString},
 				},
 			}),
 		},
 		{
 			name:  "4 level nested tag values with args",
 			input: `key(arg1)=+key2(arg2)=+key3(arg3)=+key4(arg4)`,
-			expect: TypedTag{
+			expect: Tag{
 				Name:      "key",
 				Args:      []Arg{{Value: "arg1", Type: ArgTypeString}},
 				ValueType: ValueTypeTag,
-				ValueTag: &TypedTag{
+				ValueTag: &Tag{
 					Name:      "key2",
 					Args:      []Arg{{Value: "arg2", Type: ArgTypeString}},
 					ValueType: ValueTypeTag,
-					ValueTag: &TypedTag{
+					ValueTag: &Tag{
 						Name:      "key3",
 						Args:      []Arg{{Value: "arg3", Type: ArgTypeString}},
 						ValueType: ValueTypeTag,
-						ValueTag: &TypedTag{
+						ValueTag: &Tag{
 							Name: "key4",
 							Args: []Arg{{Value: "arg4", Type: ArgTypeString}},
 						},
@@ -488,7 +488,7 @@ func TestParse(t *testing.T) {
 			name:         "raw with key only",
 			input:        `key`,
 			parseOptions: []ParseOption{RawValues(true)},
-			expect:       TypedTag{Name: "key"},
+			expect:       Tag{Name: "key"},
 		},
 		{
 			name:         "raw with empty value",

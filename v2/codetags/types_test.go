@@ -23,19 +23,19 @@ import (
 func TestTypedTagString(t *testing.T) {
 	tests := []struct {
 		name     string
-		tag      TypedTag
+		tag      Tag
 		expected string
 	}{
 		{
 			name: "simple tag name",
-			tag: TypedTag{
+			tag: Tag{
 				Name: "name",
 			},
 			expected: "name",
 		},
 		{
 			name: "tag with single string arg",
-			tag: TypedTag{
+			tag: Tag{
 				Name: "tag",
 				Args: []Arg{
 					{Value: "value", Type: ArgTypeString},
@@ -45,7 +45,7 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "tag with multiple positional args",
-			tag: TypedTag{
+			tag: Tag{
 				Name: "tag",
 				Args: []Arg{
 					{Value: "value1", Type: ArgTypeString},
@@ -56,7 +56,7 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "tag with quoted string arg",
-			tag: TypedTag{
+			tag: Tag{
 				Name: "tag",
 				Args: []Arg{
 					{Value: "value with spaces", Type: ArgTypeString},
@@ -66,7 +66,7 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "tag with named args",
-			tag: TypedTag{
+			tag: Tag{
 				Name: "tag",
 				Args: []Arg{
 					{Name: "arg1", Value: "value1", Type: ArgTypeString},
@@ -77,7 +77,7 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "tag with named arg of different types",
-			tag: TypedTag{
+			tag: Tag{
 				Name: "tag",
 				Args: []Arg{
 					{Name: "str", Value: "string value", Type: ArgTypeString},
@@ -89,7 +89,7 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "tag with string value",
-			tag: TypedTag{
+			tag: Tag{
 				Name:      "tag",
 				Value:     "value",
 				ValueType: ValueTypeString,
@@ -98,7 +98,7 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "tag with integer value",
-			tag: TypedTag{
+			tag: Tag{
 				Name:      "tag",
 				Value:     "42",
 				ValueType: ValueTypeInt,
@@ -107,7 +107,7 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "tag with boolean value",
-			tag: TypedTag{
+			tag: Tag{
 				Name:      "tag",
 				Value:     "true",
 				ValueType: ValueTypeBool,
@@ -116,7 +116,7 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "tag with raw value",
-			tag: TypedTag{
+			tag: Tag{
 				Name:      "tag",
 				Value:     "some raw value // with comment",
 				ValueType: ValueTypeRaw,
@@ -125,10 +125,10 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "tag with nested tag value",
-			tag: TypedTag{
+			tag: Tag{
 				Name:      "outer",
 				ValueType: ValueTypeTag,
-				ValueTag: &TypedTag{
+				ValueTag: &Tag{
 					Name: "inner",
 				},
 			},
@@ -136,19 +136,19 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "complex nested tags",
-			tag: TypedTag{
+			tag: Tag{
 				Name: "level1",
 				Args: []Arg{
 					{Name: "arg", Value: "value", Type: ArgTypeString},
 				},
 				ValueType: ValueTypeTag,
-				ValueTag: &TypedTag{
+				ValueTag: &Tag{
 					Name: "level2",
 					Args: []Arg{
 						{Value: "42", Type: ArgTypeInt},
 					},
 					ValueType: ValueTypeTag,
-					ValueTag: &TypedTag{
+					ValueTag: &Tag{
 						Name:      "level3",
 						Value:     "final",
 						ValueType: ValueTypeString,
@@ -159,7 +159,7 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "tag with args and string value",
-			tag: TypedTag{
+			tag: Tag{
 				Name: "tag",
 				Args: []Arg{
 					{Value: "arg", Type: ArgTypeString},
@@ -171,13 +171,13 @@ func TestTypedTagString(t *testing.T) {
 		},
 		{
 			name: "tag with args and nested tag value",
-			tag: TypedTag{
+			tag: Tag{
 				Name: "outer",
 				Args: []Arg{
 					{Name: "param", Value: "value", Type: ArgTypeString},
 				},
 				ValueType: ValueTypeTag,
-				ValueTag: &TypedTag{
+				ValueTag: &Tag{
 					Name: "inner",
 					Args: []Arg{
 						{Value: "innerArg", Type: ArgTypeString},

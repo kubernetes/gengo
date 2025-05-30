@@ -21,8 +21,8 @@ import (
 	"strings"
 )
 
-// TypedTag represents a single comment tag with typed args.
-type TypedTag struct {
+// Tag represents a single comment tag with typed args.
+type Tag struct {
 	// Name is the name of the tag with no arguments.
 	Name string
 
@@ -35,7 +35,7 @@ type TypedTag struct {
 
 	// ValueTag is another tag parsed from the value of this tag.
 	// Provides the tag value when ValueType is ValueTypeTag.
-	ValueTag *TypedTag
+	ValueTag *Tag
 
 	// ValueType is the type of the value.
 	ValueType ValueType
@@ -43,7 +43,7 @@ type TypedTag struct {
 
 // String returns the canonical string representation of the tag.
 // All strings are represented in double quotes. Spacing is normalized.
-func (t TypedTag) String() string {
+func (t Tag) String() string {
 	buf := strings.Builder{}
 	buf.WriteString(t.Name)
 	if len(t.Args) > 0 {

@@ -116,7 +116,7 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 			if err != nil {
 				return nil, err
 			}
-			tag, err := toTag(typedTag)
+			tag, err := toStringArgs(typedTag)
 			if err != nil {
 				return nil, err
 			}
@@ -145,7 +145,7 @@ type tagOpts struct {
 	parseValues bool
 }
 
-func toTag(tag codetags.TypedTag) (Tag, error) {
+func toStringArgs(tag codetags.Tag) (Tag, error) {
 	var stringArgs []string
 	if len(tag.Args) > 1 {
 		return Tag{}, fmt.Errorf("expected one argument, got: %v", tag.Args)

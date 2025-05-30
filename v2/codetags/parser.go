@@ -19,7 +19,6 @@ package codetags
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 	"strings"
 	"unicode"
 )
@@ -175,12 +174,8 @@ func parseTag(input string, opts parseOpts) (TypedTag, error) {
 
 	saveInt := func() error {
 		s := buf.String()
-		if _, err := strconv.ParseInt(s, 0, 64); err != nil {
-			return fmt.Errorf("invalid number %q", s)
-		} else {
-			cur.Value = s
-			cur.Type = ArgTypeInt
-		}
+		cur.Value = s
+		cur.Type = ArgTypeInt
 		args = append(args, cur)
 		cur = Arg{}
 		buf.Reset()

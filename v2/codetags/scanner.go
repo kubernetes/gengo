@@ -19,6 +19,7 @@ package codetags
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -79,7 +80,7 @@ parseLoop:
 				buf.WriteRune(s.next())
 				st = stNumber
 			default:
-				break parseLoop
+				return "", fmt.Errorf("expected number at position %d", s.pos)
 			}
 		case stPrefixNumber:
 			switch {
@@ -110,7 +111,11 @@ parseLoop:
 	if incomplete {
 		return "", fmt.Errorf("unterminated number at position %d", s.pos)
 	}
-	return buf.String(), nil
+	numStr := buf.String()
+	if _, err := strconv.ParseInt(numStr, 0, 64); err != nil {
+		return "", fmt.Errorf("invalid number %q at position %d", numStr, s.pos)
+	}
+	return numStr, nil
 }
 
 const (
@@ -182,6 +187,8 @@ parseLoop:
 			case isIdentBegin(r):
 				buf.WriteRune(s.next())
 				st = stInterior
+			default:
+				return "", fmt.Errorf("expected identifier at position %d", s.pos)
 			}
 		case stInterior:
 			switch {

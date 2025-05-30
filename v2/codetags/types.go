@@ -41,6 +41,8 @@ type TypedTag struct {
 	ValueType ValueType
 }
 
+// String returns the canonical string representation of the tag.
+// All strings are represented in double quotes. Spacing is normalized.
 func (t TypedTag) String() string {
 	buf := strings.Builder{}
 	buf.WriteString(t.Name)

@@ -406,12 +406,25 @@ func TestParse(t *testing.T) {
 			}}),
 		},
 		{
-			name:  "nested tag values with comment",
+			name:  "3 level nested tag values with comment",
 			input: `key=+key2=+key3 // comment`,
 			expect: mktt("key", &TypedTag{
 				Name:      "key2",
 				ValueType: ValueTypeTag,
 				ValueTag:  &TypedTag{Name: "key3"},
+			}),
+		},
+		{
+			name:  "4 level nested tag values with comment",
+			input: `key=+key2=+key3=+key4 // comment`,
+			expect: mktt("key", &TypedTag{
+				Name:      "key2",
+				ValueType: ValueTypeTag,
+				ValueTag: &TypedTag{
+					Name:      "key3",
+					ValueType: ValueTypeTag,
+					ValueTag:  &TypedTag{Name: "key4"},
+				},
 			}),
 		},
 

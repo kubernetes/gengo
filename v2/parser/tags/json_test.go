@@ -74,6 +74,11 @@ func TestJSON(t *testing.T) {
 			expected: JSON{Name: "E"},
 		},
 		{
+			name:     "omitzero",
+			member:   member("T1", "F"),
+			expected: JSON{Name: "f", OmitZero: true},
+		},
+		{
 			name:     "embedded struct",
 			member:   member("T1", "T2"),
 			expected: JSON{Name: "", Inline: true},

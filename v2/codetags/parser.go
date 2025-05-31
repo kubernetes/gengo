@@ -143,16 +143,13 @@ func RawValues(enabled bool) ParseOption {
 }
 
 const (
-	stBegin           = "stBegin"
-	stTag             = "stTag"
-	stMaybeArgs       = "stMaybeArgs"
-	stArg             = "stArg"
-	stArgEndOfToken   = "stArgEndOfToken"
-	stMaybeValue      = "stMaybeValue"
-	stValue           = "stValue"
-	stMaybeComment    = "stMaybeComment"
-	stTrailingSlash   = "stTrailingSlash"
-	stTrailingComment = "stTrailingComment"
+	stTag           = "stTag"
+	stMaybeArgs     = "stMaybeArgs"
+	stArg           = "stArg"
+	stArgEndOfToken = "stArgEndOfToken"
+	stMaybeValue    = "stMaybeValue"
+	stValue         = "stValue"
+	stMaybeComment  = "stMaybeComment"
 )
 
 func parseTag(input string, opts parseOpts) (Tag, error) {
@@ -216,28 +213,18 @@ func parseTag(input string, opts parseOpts) (Tag, error) {
 		endTag.Value = value
 		endTag.ValueType = valueType
 	}
-	st := stBegin
+	var err error
+	st := stTag
 parseLoop:
-	for r := s.peek(); r != EOF; r = s.peek() {
+	for r := s.skipWhitespacePeek(); r != EOF; r = s.skipWhitespacePeek() {
 		switch st {
-		case stBegin:
-			switch {
-			case s.skipWhitespace():
-			case isIdentBegin(r):
-				// did not consume
-				st = stTag
-			default:
-				break parseLoop
-			}
 		case stTag:
 			switch {
-			case s.skipWhitespace():
 			case isIdentBegin(r):
-				ident, err := s.nextIdent(isTagNameInterior)
+				tagName, err = s.nextIdent(isTagNameInterior)
 				if err != nil {
 					return Tag{}, err
 				}
-				tagName = ident
 				st = stMaybeArgs
 			default:
 				break parseLoop
@@ -245,27 +232,25 @@ parseLoop:
 		case stMaybeArgs:
 			switch {
 			case r == '(':
-				s.next()
+				s.next() // consume (
 				incomplete = true
 				st = stArg
 			case r == '=':
-				s.next()
+				s.next() // consume =
 				if opts.rawValues {
+					// only raw values support empty values following =
 					valueType = ValueTypeRaw
 				} else {
 					incomplete = true
 				}
 				st = stValue
-			case s.skipWhitespace():
-				st = stMaybeComment
 			default:
-				break parseLoop
+				st = stMaybeComment
 			}
 		case stArg:
 			switch {
-			case s.skipWhitespace():
 			case r == ')':
-				s.next()
+				s.next() // consume )
 				incomplete = false
 				st = stMaybeValue
 			case r == '-' || r == '+' || unicode.IsDigit(r):
@@ -288,26 +273,28 @@ parseLoop:
 					return Tag{}, err
 				}
 				r = s.peek() // reset r after nextIdent
+
 				switch {
-				case r == ',' || r == ')' || s.skipWhitespace():
+				case r == ',' || r == ')': // positional arg
 					saveBoolOrString(identifier)
 					st = stArgEndOfToken
-				case r == ':':
-					s.next()
+				case r == ':': // named arg
+					s.next() // consume :
 					saveName(identifier)
 					st = stArg
+				default:
+					break parseLoop
 				}
 			default:
 				break parseLoop
 			}
 		case stArgEndOfToken:
 			switch {
-			case s.skipWhitespace():
 			case r == ',':
-				s.next()
+				s.next() // consume ,
 				st = stArg
 			case r == ')':
-				s.next()
+				s.next() // consume )
 				incomplete = false
 				st = stMaybeValue
 			default:
@@ -316,29 +303,32 @@ parseLoop:
 		case stMaybeValue:
 			switch {
 			case r == '=':
-				s.next()
+				s.next() // consume =
 				if opts.rawValues {
+					// Empty values are allowed for raw.
+					// Since = might be the last char in the input, we need
+					// to record the valueType as raw immediately.
 					valueType = ValueTypeRaw
 				}
 				st = stValue
-			case s.skipWhitespace():
-				st = stMaybeComment
 			default:
-				break parseLoop
+				st = stMaybeComment
 			}
 		case stValue:
-			incomplete = false
 			switch {
 			case opts.rawValues: // When enabled, consume all remaining chars
+				incomplete = false
 				value = s.remainder()
 				break parseLoop
 			case r == '+' && isIdentBegin(s.peekN(1)): // tag value
+				incomplete = false
 				s.next() // consume +
 				if err := saveTag(); err != nil {
 					return Tag{}, err
 				}
 				st = stTag
 			case r == '-' || r == '+' || unicode.IsDigit(r):
+				incomplete = false
 				number, err := s.nextNumber()
 				valueType = ValueTypeInt
 				if err != nil {
@@ -347,6 +337,7 @@ parseLoop:
 				value = number
 				st = stMaybeComment
 			case r == '"' || r == '`':
+				incomplete = false
 				str, err := s.nextString()
 				if err != nil {
 					return Tag{}, err
@@ -355,6 +346,7 @@ parseLoop:
 				valueType = ValueTypeString
 				st = stMaybeComment
 			case isIdentBegin(r):
+				incomplete = false
 				str, err := s.nextIdent(isIdentInterior)
 				if err != nil {
 					return Tag{}, err
@@ -371,27 +363,11 @@ parseLoop:
 			}
 		case stMaybeComment:
 			switch {
-			case s.skipWhitespace():
-			case r == '/':
-				s.next()
-				incomplete = true
-				st = stTrailingSlash
+			case r == '/' && s.peekN(1) == '/':
+				s.remainder()
 			default:
 				break parseLoop
 			}
-		case stTrailingSlash:
-			switch {
-			case r == '/':
-				s.next()
-				incomplete = false
-				st = stTrailingComment
-			default:
-				break parseLoop
-			}
-		case stTrailingComment:
-			s.next()
-			s.pos = len(s.buf)
-			break parseLoop
 		default:
 			return Tag{}, fmt.Errorf("unexpected internal parser error: unknown state: %s at position %d", st, s.pos)
 		}

@@ -176,7 +176,7 @@ func TestParse(t *testing.T) {
 		{
 			name:      "space in argument",
 			input:     "name(has space)",
-			wantError: "unexpected character 's'",
+			wantError: "unexpected character ' '",
 		},
 		{
 			name:      "multiple positional args",
@@ -191,7 +191,7 @@ func TestParse(t *testing.T) {
 		{
 			name:      "unclosed raw string",
 			input:     "badRaw(missing`)",
-			wantError: "unterminated string",
+			wantError: "unexpected character '`'",
 		},
 		{
 			name:      "nested: comma-separated args",
@@ -201,7 +201,7 @@ func TestParse(t *testing.T) {
 		{
 			name:      "nested: unclosed raw string",
 			input:     "name=+badRaw(missing`)",
-			wantError: "unterminated string",
+			wantError: "unexpected character '`'",
 		},
 
 		// Named arguments tests

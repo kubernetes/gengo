@@ -58,6 +58,11 @@ func (s *scanner) skipWhitespace() bool {
 	return found
 }
 
+func (s *scanner) skipWhitespacePeek() rune {
+	s.skipWhitespace()
+	return s.peek()
+}
+
 func (s *scanner) remainder() string {
 	result := string(s.buf[s.pos:])
 	s.pos = len(s.buf)
@@ -70,6 +75,7 @@ const (
 
 func (s *scanner) nextNumber() (string, error) {
 	const (
+		stBegin  = "stBegin"
 		stPrefix = "stPrefix"
 		stPosNeg = "stPosNeg"
 		stNumber = "stNumber"
@@ -137,6 +143,7 @@ parseLoop:
 
 func (s *scanner) nextString() (string, error) {
 	const (
+		stBegin        = "stBegin"
 		stQuotedString = "stQuotedString"
 		stEscape       = "stEscape"
 	)
@@ -189,6 +196,7 @@ parseLoop:
 
 func (s *scanner) nextIdent(isInteriorChar func(r rune) bool) (string, error) {
 	const (
+		stBegin    = "stBegin"
 		stInterior = "stInterior"
 	)
 	var buf bytes.Buffer

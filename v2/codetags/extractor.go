@@ -76,7 +76,7 @@ func findNameEnd(s string) int {
 		return 0
 	}
 	idx := strings.IndexFunc(s, func(r rune) bool {
-		return !(isIdentInterior(r) || r == ':')
+		return !(isTagNameInterior(r))
 	})
 	if idx == -1 {
 		return len(s)

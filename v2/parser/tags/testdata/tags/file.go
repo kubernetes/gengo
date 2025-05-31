@@ -6,6 +6,7 @@ type T1 struct {
 	C string `json:",inline"`
 	D string `json:"-"`
 	E string `json:""`
+	F string `json:"f,omitzero"`
 
 	T2
 	*T3

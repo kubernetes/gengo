@@ -68,6 +68,11 @@ func TestParse(t *testing.T) {
 			expect: mkt("name"),
 		},
 		{
+			name:   "name with comment after extra spaces",
+			input:  "name \t // comment",
+			expect: mkt("name"),
+		},
+		{
 			name:   "name with dash",
 			input:  "name-dash",
 			expect: mkt("name-dash"),
@@ -88,6 +93,16 @@ func TestParse(t *testing.T) {
 			name:      "empty value",
 			input:     "name=",
 			wantError: "unexpected end of input",
+		},
+		{
+			name:      "space before =",
+			input:     "name =x",
+			wantError: "unexpected character ' '",
+		},
+		{
+			name:      "space after =",
+			input:     "name= x",
+			wantError: "unexpected character ' '",
 		},
 
 		// String arguments tests
@@ -203,6 +218,51 @@ func TestParse(t *testing.T) {
 			input:     "name=+badRaw(missing`)",
 			wantError: "unexpected character '`'",
 		},
+		{
+			name:      "space before (",
+			input:     "name ()",
+			wantError: "unexpected character ' '",
+		},
+		{
+			name:      "space between ( and )",
+			input:     "name ( )",
+			wantError: "unexpected character ' '",
+		},
+		{
+			name:      "space before arg",
+			input:     "name( x)",
+			wantError: "unexpected character ' '",
+		},
+		{
+			name:      "space after arg",
+			input:     "name(x )",
+			wantError: "unexpected character ' '",
+		},
+		{
+			name:      "space before :",
+			input:     "name(k :v)",
+			wantError: "unexpected character ' '",
+		},
+		{
+			name:      "space before value",
+			input:     "name(k:v )",
+			wantError: "unexpected character ' '",
+		},
+		{
+			name:      "space before ,",
+			input:     "name(k:v ,k2:v2)",
+			wantError: "unexpected character ' '",
+		},
+		{
+			name:      "space before =",
+			input:     "name() =x",
+			wantError: "unexpected character ' '",
+		},
+		{
+			name:      "space after =",
+			input:     "name()= x",
+			wantError: "unexpected character ' '",
+		},
 
 		// Named arguments tests
 		{
@@ -311,7 +371,7 @@ func TestParse(t *testing.T) {
 		{
 			name:      "space in value",
 			input:     "key=one two",
-			wantError: "unexpected character 't'",
+			wantError: "unexpected character ' '",
 		},
 		{
 			name:      "unclosed backtick quoted string",

@@ -49,18 +49,28 @@ func (s *scanner) peekN(n int) rune {
 	return s.buf[s.pos+n]
 }
 
-func (s *scanner) skipWhitespace() bool {
-	found := false
+func (s *scanner) skipWhitespace() rune {
 	for r := s.peek(); unicode.IsSpace(r); r = s.peek() {
 		s.next()
-		found = true
 	}
-	return found
+	return s.peek()
 }
 
-func (s *scanner) skipWhitespacePeek() rune {
-	s.skipWhitespace()
-	return s.peek()
+func (s *scanner) nextIsTrailingComment() bool {
+	if s.pos >= len(s.buf)-1 {
+		return false
+	}
+	for i := s.pos; i < len(s.buf)-1; i++ {
+		switch {
+		case unicode.IsSpace(s.buf[i]):
+			continue
+		case s.buf[i] == '/' && s.buf[i+1] == '/':
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 func (s *scanner) remainder() string {

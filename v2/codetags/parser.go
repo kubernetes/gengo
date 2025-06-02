@@ -142,17 +142,16 @@ func RawValues(enabled bool) ParseOption {
 	}
 }
 
-const (
-	stTag           = "stTag"
-	stMaybeArgs     = "stMaybeArgs"
-	stArg           = "stArg"
-	stArgEndOfToken = "stArgEndOfToken"
-	stMaybeValue    = "stMaybeValue"
-	stValue         = "stValue"
-	stMaybeComment  = "stMaybeComment"
-)
-
 func parseTag(input string, opts parseOpts) (Tag, error) {
+	const (
+		stTag           = "stTag"
+		stMaybeArgs     = "stMaybeArgs"
+		stArg           = "stArg"
+		stArgEndOfToken = "stArgEndOfToken"
+		stMaybeValue    = "stMaybeValue"
+		stValue         = "stValue"
+		stMaybeComment  = "stMaybeComment"
+	)
 	var startTag, endTag *Tag // both ends of the chain when parsing chained tags
 
 	// accumulators
@@ -216,7 +215,7 @@ func parseTag(input string, opts parseOpts) (Tag, error) {
 	var err error
 	st := stTag
 parseLoop:
-	for r := s.skipWhitespacePeek(); r != EOF; r = s.skipWhitespacePeek() {
+	for r := s.peek(); r != EOF; r = s.peek() {
 		switch st {
 		case stTag:
 			switch {
@@ -276,10 +275,14 @@ parseLoop:
 
 				switch {
 				case r == ',' || r == ')': // positional arg
+					if r == ',' {
+						r = s.skipWhitespace() // allow whitespace after ,
+					}
 					saveBoolOrString(identifier)
 					st = stArgEndOfToken
 				case r == ':': // named arg
-					s.next() // consume :
+					s.next()               // consume :
+					r = s.skipWhitespace() // allow whitespace after :
 					saveName(identifier)
 					st = stArg
 				default:
@@ -291,7 +294,8 @@ parseLoop:
 		case stArgEndOfToken:
 			switch {
 			case r == ',':
-				s.next() // consume ,
+				s.next()               // consume ,
+				r = s.skipWhitespace() // allow whitespace after ,
 				st = stArg
 			case r == ')':
 				s.next() // consume )
@@ -363,7 +367,7 @@ parseLoop:
 			}
 		case stMaybeComment:
 			switch {
-			case r == '/' && s.peekN(1) == '/':
+			case s.nextIsTrailingComment():
 				s.remainder()
 			default:
 				break parseLoop

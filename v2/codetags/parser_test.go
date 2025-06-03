@@ -64,12 +64,12 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "name with comment",
-			input:  "name // comment",
+			input:  "name # comment",
 			expect: mkt("name"),
 		},
 		{
 			name:   "name with comment after extra spaces",
-			input:  "name \t // comment",
+			input:  "name \t # comment",
 			expect: mkt("name"),
 		},
 		{
@@ -118,7 +118,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "argument with comment",
-			input:  "name(arg) // comment",
+			input:  "name(arg) # comment",
 			expect: mkta("name", mksa("arg")),
 		},
 		{
@@ -392,32 +392,32 @@ func TestParse(t *testing.T) {
 		// Scalar values with comments
 		{
 			name:   "integer value with comment",
-			input:  `key=1 // comment`,
+			input:  `key=1 # comment`,
 			expect: mktv("key", "1", ValueTypeInt),
 		},
 		{
 			name:   "true value with comment",
-			input:  `key=true // comment`,
+			input:  `key=true # comment`,
 			expect: mktv("key", "true", ValueTypeBool),
 		},
 		{
 			name:   "false value with comment",
-			input:  `key=false // comment`,
+			input:  `key=false # comment`,
 			expect: mktv("key", "false", ValueTypeBool),
 		},
 		{
 			name:   "identifier value with comment",
-			input:  `key=ident // comment`,
+			input:  `key=ident # comment`,
 			expect: mktv("key", "ident", ValueTypeString),
 		},
 		{
 			name:   "quoted string value with comment",
-			input:  `key="quoted" // comment`,
+			input:  `key="quoted" # comment`,
 			expect: mktv("key", "quoted", ValueTypeString),
 		},
 		{
 			name:   "backtick string value with comment",
-			input:  "key=`quoted` // comment",
+			input:  "key=`quoted` # comment",
 			expect: mktv("key", "quoted", ValueTypeString),
 		},
 
@@ -458,22 +458,22 @@ func TestParse(t *testing.T) {
 		// Tag values with comments
 		{
 			name:   "simple tag value with comment",
-			input:  `key=+key2 // comment`,
+			input:  `key=+key2 # comment`,
 			expect: mktt("key", &Tag{Name: "key2"}),
 		},
 		{
 			name:   "tag value with empty parentheses and comment",
-			input:  `key=+key2() // comment`,
+			input:  `key=+key2() # comment`,
 			expect: mktt("key", &Tag{Name: "key2"}),
 		},
 		{
 			name:   "tag value with argument and comment",
-			input:  `key=+key2(arg) // comment`,
+			input:  `key=+key2(arg) # comment`,
 			expect: mktt("key", &Tag{Name: "key2", Args: []Arg{{Value: "arg", Type: ArgTypeString}}}),
 		},
 		{
 			name:  "tag value with named arguments and comment",
-			input: `key=+key2(k1: v1, k2: v2) // comment`,
+			input: `key=+key2(k1: v1, k2: v2) # comment`,
 			expect: mktt("key", &Tag{Name: "key2", Args: []Arg{
 				{Name: "k1", Value: "v1", Type: ArgTypeString},
 				{Name: "k2", Value: "v2", Type: ArgTypeString},
@@ -481,7 +481,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:  "3 level nested tag values with comment",
-			input: `key=+key2=+key3 // comment`,
+			input: `key=+key2=+key3 # comment`,
 			expect: mktt("key", &Tag{
 				Name:      "key2",
 				ValueType: ValueTypeTag,
@@ -534,9 +534,9 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:         "raw value with comment",
-			input:        `key=true // comment`,
+			input:        `key=true # comment`,
 			parseOptions: []ParseOption{RawValues(true)},
-			expect:       mktv("key", "true // comment", ValueTypeRaw),
+			expect:       mktv("key", "true # comment", ValueTypeRaw),
 		},
 		{
 			name:         "raw value with tag syntax",

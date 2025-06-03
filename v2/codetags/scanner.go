@@ -56,23 +56,6 @@ func (s *scanner) skipWhitespace() rune {
 	return s.peek()
 }
 
-func (s *scanner) nextIsTrailingComment() bool {
-	if s.pos >= len(s.buf)-1 {
-		return false
-	}
-	for i := s.pos; i < len(s.buf)-1; i++ {
-		switch {
-		case unicode.IsSpace(s.buf[i]):
-			continue
-		case s.buf[i] == '/' && s.buf[i+1] == '/':
-			return true
-		default:
-			return false
-		}
-	}
-	return false
-}
-
 func (s *scanner) remainder() string {
 	result := string(s.buf[s.pos:])
 	s.pos = len(s.buf)
@@ -82,6 +65,23 @@ func (s *scanner) remainder() string {
 const (
 	EOF = -1
 )
+
+func (s *scanner) nextIsTrailingComment() bool {
+	if s.pos >= len(s.buf)-1 {
+		return false
+	}
+	for i := s.pos; i < len(s.buf)-1; i++ {
+		switch {
+		case unicode.IsSpace(s.buf[i]):
+			continue
+		case s.buf[i] == '#':
+			return true
+		default:
+			return false
+		}
+	}
+	return false
+}
 
 func (s *scanner) nextNumber() (string, error) {
 	const (

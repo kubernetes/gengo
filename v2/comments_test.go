@@ -50,7 +50,7 @@ func TestExtractSingleBoolCommentTag(t *testing.T) {
 	commentLines := []string{
 		"Human comment that is ignored.",
 		"+TRUE=true",
-		"+FALSE=false // comment",
+		"+FALSE=false # comment",
 		"+MULTI=true",
 		"+MULTI=false",
 		"+MULTI=multi",
@@ -267,9 +267,9 @@ func TestExtractFunctionStyleCommentTags(t *testing.T) {
 	}, {
 		name: "ParseValues - comments ignored",
 		comments: []string{
-			"+boolTag=true // this is a boolean",
-			"+intTag=42 // this is an integer",
-			"+stringTag=\"quoted string\" // this is a string",
+			"+boolTag=true # this is a boolean",
+			"+intTag=42 # this is an integer",
+			"+stringTag=\"quoted string\" # this is a string",
 		},
 		parseValues: true,
 		expect: map[string][]Tag{

@@ -17,6 +17,7 @@ limitations under the License.
 package codetags
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -193,6 +194,137 @@ func TestTypedTagString(t *testing.T) {
 			result := tt.tag.String()
 			if result != tt.expected {
 				t.Errorf("got: %q, want: %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestTagArgAccessors(t *testing.T) {
+	strPtr := func(s string) *string { return &s }
+
+	tests := []struct {
+		name           string
+		tag            Tag
+		argName        *string
+		wantPositional *Arg
+		wantNamed      *Arg
+		found          bool
+	}{
+		{
+			name: "found positional arg",
+			tag: Tag{
+				Name: "tag",
+				Args: []Arg{
+					{Value: "value1", Type: ArgTypeInt},
+				},
+			},
+			wantPositional: &Arg{Value: "value1", Type: ArgTypeInt},
+			found:          true,
+		},
+		{
+			name: "not found positional arg, no args",
+			tag: Tag{
+				Name: "tag",
+				Args: []Arg{},
+			},
+			found: false,
+		},
+		{
+			name: "not found positional arg, only named args",
+			tag: Tag{
+				Name: "tag",
+				Args: []Arg{
+					{Name: "arg1", Value: "value1", Type: ArgTypeInt},
+					{Name: "arg1", Value: "value2", Type: ArgTypeString},
+				},
+			},
+			found: false,
+		},
+
+		{
+			name: "found named arg, first",
+			tag: Tag{
+				Name: "tag",
+				Args: []Arg{
+					{Name: "arg1", Value: "value1", Type: ArgTypeString},
+					{Name: "arg2", Value: "value2", Type: ArgTypeString},
+					{Name: "arg3", Value: "value3", Type: ArgTypeString},
+				},
+			},
+			argName:   strPtr("arg1"),
+			wantNamed: &Arg{Name: "arg1", Value: "value1", Type: ArgTypeString},
+			found:     true,
+		},
+		{
+			name: "found named arg, second",
+			tag: Tag{
+				Name: "tag",
+				Args: []Arg{
+					{Name: "arg1", Value: "value1", Type: ArgTypeString},
+					{Name: "arg2", Value: "value2", Type: ArgTypeString},
+					{Name: "arg3", Value: "value3", Type: ArgTypeString},
+				},
+			},
+			argName:   strPtr("arg3"),
+			wantNamed: &Arg{Name: "arg3", Value: "value3", Type: ArgTypeString},
+			found:     true,
+		},
+		{
+			name: "not found named arg, no args",
+			tag: Tag{
+				Name: "tag",
+				Args: []Arg{},
+			},
+			argName: strPtr("arg1"),
+			found:   false,
+		},
+		{
+			name: "not found named arg, not in args",
+			tag: Tag{
+				Name: "tag",
+				Args: []Arg{
+					{Name: "arg1", Value: "value1", Type: ArgTypeString},
+					{Name: "arg2", Value: "value2", Type: ArgTypeString},
+					{Name: "arg3", Value: "value3", Type: ArgTypeString},
+				},
+			},
+			argName: strPtr("arg4"),
+			found:   false,
+		},
+		{
+			name: "not found named arg, only positional args",
+			tag: Tag{
+				Name: "tag",
+				Args: []Arg{
+					{Value: "value1", Type: ArgTypeString},
+				},
+			},
+			argName: strPtr(""),
+			found:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantPositional != nil {
+				got, ok := tt.tag.PositionalArg()
+				if ok != tt.found {
+					t.Fatalf("got: %v, want: %v", ok, tt.found)
+				}
+				if !reflect.DeepEqual(got, *tt.wantPositional) {
+					t.Fatalf("got: %v, want: %v", got, tt.wantPositional)
+				}
+			}
+			if tt.argName != nil {
+				got, ok := tt.tag.NamedArg(*tt.argName)
+				if ok != tt.found {
+					t.Fatalf("got: %v, want: %v", ok, tt.found)
+				}
+				if tt.wantNamed != nil {
+					if !reflect.DeepEqual(got, *tt.wantNamed) {
+						t.Fatalf("got: %v, want: %v", got, tt.wantNamed)
+					}
+				}
 			}
 		})
 	}

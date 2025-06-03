@@ -41,6 +41,29 @@ type Tag struct {
 	ValueType ValueType
 }
 
+// PositionalArg returns the positional argument. If there is no positional
+// argument, it returns false.
+func (t Tag) PositionalArg() (Arg, bool) {
+	if len(t.Args) == 0 || len(t.Args[0].Name) > 0 {
+		return Arg{}, false
+	}
+	return t.Args[0], true
+}
+
+// NamedArg returns the named argument. If o named argument is found, it returns
+// false. Always returns false for empty name; use PositionalArg instead.
+func (t Tag) NamedArg(name string) (Arg, bool) {
+	if len(name) == 0 {
+		return Arg{}, false
+	}
+	for _, arg := range t.Args {
+		if arg.Name == name {
+			return arg, true
+		}
+	}
+	return Arg{}, false
+}
+
 // String returns the canonical string representation of the tag.
 // All strings are represented in double quotes. Spacing is normalized.
 func (t Tag) String() string {

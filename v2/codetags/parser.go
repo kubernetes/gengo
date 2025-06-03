@@ -71,7 +71,7 @@ import (
 //
 // For example,
 //
-//	"name" // no value
+//	"name" # no value
 //	"name=identifier"
 //	"name="double-quoted value""
 //	"name=`backtick-quoted value`"
@@ -85,7 +85,7 @@ import (
 //
 // For example,
 //
-//	"key=value // This comment is ignored"
+//	"key=value # This comment is ignored"
 //
 // Formal Grammar:
 //
@@ -217,7 +217,7 @@ func parseTag(input string, opts parseOpts) (Tag, error) {
 parseLoop:
 	for r := s.peek(); r != EOF; r = s.peek() {
 		switch st {
-		case stTag:
+		case stTag: // Any leading whitespace is expected to be trimmed before parsing.
 			switch {
 			case isIdentBegin(r):
 				tagName, err = s.nextIdent(isTagNameInterior)

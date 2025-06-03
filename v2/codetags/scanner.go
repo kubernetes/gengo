@@ -67,20 +67,10 @@ const (
 )
 
 func (s *scanner) nextIsTrailingComment() bool {
-	if s.pos >= len(s.buf)-1 {
-		return false
+	i := 0
+	for ; unicode.IsSpace(s.peekN(i)); i++ {
 	}
-	for i := s.pos; i < len(s.buf)-1; i++ {
-		switch {
-		case unicode.IsSpace(s.buf[i]):
-			continue
-		case s.buf[i] == '#':
-			return true
-		default:
-			return false
-		}
-	}
-	return false
+	return s.peekN(i) == '#'
 }
 
 func (s *scanner) nextNumber() (string, error) {

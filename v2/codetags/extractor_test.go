@@ -147,12 +147,12 @@ func TestExtract(t *testing.T) {
 }
 
 func TestExtractAndParse(t *testing.T) {
-	mktags := func(t ...TypedTag) []TypedTag { return t }
+	mktags := func(t ...Tag) []Tag { return t }
 
 	cases := []struct {
 		name     string
 		comments []string
-		expect   map[string][]TypedTag
+		expect   map[string][]Tag
 	}{
 		{
 			name: "positional params",
@@ -168,54 +168,54 @@ func TestExtractAndParse(t *testing.T) {
 				"+true(true)",
 				"+false(false)",
 			},
-			expect: map[string][]TypedTag{
+			expect: map[string][]Tag{
 				"quoted": mktags(
-					TypedTag{Name: "quoted", Args: []Arg{
+					Tag{Name: "quoted", Args: []Arg{
 						{Value: "value", Type: ArgTypeString},
 					}},
 				),
 				"backticked": mktags(
-					TypedTag{Name: "backticked", Args: []Arg{
+					Tag{Name: "backticked", Args: []Arg{
 						{Value: "value", Type: ArgTypeString},
 					}},
 				),
 				"ident": mktags(
-					TypedTag{Name: "ident", Args: []Arg{
+					Tag{Name: "ident", Args: []Arg{
 						{Value: "value", Type: ArgTypeString},
 					}},
 				),
 				"integer": mktags(
-					TypedTag{Name: "integer", Args: []Arg{
+					Tag{Name: "integer", Args: []Arg{
 						{Value: "2", Type: ArgTypeInt},
 					}},
 				),
 				"negative": mktags(
-					TypedTag{Name: "negative", Args: []Arg{
+					Tag{Name: "negative", Args: []Arg{
 						{Value: "-5", Type: ArgTypeInt},
 					}},
 				),
 				"hex": mktags(
-					TypedTag{Name: "hex", Args: []Arg{
+					Tag{Name: "hex", Args: []Arg{
 						{Value: "0xFF00B3", Type: ArgTypeInt},
 					}},
 				),
 				"octal": mktags(
-					TypedTag{Name: "octal", Args: []Arg{
+					Tag{Name: "octal", Args: []Arg{
 						{Value: "0o04167", Type: ArgTypeInt},
 					}},
 				),
 				"binary": mktags(
-					TypedTag{Name: "binary", Args: []Arg{
+					Tag{Name: "binary", Args: []Arg{
 						{Value: "0b10101", Type: ArgTypeInt},
 					}},
 				),
 				"true": mktags(
-					TypedTag{Name: "true", Args: []Arg{
+					Tag{Name: "true", Args: []Arg{
 						{Value: "true", Type: ArgTypeBool},
 					}},
 				),
 				"false": mktags(
-					TypedTag{Name: "false", Args: []Arg{
+					Tag{Name: "false", Args: []Arg{
 						{Value: "false", Type: ArgTypeBool},
 					}},
 				),
@@ -228,15 +228,15 @@ func TestExtractAndParse(t *testing.T) {
 				"+numbers(n1: 2, n2: -5, n3: 0xFF00B3, n4: 0o04167, n5: 0b10101)",
 				"+bools(t: true, f:false)",
 			},
-			expect: map[string][]TypedTag{
+			expect: map[string][]Tag{
 				"strings": mktags(
-					TypedTag{Name: "strings", Args: []Arg{
+					Tag{Name: "strings", Args: []Arg{
 						{Name: "q", Value: "value", Type: ArgTypeString},
 						{Name: "b", Value: `value`, Type: ArgTypeString},
 						{Name: "i", Value: "value", Type: ArgTypeString},
 					}}),
 				"numbers": mktags(
-					TypedTag{Name: "numbers", Args: []Arg{
+					Tag{Name: "numbers", Args: []Arg{
 						{Name: "n1", Value: "2", Type: ArgTypeInt},
 						{Name: "n2", Value: "-5", Type: ArgTypeInt},
 						{Name: "n3", Value: "0xFF00B3", Type: ArgTypeInt},
@@ -244,7 +244,7 @@ func TestExtractAndParse(t *testing.T) {
 						{Name: "n5", Value: "0b10101", Type: ArgTypeInt},
 					}}),
 				"bools": mktags(
-					TypedTag{Name: "bools", Args: []Arg{
+					Tag{Name: "bools", Args: []Arg{
 						{Name: "t", Value: "true", Type: ArgTypeBool},
 						{Name: "f", Value: "false", Type: ArgTypeBool},
 					}}),
@@ -254,7 +254,7 @@ func TestExtractAndParse(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			out := map[string][]TypedTag{}
+			out := map[string][]Tag{}
 			for name, matchedTags := range Extract("+", tc.comments) {
 				parsed, err := ParseAll(matchedTags)
 				if err != nil {

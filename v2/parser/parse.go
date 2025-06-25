@@ -637,6 +637,10 @@ func (p *Parser) convertSignature(u types.Universe, t *gotypes.Signature) *types
 
 // walkType adds the type, and any necessary child types.
 func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type) *types.Type {
+	var out *types.Type
+	defer func() {
+		out.InitMultiverse(u)
+	}()
 	// Most of the cases are underlying types of the named type.
 	name := goNameToName(in.String())
 	if useName != nil {
@@ -645,13 +649,13 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 
 	// Handle alias types conditionally on go1.22+.
 	// Inline this once the minimum supported version is go1.22
-	if out := p.walkAliasType(u, in); out != nil {
+	if out = p.walkAliasType(u, in); out != nil {
 		return out
 	}
 
 	switch t := in.(type) {
 	case *gotypes.Struct:
-		out := u.Type(name)
+		out = u.Type(name)
 		out.GoType = in
 		if out.Kind != types.Unknown {
 			return out
@@ -670,7 +674,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 		}
 		return out
 	case *gotypes.Map:
-		out := u.Type(name)
+		out = u.Type(name)
 		out.GoType = in
 		if out.Kind != types.Unknown {
 			return out
@@ -680,7 +684,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 		out.Key = p.walkType(u, nil, t.Key())
 		return out
 	case *gotypes.Pointer:
-		out := u.Type(name)
+		out = u.Type(name)
 		out.GoType = in
 		if out.Kind != types.Unknown {
 			return out
@@ -689,7 +693,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 		out.Elem = p.walkType(u, nil, t.Elem())
 		return out
 	case *gotypes.Slice:
-		out := u.Type(name)
+		out = u.Type(name)
 		out.GoType = in
 		if out.Kind != types.Unknown {
 			return out
@@ -698,7 +702,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 		out.Elem = p.walkType(u, nil, t.Elem())
 		return out
 	case *gotypes.Array:
-		out := u.Type(name)
+		out = u.Type(name)
 		out.GoType = in
 		if out.Kind != types.Unknown {
 			return out
@@ -708,7 +712,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 		out.Len = in.(*gotypes.Array).Len()
 		return out
 	case *gotypes.Chan:
-		out := u.Type(name)
+		out = u.Type(name)
 		out.GoType = in
 		if out.Kind != types.Unknown {
 			return out
@@ -719,7 +723,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 		// cannot be properly written.
 		return out
 	case *gotypes.Basic:
-		out := u.Type(types.Name{
+		out = u.Type(types.Name{
 			Package: "", // This is a magic package name in the Universe.
 			Name:    t.Name(),
 		})
@@ -730,7 +734,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 		out.Kind = types.Unsupported
 		return out
 	case *gotypes.Signature:
-		out := u.Type(name)
+		out = u.Type(name)
 		out.GoType = in
 		if out.Kind != types.Unknown {
 			return out
@@ -739,7 +743,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 		out.Signature = p.convertSignature(u, t)
 		return out
 	case *gotypes.Interface:
-		out := u.Type(name)
+		out = u.Type(name)
 		out.GoType = in
 		if out.Kind != types.Unknown {
 			return out
@@ -758,7 +762,6 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 		}
 		return out
 	case *gotypes.Named:
-		var out *types.Type
 		switch t.Underlying().(type) {
 		case *gotypes.Named, *gotypes.Basic, *gotypes.Map, *gotypes.Slice:
 			name := goNameToName(t.String())
@@ -785,7 +788,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 				name.Name = fmt.Sprintf("%s[%s]", strings.SplitN(name.Name, "[", 2)[0], strings.Join(tpNames, ","))
 			}
 
-			if out := u.Type(name); out.Kind != types.Unknown {
+			if out = u.Type(name); out.Kind != types.Unknown {
 				out.GoType = in
 				return out // short circuit if we've already made this.
 			}
@@ -797,7 +800,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 			// "feature" for users. This flattens those types
 			// together.
 			name := goNameToName(t.String())
-			if out := u.Type(name); out.Kind != types.Unknown {
+			if out = u.Type(name); out.Kind != types.Unknown {
 				return out // short circuit if we've already made this.
 			}
 			out = p.walkType(u, &name, t.Underlying())
@@ -827,7 +830,7 @@ func (p *Parser) walkType(u types.Universe, useName *types.Name, in gotypes.Type
 			Kind: types.TypeParam,
 		}
 	default:
-		out := u.Type(name)
+		out = u.Type(name)
 		out.GoType = in
 		if out.Kind != types.Unknown {
 			return out

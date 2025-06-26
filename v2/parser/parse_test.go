@@ -548,6 +548,15 @@ func TestAddOnePkgToUniverse(t *testing.T) {
 		if len(ud.Types) == 0 {
 			t.Errorf("expected non-zero types in direct package")
 		} else {
+			// verify that Universe and PointerTypeCache has been populated
+			for _, tp := range ud.Types {
+				if tp.Universe == nil {
+					t.Errorf("expected no nil Universe in type %v", tp)
+				}
+				if tp.PointerTypeCache == nil {
+					t.Errorf("expected no nil PointerTypeCache in type %v", tp)
+				}
+			}
 			type testcase struct {
 				kind       types.Kind
 				elem       string // just the type name

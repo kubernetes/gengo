@@ -19,6 +19,7 @@ package types
 import (
 	gotypes "go/types"
 	"strings"
+	"sync"
 )
 
 // Ref makes a reference to the given type. It can only be used for e.g.
@@ -289,6 +290,13 @@ func (u Universe) Package(packagePath string) *Package {
 	return p
 }
 
+type PointerTypeCache struct {
+	// mutex to protect concurrent update to the cache
+	Mu sync.Mutex
+	// A pointer Type for the Type
+	PointerType *Type
+}
+
 // Type represents a subset of possible go types.
 type Type struct {
 	// There are two general categories of types, those explicitly named
@@ -364,6 +372,12 @@ type Type struct {
 
 	// The underlying Go type.
 	GoType gotypes.Type
+
+	// Revevrse reference to Universe
+	Universe *Universe
+
+	// A pointer type cache
+	PointerTypeCache *PointerTypeCache
 }
 
 // String returns the name of the type.
@@ -556,13 +570,41 @@ var (
 )
 
 func PointerTo(t *Type) *Type {
-	return &Type{
+	if t.Universe != nil {
+		for _, pkg := range *t.Universe {
+			for _, tp := range pkg.Types {
+				existingTypeName := tp.Name.String()
+				if strings.HasPrefix(existingTypeName, "*") {
+					if existingTypeName[1:] == t.Name.String() {
+						return tp
+					}
+				}
+			}
+		}
+	}
+	cache := t.PointerTypeCache
+	if cache != nil && cache.PointerType != nil {
+		return cache.PointerType
+	}
+	out := &Type{
 		Name: Name{
 			Name: "*" + t.Name.String(),
 		},
 		Kind: Pointer,
 		Elem: t,
 	}
+	// PointerTypeCache should not be empty at this point. This is a sanity processing.
+	if cache == nil {
+		cache = &PointerTypeCache{
+			Mu: sync.Mutex{},
+		}
+	}
+	if cache.PointerType == nil {
+		cache.Mu.Lock()
+		cache.PointerType = out
+		cache.Mu.Unlock()
+	}
+	return out
 }
 
 func IsInteger(t *Type) bool {

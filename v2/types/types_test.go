@@ -17,6 +17,8 @@ limitations under the License.
 package types
 
 import (
+	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -34,6 +36,86 @@ func TestGetBuiltin(t *testing.T) {
 	}
 	if builtinPkg := u.Package(""); len(builtinPkg.Types) != 1 {
 		t.Errorf("Expected builtin package to not have builtins until they're asked for explicitly. %#v", builtinPkg)
+	}
+}
+
+func TestPointerTo(t *testing.T) {
+	u := Universe{
+		"pkgname": &Package{
+			Types: map[string]*Type{},
+		},
+	}
+	pkgInUniverse := u["pkgname"]
+	type1 := &Type{Name: Name{Name: "structname"}, Kind: Struct}
+	type2 := &Type{Name: Name{Name: "secondstructname"}, Kind: Struct}
+	type3 := &Type{Name: Name{Name: "thirdstructname"}, Kind: Struct}
+
+	setupUniverseAndPointerTypeCache := func(tp *Type, u *Universe, pkg *Package, cached bool, existPointerTypeInUniverse bool) {
+		tp.Universe = u
+		tp.PointerTypeCache = &PointerTypeCache{
+			Mu: sync.Mutex{},
+		}
+		if cached {
+			tp.PointerTypeCache.PointerType = &Type{
+				Name: Name{
+					Name: "*" + tp.Name.String(),
+				},
+				Kind: Pointer,
+				Elem: tp,
+			}
+		}
+		if existPointerTypeInUniverse {
+			pkg.Types["*"+tp.Name.String()] = &Type{
+				Name: Name{
+					Name: "*" + tp.Name.String(),
+				},
+				Kind: Pointer,
+				Elem: tp,
+			}
+		}
+	}
+
+	setupUniverseAndPointerTypeCache(type1, &u, pkgInUniverse, false, true)
+	setupUniverseAndPointerTypeCache(type2, &u, pkgInUniverse, true, false)
+	setupUniverseAndPointerTypeCache(type3, &u, pkgInUniverse, false, false)
+
+	testCases := []struct {
+		name           string
+		typ            *Type
+		expected       *Type
+		expectCreation bool
+	}{
+		{
+			name:           "universe has the pointer type",
+			typ:            type1,
+			expected:       pkgInUniverse.Types["*"+type1.Name.String()],
+			expectCreation: false,
+		},
+		{
+			name:           "cache has the pointer type",
+			typ:            type2,
+			expected:       type2.PointerTypeCache.PointerType,
+			expectCreation: false,
+		},
+		{
+			name: "cache doesn't have the pointer type",
+			typ:  type3,
+			expected: &Type{
+				Name: Name{Name: "*thirdstructname"},
+				Kind: Pointer,
+				Elem: type3,
+			},
+			expectCreation: true,
+		},
+	}
+	for _, tc := range testCases {
+		tp := PointerTo(tc.typ)
+		if tc.expectCreation && !reflect.DeepEqual(tp, tc.expected) {
+			t.Errorf("PointerTo failed, expected %v, got : %v", tc.expected, tp)
+		}
+		if !tc.expectCreation && tp != tc.expected {
+			t.Errorf("PointerTo should return an existing pointer type, expected %v, got : %v", tc.expected, tp)
+		}
 	}
 }
 

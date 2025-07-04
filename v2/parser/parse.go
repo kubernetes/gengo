@@ -23,7 +23,9 @@ import (
 	"go/constant"
 	"go/token"
 	gotypes "go/types"
+	"maps"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -488,7 +490,11 @@ func (p *Parser) addPkgToUniverse(pkg *packages.Package, u *types.Universe) erro
 		switch obj := s.Lookup(n).(type) {
 		case *gotypes.TypeName:
 			t := p.walkType(*u, nil, obj.Type())
-			p.addCommentsToType(obj, t)
+			// If this is a Type Alias, avoid updating the comments on the original
+			// Type t since walkType always returns the original type.
+			if !isTypeAlias(obj.Type()) {
+				p.addCommentsToType(obj, t)
+			}
 		case *gotypes.Func:
 			// We only care about functions, not concrete/abstract methods.
 			if obj.Type() != nil && obj.Type().(*gotypes.Signature).Recv() == nil {
@@ -510,7 +516,9 @@ func (p *Parser) addPkgToUniverse(pkg *packages.Package, u *types.Universe) erro
 
 	// Add all of this package's imports.
 	importedPkgs := []string{}
-	for _, imp := range pkg.Imports {
+	// Iterate imports in a predictable order
+	for _, key := range slices.Sorted(maps.Keys(pkg.Imports)) {
+		imp := pkg.Imports[key]
 		if err := p.addPkgToUniverse(imp, u); err != nil {
 			return err
 		}

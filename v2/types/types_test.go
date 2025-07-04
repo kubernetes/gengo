@@ -17,6 +17,8 @@ limitations under the License.
 package types
 
 import (
+	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -34,6 +36,95 @@ func TestGetBuiltin(t *testing.T) {
 	}
 	if builtinPkg := u.Package(""); len(builtinPkg.Types) != 1 {
 		t.Errorf("Expected builtin package to not have builtins until they're asked for explicitly. %#v", builtinPkg)
+	}
+}
+
+func TestPointerTo(t *testing.T) {
+	type1 := &Type{
+		Name: Name{Package: "pkgname", Name: "structname"},
+		Kind: Struct,
+	}
+	type2 := &Type{
+		Name: Name{Package: "pkgname", Name: "secondstructname"},
+		Kind: Struct,
+	}
+
+	u := Universe{
+		"pkgname": &Package{
+			Types: map[string]*Type{
+				"structname":       type1,
+				"secondstructname": type2,
+			},
+		},
+		"": &Package{
+			Types: map[string]*Type{
+				"*pkgname.structname": &Type{
+					Name: Name{Name: "*pkgname.structname"},
+					Kind: Pointer,
+				},
+			},
+		},
+	}
+
+	type3 := &Type{
+		Name: Name{Package: "pkgname", Name: "thridstructname"},
+		Kind: Struct,
+		multiverse: &multiverse{
+			real: u,
+			synthetic: map[string]*Type{
+				"*pkgname.thridstructname": &Type{
+					Name: Name{Name: "*pkgname.thridstructname"},
+					Kind: Pointer,
+				},
+			},
+			mu: sync.Mutex{},
+		},
+	}
+
+	testCases := []struct {
+		name           string
+		tp             *Type
+		expected       *Type
+		expectCreation bool
+	}{
+		{
+			name:           "universe has the pointer type",
+			tp:             type1,
+			expected:       u[""].Types["*pkgname.structname"],
+			expectCreation: false,
+		},
+		{
+			name: "neither universe or cache has the pointer type",
+			tp:   type2,
+			expected: &Type{
+				Name: Name{Name: "*pkgname.secondstructname"},
+				Kind: Pointer,
+				Elem: type2,
+			},
+			expectCreation: true,
+		},
+		{
+			name:           "cache has the pointer type",
+			tp:             type3,
+			expected:       type3.multiverse.synthetic["*pkgname.thridstructname"],
+			expectCreation: false,
+		},
+	}
+	for _, tc := range testCases {
+		if tc.tp.multiverse == nil {
+			tc.tp.multiverse = &multiverse{
+				real:      u,
+				synthetic: map[string]*Type{},
+				mu:        sync.Mutex{},
+			}
+		}
+		tp := PointerTo(tc.tp)
+		if tc.expectCreation && !reflect.DeepEqual(tp, tc.expected) {
+			t.Errorf("PointerTo failed, expected %v, got : %v", tc.expected, tp)
+		}
+		if !tc.expectCreation && tp != tc.expected {
+			t.Errorf("PointerTo should not create a new pointer type, expected %v, got : %v", tc.expected, tp)
+		}
 	}
 }
 

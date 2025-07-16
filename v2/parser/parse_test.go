@@ -19,6 +19,10 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	gotypes "go/types"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -29,6 +33,8 @@ import (
 	"golang.org/x/tools/go/packages"
 	"k8s.io/gengo/v2/types"
 )
+
+var typeAliasEnabled = goTypeAliasEnabled()
 
 func TestNew(t *testing.T) {
 	parser := New()
@@ -823,12 +829,14 @@ func TestAddOnePkgToUniverse(t *testing.T) {
 func TestStructParse(t *testing.T) {
 	testCases := []struct {
 		description string
-		testFile    string
+		testFiles   []string
 		expected    func() *types.Type
 	}{
 		{
 			description: "basic comments",
-			testFile:    "k8s.io/gengo/v2/parser/testdata/basic",
+			testFiles: []string{
+				"k8s.io/gengo/v2/parser/testdata/basic",
+			},
 			expected: func() *types.Type {
 				return &types.Type{
 					Name: types.Name{
@@ -837,7 +845,7 @@ func TestStructParse(t *testing.T) {
 					},
 					Kind:                      types.Struct,
 					CommentLines:              []string{"Blah is a test.", "A test, I tell you."},
-					SecondClosestCommentLines: []string{""},
+					SecondClosestCommentLines: nil,
 					Members: []types.Member{
 						{
 							Name:         "A",
@@ -860,7 +868,9 @@ func TestStructParse(t *testing.T) {
 		},
 		{
 			description: "generic",
-			testFile:    "./testdata/generic",
+			testFiles: []string{
+				"./testdata/generic",
+			},
 			expected: func() *types.Type {
 				return &types.Type{
 					Name: types.Name{
@@ -868,8 +878,8 @@ func TestStructParse(t *testing.T) {
 						Name:    "Blah[T]",
 					},
 					Kind:                      types.Struct,
-					CommentLines:              []string{""},
-					SecondClosestCommentLines: []string{""},
+					CommentLines:              nil,
+					SecondClosestCommentLines: nil,
 					Members: []types.Member{
 						{
 							Name:         "V",
@@ -895,9 +905,12 @@ func TestStructParse(t *testing.T) {
 				}
 			},
 		},
+
 		{
 			description: "generic on field",
-			testFile:    "./testdata/generic-field",
+			testFiles: []string{
+				"./testdata/generic-field",
+			},
 			expected: func() *types.Type {
 				fieldType := &types.Type{
 					Name: types.Name{
@@ -905,8 +918,8 @@ func TestStructParse(t *testing.T) {
 						Name:    "Blah[T]",
 					},
 					Kind:                      types.Struct,
-					CommentLines:              []string{""},
-					SecondClosestCommentLines: []string{""},
+					CommentLines:              nil,
+					SecondClosestCommentLines: nil,
 					Members: []types.Member{
 						{
 							Name:         "V",
@@ -936,13 +949,13 @@ func TestStructParse(t *testing.T) {
 						Name:    "Foo",
 					},
 					Kind:                      types.Struct,
-					CommentLines:              []string{""},
-					SecondClosestCommentLines: []string{""},
+					CommentLines:              nil,
+					SecondClosestCommentLines: nil,
 					Members: []types.Member{
 						{
 							Name:         "B",
 							Embedded:     false,
-							CommentLines: []string{""},
+							CommentLines: nil,
 							Tags:         `json:"b"`,
 							Type:         fieldType,
 						},
@@ -953,7 +966,9 @@ func TestStructParse(t *testing.T) {
 		},
 		{
 			description: "generic multiple",
-			testFile:    "./testdata/generic-multi",
+			testFiles: []string{
+				"./testdata/generic-multi",
+			},
 			expected: func() *types.Type {
 				return &types.Type{
 					Name: types.Name{
@@ -961,8 +976,8 @@ func TestStructParse(t *testing.T) {
 						Name:    "Blah[T,U,V]",
 					},
 					Kind:                      types.Struct,
-					CommentLines:              []string{""},
-					SecondClosestCommentLines: []string{""},
+					CommentLines:              nil,
+					SecondClosestCommentLines: nil,
 					Members: []types.Member{
 						{
 							Name:         "V1",
@@ -1026,7 +1041,9 @@ func TestStructParse(t *testing.T) {
 		},
 		{
 			description: "generic recursive",
-			testFile:    "./testdata/generic-recursive",
+			testFiles: []string{
+				"./testdata/generic-recursive",
+			},
 			expected: func() *types.Type {
 				recursiveT := &types.Type{
 					Name: types.Name{
@@ -1034,8 +1051,8 @@ func TestStructParse(t *testing.T) {
 						Name:    "DeepCopyable[T]",
 					},
 					Kind:                      types.Interface,
-					CommentLines:              []string{""},
-					SecondClosestCommentLines: []string{""},
+					CommentLines:              nil,
+					SecondClosestCommentLines: nil,
 					Methods:                   map[string]*types.Type{},
 					TypeParams: map[string]*types.Type{
 						"T": {
@@ -1051,7 +1068,7 @@ func TestStructParse(t *testing.T) {
 						Name: "func (k8s.io/gengo/v2/parser/testdata/generic-recursive.DeepCopyable[T]).DeepCopy() T",
 					},
 					Kind:         types.Func,
-					CommentLines: []string{""},
+					CommentLines: nil,
 					Signature: &types.Signature{
 						Receiver: recursiveT,
 						Results: []*types.ParamResult{
@@ -1073,8 +1090,8 @@ func TestStructParse(t *testing.T) {
 						Name:    "Blah[T]",
 					},
 					Kind:                      types.Struct,
-					CommentLines:              []string{""},
-					SecondClosestCommentLines: []string{""},
+					CommentLines:              nil,
+					SecondClosestCommentLines: nil,
 					Members: []types.Member{
 						{
 							Name:         "V",
@@ -1095,18 +1112,60 @@ func TestStructParse(t *testing.T) {
 				}
 			},
 		},
+		{
+			description: "comments on aliased type should not overwrite original type's comments",
+			testFiles: []string{
+				"k8s.io/gengo/v2/parser/testdata/type-alias/main",
+				"k8s.io/gengo/v2/parser/testdata/type-alias/v1",
+				"k8s.io/gengo/v2/parser/testdata/type-alias/v2",
+			},
+			expected: func() *types.Type {
+				expectedTypeComments := []string{"Blah is a test.", "A test, I tell you."}
+				if !typeAliasEnabled {
+					// Comments from the last processed package wins.
+					expectedTypeComments = []string{"This is an alias for v1.Blah."}
+				}
+
+				return &types.Type{
+					Name: types.Name{
+						Package: "k8s.io/gengo/v2/parser/testdata/type-alias/v1",
+						Name:    "Blah",
+					},
+					Kind:                      types.Struct,
+					CommentLines:              expectedTypeComments,
+					SecondClosestCommentLines: nil,
+					Members: []types.Member{
+						{
+							Name:         "A",
+							Embedded:     false,
+							CommentLines: []string{"A is the first field."},
+							Tags:         `json:"a"`,
+							Type:         types.Int64,
+						},
+						{
+							Name:         "B",
+							Embedded:     false,
+							CommentLines: []string{"B is the second field.", "Multiline comments work."},
+							Tags:         `json:"b"`,
+							Type:         types.String,
+						},
+					},
+					TypeParams: map[string]*types.Type{},
+				}
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			parser := New()
 
-			pkgs, err := parser.loadPackages(tc.testFile)
+			_, err := parser.loadPackages(tc.testFiles...)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
-			u := types.Universe{}
-			if err := parser.addPkgToUniverse(pkgs[0], &u); err != nil {
+			u, err := parser.NewUniverse()
+			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
 
@@ -1152,4 +1211,57 @@ func TestGoNameToName(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCommentsWithAliasedType(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		parser := NewWithOptions(Options{BuildTags: []string{"ignore_autogenerated"}})
+		if _, err := parser.loadPackages("./testdata/type-alias/..."); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		u, err := parser.NewUniverse()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		name := "k8s.io/gengo/v2/parser/testdata/type-alias/v1"
+		pkg := u[name]
+		if name != "k8s.io/gengo/v2/parser/testdata/type-alias/v1" {
+			continue
+		}
+
+		expectedTypeComments := []string{"Blah is a test.", "A test, I tell you."}
+		if !typeAliasEnabled {
+			// Comments from the last processed package wins.
+			expectedTypeComments = []string{"This is an alias for v1.Blah."}
+		}
+		for _, typ := range pkg.Types {
+			if typ.Name.Name != "Blah" {
+				continue
+			}
+
+			if diff := cmp.Diff(expectedTypeComments, typ.CommentLines); diff != "" {
+				t.Errorf("unexpected comment lines (-want +got):\n%s", diff)
+			}
+		}
+	}
+}
+
+// Copied from https://github.com/golang/tools/blob/3e377036196f644e59e757af8a38ea6afa07677c/internal/aliases/aliases_go122.go#L64
+func goTypeAliasEnabled() bool {
+	// The only reliable way to compute the answer is to invoke go/types.
+	// We don't parse the GODEBUG environment variable, because
+	// (a) it's tricky to do so in a manner that is consistent
+	//     with the godebug package; in particular, a simple
+	//     substring check is not good enough. The value is a
+	//     rightmost-wins list of options. But more importantly:
+	// (b) it is impossible to detect changes to the effective
+	//     setting caused by os.Setenv("GODEBUG"), as happens in
+	//     many tests. Therefore any attempt to cache the result
+	//     is just incorrect.
+	fset := token.NewFileSet()
+	f, _ := parser.ParseFile(fset, "a.go", "package p; type A = int", parser.SkipObjectResolution)
+	pkg, _ := new(gotypes.Config).Check("p", fset, []*ast.File{f}, nil)
+	_, enabled := pkg.Scope().Lookup("A").Type().(*gotypes.Alias)
+	return enabled
 }

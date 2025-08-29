@@ -1121,10 +1121,6 @@ func TestStructParse(t *testing.T) {
 			},
 			expected: func() *types.Type {
 				expectedTypeComments := []string{"Blah is a test.", "A test, I tell you."}
-				if !typeAliasEnabled {
-					// Comments from the last processed package wins.
-					expectedTypeComments = []string{"This is an alias for v1.Blah."}
-				}
 
 				return &types.Type{
 					Name: types.Name{
@@ -1231,10 +1227,6 @@ func TestCommentsWithAliasedType(t *testing.T) {
 		}
 
 		expectedTypeComments := []string{"Blah is a test.", "A test, I tell you."}
-		if !typeAliasEnabled {
-			// Comments from the last processed package wins.
-			expectedTypeComments = []string{"This is an alias for v1.Blah."}
-		}
 		for _, typ := range pkg.Types {
 			if typ.Name.Name != "Blah" {
 				continue

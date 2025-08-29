@@ -116,7 +116,7 @@ func ExtractFunctionStyleCommentTags(marker string, tagNames []string, lines []s
 			if err != nil {
 				return nil, err
 			}
-			tag, err := toStringArgs(typedTag)
+			tag, err := toStringArgs(typedTag, opts.forbidArguments)
 			if err != nil {
 				return nil, err
 			}
@@ -141,13 +141,26 @@ func ParseValues(enabled bool) TagOption {
 	}
 }
 
-type tagOpts struct {
-	parseValues bool
+// ForbidArguments bans tag arguments. When enabled, tag arguments
+// must be empty. Otherwise, a parse error will be returned.
+// Default: disabled
+func ForbidArguments(enabled bool) TagOption {
+	return func(opts *tagOpts) {
+		opts.forbidArguments = enabled
+	}
 }
 
-func toStringArgs(tag codetags.Tag) (Tag, error) {
+type tagOpts struct {
+	parseValues     bool
+	forbidArguments bool
+}
+
+func toStringArgs(tag codetags.Tag, forbidArguments bool) (Tag, error) {
 	var stringArgs []string
-	if len(tag.Args) > 1 {
+	if forbidArguments && len(tag.Args) > 0 {
+		return Tag{}, fmt.Errorf("expected no arguments, got: %v", tag.Args)
+	}
+	if !forbidArguments && len(tag.Args) > 1 {
 		return Tag{}, fmt.Errorf("expected one argument, got: %v", tag.Args)
 	}
 	for _, arg := range tag.Args {

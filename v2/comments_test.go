@@ -94,12 +94,13 @@ func TestExtractFunctionStyleCommentTags(t *testing.T) {
 	mkstrs := func(s ...string) []string { return s }
 
 	cases := []struct {
-		name        string
-		comments    []string
-		tagNames    []string
-		parseValues bool
-		expectError bool
-		expect      map[string][]Tag
+		name            string
+		comments        []string
+		tagNames        []string
+		parseValues     bool
+		forbidArguments bool
+		expectError     bool
+		expect          map[string][]Tag
 	}{{
 		name: "no args",
 		comments: []string{
@@ -285,6 +286,36 @@ func TestExtractFunctionStyleCommentTags(t *testing.T) {
 		parseValues: true,
 		expectError: true,
 	}, {
+		name: "ForbidArguments enabled - no args",
+		comments: []string{
+			"Human comment that is ignored",
+			"+simpleNoVal",
+			"+simpleWithVal=val",
+			"+duplicateNoVal",
+			"+duplicateNoVal",
+			"+duplicateWithVal=val1",
+			"+duplicateWithVal=val2",
+		},
+		forbidArguments: true,
+		expect: map[string][]Tag{
+			"simpleNoVal":   mktags(Tag{"simpleNoVal", nil, ""}),
+			"simpleWithVal": mktags(Tag{"simpleWithVal", nil, "val"}),
+			"duplicateNoVal": mktags(
+				Tag{"duplicateNoVal", nil, ""},
+				Tag{"duplicateNoVal", nil, ""}),
+			"duplicateWithVal": mktags(
+				Tag{"duplicateWithVal", nil, "val1"},
+				Tag{"duplicateWithVal", nil, "val2"}),
+		},
+	}, {
+		name: "ForbidArguments enabled - with args",
+		comments: []string{
+			"Human comment that is ignored",
+			"+simpleNoVal(arg)",
+		},
+		forbidArguments: true,
+		expectError:     true,
+	}, {
 		name: "raw values with comments",
 		comments: []string{
 			"+boolTag=true // this is a boolean",
@@ -302,7 +333,7 @@ func TestExtractFunctionStyleCommentTags(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := ExtractFunctionStyleCommentTags("+", tc.tagNames, tc.comments, ParseValues(tc.parseValues))
+			result, err := ExtractFunctionStyleCommentTags("+", tc.tagNames, tc.comments, ParseValues(tc.parseValues), ForbidArguments(tc.forbidArguments))
 
 			if tc.expectError {
 				if err == nil {

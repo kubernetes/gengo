@@ -13,3 +13,16 @@ type Blah struct {
 
 // This is an alias within the same package.
 type LocalBlahAlias = Blah
+
+// This is for back compat.
+// It has the same number of lines as Blah's comment.
+//
+// Deprecated: use Blah instead.
+type LocalBlahAliasDeprecated = Blah
+
+// This is for back compat.
+// It has the same number of lines as Blah's comment.
+//
+// Deprecated: use Blah instead.
+// It's a whole paragraph of deprecated notes
+type LocalBlahAliasDeprecatedLong = Blah

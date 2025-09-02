@@ -6,6 +6,8 @@ type LocalBlahAlias = Blah
 
 // Blah is a test.
 // A test, I tell you.
+//
+// Another paragraph of comments.
 type Blah struct {
 	// A is the first field.
 	A int64 `json:"a"`
@@ -19,6 +21,8 @@ type Blah struct {
 // A test, I tell you.
 //
 // Deprecated: use Blah instead. This is another alias within the same package.
+//
+// Another paragraph of comments.
 type LocalBlahAliasDeprecated = Blah
 
 // Blah is a test.
@@ -26,4 +30,6 @@ type LocalBlahAliasDeprecated = Blah
 //
 // Deprecated: use Blah instead. This is a third alias within the same package.
 // It's a whole paragraph of deprecated notes
+//
+// Another paragraph of comments.
 type LocalBlahAliasDeprecatedLong = Blah

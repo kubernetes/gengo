@@ -1120,7 +1120,7 @@ func TestStructParse(t *testing.T) {
 				"k8s.io/gengo/v2/parser/testdata/type-alias/v2",
 			},
 			expected: func() *types.Type {
-				expectedTypeComments := []string{"Blah is a test.", "A test, I tell you."}
+				expectedTypeComments := []string{"Blah is a test.", "A test, I tell you.", "", "Another paragraph of comments."}
 				if !typeAliasEnabled {
 					// Comments from the last processed package wins.
 					expectedTypeComments = []string{"This is an alias for v1.Blah."}
@@ -1230,7 +1230,7 @@ func TestCommentsWithAliasedType(t *testing.T) {
 			continue
 		}
 
-		expectedTypeComments := []string{"Blah is a test.", "A test, I tell you."}
+		expectedTypeComments := []string{"Blah is a test.", "A test, I tell you.", "", "Another paragraph of comments."}
 		if !typeAliasEnabled {
 			// Comments from the last processed package wins.
 			expectedTypeComments = []string{"This is an alias for v1.Blah."}

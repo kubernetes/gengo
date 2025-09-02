@@ -392,12 +392,12 @@ func minimize(lines []string) []string {
 	inDeprecated := false // paragraph tracking
 	prevWasBlank := false
 	for _, line := range lines {
-		if inDeprecated {
-			continue
-		}
 		if len(strings.TrimSpace(line)) == 0 {
 			prevWasBlank = true
 			inDeprecated = false
+			continue
+		}
+		if inDeprecated {
 			continue
 		}
 		if prevWasBlank && strings.HasPrefix(strings.TrimSpace(line), "Deprecated:") {

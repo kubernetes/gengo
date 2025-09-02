@@ -19,6 +19,10 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	gotypes "go/types"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -29,6 +33,8 @@ import (
 	"golang.org/x/tools/go/packages"
 	"k8s.io/gengo/v2/types"
 )
+
+var typeAliasEnabled = goTypeAliasEnabled()
 
 func TestNew(t *testing.T) {
 	parser := New()
@@ -1115,6 +1121,10 @@ func TestStructParse(t *testing.T) {
 			},
 			expected: func() *types.Type {
 				expectedTypeComments := []string{"Blah is a test.", "A test, I tell you."}
+				if !typeAliasEnabled {
+					// Comments from the last processed package wins.
+					expectedTypeComments = []string{"This is an alias for v1.Blah."}
+				}
 
 				return &types.Type{
 					Name: types.Name{
@@ -1221,6 +1231,10 @@ func TestCommentsWithAliasedType(t *testing.T) {
 		}
 
 		expectedTypeComments := []string{"Blah is a test.", "A test, I tell you."}
+		if !typeAliasEnabled {
+			// Comments from the last processed package wins.
+			expectedTypeComments = []string{"This is an alias for v1.Blah."}
+		}
 		for _, typ := range pkg.Types {
 			if typ.Name.Name != "Blah" {
 				continue
@@ -1231,4 +1245,23 @@ func TestCommentsWithAliasedType(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Copied from https://github.com/golang/tools/blob/3e377036196f644e59e757af8a38ea6afa07677c/internal/aliases/aliases_go122.go#L64
+func goTypeAliasEnabled() bool {
+	// The only reliable way to compute the answer is to invoke go/types.
+	// We don't parse the GODEBUG environment variable, because
+	// (a) it's tricky to do so in a manner that is consistent
+	//     with the godebug package; in particular, a simple
+	//     substring check is not good enough. The value is a
+	//     rightmost-wins list of options. But more importantly:
+	// (b) it is impossible to detect changes to the effective
+	//     setting caused by os.Setenv("GODEBUG"), as happens in
+	//     many tests. Therefore any attempt to cache the result
+	//     is just incorrect.
+	fset := token.NewFileSet()
+	f, _ := parser.ParseFile(fset, "a.go", "package p; type A = int", parser.SkipObjectResolution)
+	pkg, _ := new(gotypes.Config).Check("p", fset, []*ast.File{f}, nil)
+	_, enabled := pkg.Scope().Lookup("A").Type().(*gotypes.Alias)
+	return enabled
 }

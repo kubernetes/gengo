@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/parser"
 	"go/token"
 	gotypes "go/types"
 	"maps"
@@ -36,6 +37,8 @@ import (
 	"k8s.io/gengo/v2/types"
 	"k8s.io/klog/v2"
 )
+
+var typeAliasEnabled = goTypeAliasEnabled()
 
 // Parser lets you add all the go files in all the packages that you care
 // about, then constructs the type source data.
@@ -416,30 +419,40 @@ func minimize(lines []string) []string {
 func (p *Parser) addCommentsToType(obj gotypes.Object, t *types.Type) {
 	if newLines, oldLines := p.docComment(obj.Pos()), t.CommentLines; len(newLines) > 0 {
 		switch {
-		case len(oldLines) == 0, reflect.DeepEqual(oldLines, newLines):
+		case reflect.DeepEqual(oldLines, newLines):
+			// nothing needed
+
+		case len(oldLines) == 0:
 			// no comments associated, or comments match exactly
 			t.CommentLines = newLines
 
-		case isTypeAlias(obj.Type()):
-			// ignore mismatched comments from obj because it's an alias
-			if !reflect.DeepEqual(minimize(oldLines), minimize(newLines)) {
-				klog.Warningf(
-					"Mismatched comments seen for type %v. Using comments:\n%s\nIgnoring comments from type alias:\n%s\n",
+		case typeAliasEnabled:
+			if isTypeAlias(obj.Type()) {
+				if !reflect.DeepEqual(minimize(oldLines), minimize(newLines)) {
+					// ignore mismatched comments from obj because it's an alias
+					klog.Warningf(
+						"Mismatched comments on type %v.\n  Using comments:\n%s\n  Ignoring comments from type alias:\n%s\n",
+						t.GoType,
+						formatCommentBlock(oldLines),
+						formatCommentBlock(newLines),
+					)
+				}
+			} else {
+				panic(fmt.Sprintf("type %v already has comments; somehow we processed it again, but it's not an alias\n  old:\n%s\n  new:\n%s",
 					t.GoType,
 					formatCommentBlock(oldLines),
 					formatCommentBlock(newLines),
-				)
+				))
 			}
 
-		case !isTypeAlias(obj.Type()):
-			// overwrite existing comments with ones from obj because obj is not an alias
-			t.CommentLines = newLines
+		case !typeAliasEnabled:
+			// ignore mismatched comments from obj because it's an PROBABLY alias
 			if !reflect.DeepEqual(minimize(oldLines), minimize(newLines)) {
 				klog.Warningf(
-					"Mismatched comments seen for type %v. Using comments:\n%s\nIgnoring comments from type alias:\n%s\n",
+					"Mismatched comments on type %v.\n  Using comments:\n%s\n  Ignoring comments from presumed type alias:\n%s\n",
 					t.GoType,
-					formatCommentBlock(newLines),
 					formatCommentBlock(oldLines),
+					formatCommentBlock(newLines),
 				)
 			}
 		}
@@ -447,30 +460,40 @@ func (p *Parser) addCommentsToType(obj gotypes.Object, t *types.Type) {
 
 	if newLines, oldLines := p.priorDetachedComment(obj.Pos()), t.SecondClosestCommentLines; len(newLines) > 0 {
 		switch {
-		case len(oldLines) == 0, reflect.DeepEqual(oldLines, newLines):
+		case reflect.DeepEqual(oldLines, newLines):
+			// nothing needed
+
+		case len(oldLines) == 0:
 			// no comments associated, or comments match exactly
 			t.SecondClosestCommentLines = newLines
 
-		case isTypeAlias(obj.Type()):
-			// ignore mismatched comments from obj because it's an alias
-			if !reflect.DeepEqual(minimize(oldLines), minimize(newLines)) {
-				klog.Warningf(
-					"Mismatched secondClosestCommentLines seen for type %v. Using comments:\n%s\nIgnoring comments from type alias:\n%s\n",
+		case typeAliasEnabled:
+			if isTypeAlias(obj.Type()) {
+				if !reflect.DeepEqual(minimize(oldLines), minimize(newLines)) {
+					// ignore mismatched comments from obj because it's an alias
+					klog.Warningf(
+						"Mismatched secondClosestCommentLines on type %v.\n  Using comments:\n%s\n  Ignoring comments from type alias:\n%s\n",
+						t.GoType,
+						formatCommentBlock(oldLines),
+						formatCommentBlock(newLines),
+					)
+				}
+			} else {
+				panic(fmt.Sprintf("type %v already has comments; somehow we processed it again, but it's not an alias\n  old:\n%s\n  new:\n%s",
 					t.GoType,
 					formatCommentBlock(oldLines),
 					formatCommentBlock(newLines),
-				)
+				))
 			}
 
-		case !isTypeAlias(obj.Type()):
-			// overwrite existing comments with ones from obj because obj is not an alias
-			t.SecondClosestCommentLines = newLines
+		case !typeAliasEnabled:
+			// ignore mismatched comments from obj because it's an PROBABLY alias
 			if !reflect.DeepEqual(minimize(oldLines), minimize(newLines)) {
 				klog.Warningf(
-					"Mismatched secondClosestCommentLines seen for type %v. Using comments:\n%s\nIgnoring comments from type alias:\n%s\n",
+					"Mismatched secondClosestCommentLines on type %v.\n  Using comments:\n%s\n  Ignoring comments from presumed type alias:\n%s\n",
 					t.GoType,
-					formatCommentBlock(newLines),
 					formatCommentBlock(oldLines),
+					formatCommentBlock(newLines),
 				)
 			}
 		}
@@ -983,4 +1006,23 @@ func (p *Parser) addConstant(u types.Universe, useName *types.Name, in *gotypes.
 
 	out.ConstValue = &constval
 	return out
+}
+
+// Copied from https://github.com/golang/tools/blob/3e377036196f644e59e757af8a38ea6afa07677c/internal/aliases/aliases_go122.go#L64
+func goTypeAliasEnabled() bool {
+	// The only reliable way to compute the answer is to invoke go/types.
+	// We don't parse the GODEBUG environment variable, because
+	// (a) it's tricky to do so in a manner that is consistent
+	//     with the godebug package; in particular, a simple
+	//     substring check is not good enough. The value is a
+	//     rightmost-wins list of options. But more importantly:
+	// (b) it is impossible to detect changes to the effective
+	//     setting caused by os.Setenv("GODEBUG"), as happens in
+	//     many tests. Therefore any attempt to cache the result
+	//     is just incorrect.
+	fset := token.NewFileSet()
+	f, _ := parser.ParseFile(fset, "a.go", "package p; type A = int", parser.SkipObjectResolution)
+	pkg, _ := new(gotypes.Config).Check("p", fset, []*ast.File{f}, nil)
+	_, enabled := pkg.Scope().Lookup("A").Type().(*gotypes.Alias)
+	return enabled
 }

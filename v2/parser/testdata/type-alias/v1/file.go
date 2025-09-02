@@ -1,5 +1,9 @@
 package v1
 
+// This is an alias within the same package.
+// It comes before the type it aliases.
+type LocalBlahAlias = Blah
+
 // Blah is a test.
 // A test, I tell you.
 type Blah struct {
@@ -11,18 +15,15 @@ type Blah struct {
 	B string `json:"b"`
 }
 
-// This is an alias within the same package.
-type LocalBlahAlias = Blah
-
-// This is for back compat.
-// It has the same number of lines as Blah's comment.
+// Blah is a test.
+// A test, I tell you.
 //
-// Deprecated: use Blah instead.
+// Deprecated: use Blah instead. This is another alias within the same package.
 type LocalBlahAliasDeprecated = Blah
 
-// This is for back compat.
-// It has the same number of lines as Blah's comment.
+// Blah is a test.
+// A test, I tell you.
 //
-// Deprecated: use Blah instead.
+// Deprecated: use Blah instead. This is a third alias within the same package.
 // It's a whole paragraph of deprecated notes
 type LocalBlahAliasDeprecatedLong = Blah

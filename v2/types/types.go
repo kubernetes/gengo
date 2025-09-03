@@ -19,6 +19,7 @@ package types
 import (
 	gotypes "go/types"
 	"strings"
+	"sync"
 )
 
 // Ref makes a reference to the given type. It can only be used for e.g.
@@ -364,6 +365,50 @@ type Type struct {
 
 	// The underlying Go type.
 	GoType gotypes.Type
+
+	// The reference to Multiverse
+	multiverse *multiverse
+}
+
+// multiverse holds Type definitions that were not found in the imported code but are needed during
+// generation. For example the imported code my have T but not *T, while the generated code needs *T. This
+// can't be part of the main Universe because that is a simple map, with no locking, and we all know what happens
+// when you modify a map while it is being iterated. Storing the multiverse alongside a Type ensures that there's
+// at most one *Type for every type, and maintains the invariant that PointerTo(String) == PointerTo(String).
+type multiverse struct {
+	real      Universe
+	mu        sync.Mutex
+	synthetic map[string]*Type
+}
+
+// InitMultiverse inits a multiverse for a Type.
+// It panics if called twice.
+func (t *Type) InitMultiverse(u Universe) {
+	if t.multiverse != nil {
+		panic("Can't initialize a non-empty multiverse on Type")
+	}
+	t.multiverse = &multiverse{
+		real:      u,
+		mu:        sync.Mutex{},
+		synthetic: map[string]*Type{},
+	}
+}
+
+// GetOrAddType searches a Type in the Universe and synthetic map.
+// If there is a matching name, return the Type, otherwise, create the Type.
+func (m *multiverse) GetOrAddType(t *Type) *Type {
+	if p, ok := m.real[t.Name.Package]; ok {
+		if t, ok := p.Types[t.Name.Name]; ok {
+			return t
+		}
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if t, ok := m.synthetic[t.Name.Name]; ok {
+		return t
+	}
+	m.synthetic[t.Name.Name] = t
+	return t
 }
 
 // String returns the name of the type.
@@ -556,13 +601,14 @@ var (
 )
 
 func PointerTo(t *Type) *Type {
-	return &Type{
+	pt := &Type{
 		Name: Name{
 			Name: "*" + t.Name.String(),
 		},
 		Kind: Pointer,
 		Elem: t,
 	}
+	return t.multiverse.GetOrAddType(pt)
 }
 
 func IsInteger(t *Type) bool {

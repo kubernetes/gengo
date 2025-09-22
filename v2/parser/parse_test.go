@@ -1183,6 +1183,7 @@ func TestStructParse(t *testing.T) {
 			}
 			opts := []cmp.Option{
 				cmpopts.IgnoreFields(types.Type{}, "GoType"),
+				cmpopts.IgnoreFields(types.Type{}, "multiverse"),
 			}
 			if e, a := expected, st; !cmp.Equal(e, a, opts...) {
 				t.Errorf("wanted, got:\n%#v\n%#v\n%s", e, a, cmp.Diff(e, a, opts...))

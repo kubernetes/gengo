@@ -59,9 +59,9 @@ func TestJSON(t *testing.T) {
 			expected: JSON{Name: "b", Omitempty: true},
 		},
 		{
-			name:     "inline",
+			name:     "non-embedded with inline tag",
 			member:   member("T1", "C"),
-			expected: JSON{Name: "", Inline: true},
+			expected: JSON{Name: "C"},
 		},
 		{
 			name:     "omit",
@@ -86,6 +86,11 @@ func TestJSON(t *testing.T) {
 		{
 			name:     "embedded pointer",
 			member:   member("T1", "T3"),
+			expected: JSON{Name: "", Inline: true},
+		},
+		{
+			name:     "embedded with empty json tag",
+			member:   member("T1", "T4"),
 			expected: JSON{Name: "", Inline: true},
 		},
 	}

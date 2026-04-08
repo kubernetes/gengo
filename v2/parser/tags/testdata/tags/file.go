@@ -10,6 +10,7 @@ type T1 struct {
 
 	T2
 	*T3
+	T4 `json:""`
 }
 
 type T2 struct {
@@ -18,4 +19,8 @@ type T2 struct {
 
 type T3 struct {
 	Y string `json:"y"`
+}
+
+type T4 struct {
+	X string `json:"x"`
 }

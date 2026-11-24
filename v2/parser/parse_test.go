@@ -827,6 +827,12 @@ func TestAddOnePkgToUniverse(t *testing.T) {
 }
 
 func TestStructParse(t *testing.T) {
+	// The spelling of the unaliased any constraint varies across Go versions.
+	anyConstraint := &types.Type{
+		Name: types.Name{Name: gotypes.Unalias(gotypes.Universe.Lookup("any").Type()).String()},
+		Kind: types.Interface,
+	}
+
 	testCases := []struct {
 		description string
 		testFiles   []string
@@ -895,12 +901,7 @@ func TestStructParse(t *testing.T) {
 						},
 					},
 					TypeParams: map[string]*types.Type{
-						"T": {
-							Name: types.Name{
-								Name: "any",
-							},
-							Kind: types.Interface,
-						},
+						"T": anyConstraint,
 					},
 				}
 			},
@@ -935,12 +936,7 @@ func TestStructParse(t *testing.T) {
 						},
 					},
 					TypeParams: map[string]*types.Type{
-						"T": {
-							Name: types.Name{
-								Name: "any",
-							},
-							Kind: types.Interface,
-						},
+						"T": anyConstraint,
 					},
 				}
 				return &types.Type{
@@ -1017,24 +1013,9 @@ func TestStructParse(t *testing.T) {
 						},
 					},
 					TypeParams: map[string]*types.Type{
-						"T": {
-							Name: types.Name{
-								Name: "any",
-							},
-							Kind: types.Interface,
-						},
-						"U": {
-							Name: types.Name{
-								Name: "any",
-							},
-							Kind: types.Interface,
-						},
-						"V": {
-							Name: types.Name{
-								Name: "any",
-							},
-							Kind: types.Interface,
-						},
+						"T": anyConstraint,
+						"U": anyConstraint,
+						"V": anyConstraint,
 					},
 				}
 			},
@@ -1055,12 +1036,7 @@ func TestStructParse(t *testing.T) {
 					SecondClosestCommentLines: nil,
 					Methods:                   map[string]*types.Type{},
 					TypeParams: map[string]*types.Type{
-						"T": {
-							Name: types.Name{
-								Name: "any",
-							},
-							Kind: types.Interface,
-						},
+						"T": anyConstraint,
 					},
 				}
 				recursiveT.Methods["DeepCopy"] = &types.Type{

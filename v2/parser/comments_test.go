@@ -22,6 +22,7 @@ import (
 	"go/ast"
 	"go/parser"
 	gotypes "go/types"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -41,101 +42,81 @@ func TestAliasCommentWarnings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, tc := range []struct {
-		name     string
-		original string
-		alias    string
-		warn     bool
+	variants := []struct {
+		name       string
+		original   string
+		alias      string
+		aliasFirst bool
 	}{
-		{
-			name:     "different prose",
-			original: "Original implements Tracker.",
-			alias:    "Alias implements Tracker.\n\nAlias is preserved for backwards compatibility.",
-		},
-		{
-			name:     "same directives with different prose",
-			original: "Original implements Tracker.\n+k8s:deepcopy-gen=true",
-			alias:    "Alias is a compatibility name.\n+k8s:deepcopy-gen=true",
-		},
-		{
-			name:     "conflicting directives",
-			original: "+k8s:deepcopy-gen=true",
-			alias:    "+k8s:deepcopy-gen=false",
-			warn:     true,
-		},
-		{
-			name:     "directive only on original",
-			original: "+custom:generate=true",
-			alias:    "Alias is a compatibility name.",
-			warn:     true,
-		},
-		{
-			name:     "directive only on alias",
-			original: "Original implements Tracker.",
-			alias:    "+custom:generate=true",
-			warn:     true,
-		},
+		{name: "attached/original-first", original: "Original", alias: "Alias"},
+		{name: "attached/alias-first", original: "Original", alias: "Alias", aliasFirst: true},
+		{name: "detached/original-first", original: "DetachedOriginal", alias: "DetachedAlias"},
+		{name: "detached/alias-first", original: "DetachedOriginal", alias: "DetachedAlias", aliasFirst: true},
+	}
+	for _, tc := range []struct {
+		fixture string
+		warn    bool
+	}{
+		{fixture: "different-prose"},
+		{fixture: "same-directives"},
+		{fixture: "conflicting-directives", warn: true},
+		{fixture: "directive-only-on-original", warn: true},
+		{fixture: "directive-only-on-alias", warn: true},
 	} {
-		for _, detached := range []bool{false, true} {
-			for _, aliasFirst := range []bool{false, true} {
-				name := tc.name
-				if detached {
-					name += "/detached"
+		for _, variant := range variants {
+			t.Run(tc.fixture+"/"+variant.name, func(t *testing.T) {
+				p, scope := loadAliasCommentFixture(t, tc.fixture)
+				original, alias := scope.Lookup(variant.original), scope.Lookup(variant.alias)
+				first, second := original, alias
+				if variant.aliasFirst {
+					first, second = alias, original
 				}
-				if aliasFirst {
-					name += "/alias-first"
+
+				// Processing an alias must preserve the original's comments.
+				want := &types.Type{}
+				if typeAliasEnabled {
+					p.addCommentsToType(original, want)
+				} else {
+					// Without alias information, the last declaration wins.
+					p.addCommentsToType(second, want)
 				}
-				t.Run(name, func(t *testing.T) {
-					p := New()
-					comment := func(s string) string {
-						return "// " + strings.ReplaceAll(s, "\n", "\n// ") + "\n"
-					}
-					gap := ""
-					if detached {
-						gap = "\n"
-					}
-					source := "package p\n" + comment(tc.original) + gap + "type Original struct{}\n" +
-						comment(tc.alias) + gap + "type Alias = Original\n"
-					f, err := parser.ParseFile(p.fset, "comments.go", source, parser.ParseComments)
-					if err != nil {
-						t.Fatal(err)
-					}
-					pkg, err := new(gotypes.Config).Check("p", p.fset, []*ast.File{f}, nil)
-					if err != nil {
-						t.Fatal(err)
-					}
-					for _, group := range f.Comments {
-						pos := p.fset.Position(group.End())
-						p.endLineToCommentGroup[fileLine{pos.Filename, pos.Line}] = group
-					}
-					original, alias := pkg.Scope().Lookup("Original"), pkg.Scope().Lookup("Alias")
-					typ := &types.Type{GoType: original.Type()}
-					first, second := original, alias
-					if aliasFirst {
-						first, second = alias, original
-					}
-					var logs bytes.Buffer
-					klog.SetOutput(&logs)
-					p.addCommentsToType(first, typ)
-					p.addCommentsToType(second, typ)
-					klog.Flush()
-					if warned := strings.Contains(logs.String(), "Mismatched"); warned != tc.warn {
-						t.Errorf("warning = %v, want %v; logs:\n%s", warned, tc.warn, logs.String())
-					}
-					got := typ.CommentLines
-					if detached {
-						got = typ.SecondClosestCommentLines
-					}
-					wantComment := tc.original
-					if !typeAliasEnabled && !aliasFirst {
-						// Without alias information, the last declaration wins.
-						wantComment = tc.alias
-					}
-					if want := strings.Split(wantComment, "\n"); !reflect.DeepEqual(got, want) {
-						t.Errorf("comments = %q, want %q", got, want)
-					}
-				})
-			}
+
+				var logs bytes.Buffer
+				klog.SetOutput(&logs)
+				got := &types.Type{GoType: original.Type()}
+				p.addCommentsToType(first, got)
+				p.addCommentsToType(second, got)
+				klog.Flush()
+
+				if warned := strings.Contains(logs.String(), "Mismatched"); warned != tc.warn {
+					t.Errorf("warning = %v, want %v; logs:\n%s", warned, tc.warn, logs.String())
+				}
+				if !reflect.DeepEqual(got.CommentLines, want.CommentLines) {
+					t.Errorf("attached comments = %q, want %q", got.CommentLines, want.CommentLines)
+				}
+				if !reflect.DeepEqual(got.SecondClosestCommentLines, want.SecondClosestCommentLines) {
+					t.Errorf("detached comments = %q, want %q", got.SecondClosestCommentLines, want.SecondClosestCommentLines)
+				}
+			})
 		}
 	}
+}
+
+func loadAliasCommentFixture(t *testing.T, name string) (*Parser, *gotypes.Scope) {
+	t.Helper()
+	p := New()
+	filename := filepath.Join("testdata", "alias-comments", name, "types.go")
+	f, err := parser.ParseFile(p.fset, filename, nil, parser.ParseComments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkg, err := new(gotypes.Config).Check("p", p.fset, []*ast.File{f}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, group := range f.Comments {
+		pos := p.fset.Position(group.End())
+		p.endLineToCommentGroup[fileLine{pos.Filename, pos.Line}] = group
+	}
+	return p, pkg.Scope()
 }

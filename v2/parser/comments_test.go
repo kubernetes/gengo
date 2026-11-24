@@ -126,7 +126,12 @@ func TestAliasCommentWarnings(t *testing.T) {
 					if detached {
 						got = typ.SecondClosestCommentLines
 					}
-					if want := strings.Split(tc.original, "\n"); !reflect.DeepEqual(got, want) {
+					wantComment := tc.original
+					if !typeAliasEnabled && !aliasFirst {
+						// Without alias information, the last declaration wins.
+						wantComment = tc.alias
+					}
+					if want := strings.Split(wantComment, "\n"); !reflect.DeepEqual(got, want) {
 						t.Errorf("comments = %q, want %q", got, want)
 					}
 				})

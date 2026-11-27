@@ -18,6 +18,7 @@ package namer
 
 import (
 	"fmt"
+	"go/token"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -213,6 +214,25 @@ func (ns *NameStrategy) filterDirs(path string) []string {
 	return dirs
 }
 
+// avoidKeyword prefixes an underscore to names which collide with a Go
+// keyword, so that a generator emitting the name as an identifier produces
+// source that parses.
+//
+// Only namers which lowercase the first character (see NewPrivateNamer) can
+// land on a keyword, since every Go keyword is lowercase. A type named
+// "Package" yields "package", and the empty interface and the empty struct
+// yield "interface" and "struct".
+//
+// The underscore is a prefix rather than a suffix to match how import aliases
+// avoid the same collision, see golangTrackerLocalName in the generator
+// package.
+func avoidKeyword(name string) string {
+	if token.IsKeyword(name) {
+		return "_" + name
+	}
+	return name
+}
+
 // See the comment on NameStrategy.
 func (ns *NameStrategy) Name(t *types.Type) string {
 	if ns.Names == nil {
@@ -229,7 +249,7 @@ func (ns *NameStrategy) Name(t *types.Type) string {
 		if i > dn {
 			i = dn
 		}
-		name := ns.Join(ns.Prefix, dirs[dn-i:], ns.Suffix)
+		name := avoidKeyword(ns.Join(ns.Prefix, dirs[dn-i:], ns.Suffix))
 		ns.Names[t] = name
 		return name
 	}
@@ -295,6 +315,7 @@ func (ns *NameStrategy) Name(t *types.Type) string {
 	default:
 		name = "unnameable_" + string(t.Kind)
 	}
+	name = avoidKeyword(name)
 	ns.Names[t] = name
 	return name
 }

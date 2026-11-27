@@ -17,6 +17,7 @@ limitations under the License.
 package namer
 
 import (
+	"go/token"
 	"reflect"
 	"testing"
 
@@ -101,5 +102,86 @@ func TestNameStrategy(t *testing.T) {
 	expect = []string{"Array4BarBaz", "BarBaz", "ChanBarBaz", "MapStringToBarBaz", "OtherBaz", "SliceBarBaz", "String"}
 	if e, a := expect, orderedNames; !reflect.DeepEqual(e, a) {
 		t.Errorf("Wanted %#v, got %#v", e, a)
+	}
+}
+
+// goKeywords is every keyword in the Go spec. A named type whose lowercased
+// name is one of these breaks generators which emit the private name as an
+// identifier.
+var goKeywords = []string{
+	"break", "case", "chan", "const", "continue", "default", "defer", "else",
+	"fallthrough", "for", "func", "go", "goto", "if", "import", "interface",
+	"map", "package", "range", "return", "select", "struct", "switch", "type",
+	"var",
+}
+
+func TestNameStrategyKeywordNamedTypes(t *testing.T) {
+	private := NewPrivateNamer(0)
+	public := NewPublicNamer(0)
+
+	for _, kw := range goKeywords {
+		u := types.Universe{}
+		typeName := IC(kw)
+		typ := u.Type(types.Name{Package: "example.com/api/core/v1", Name: typeName})
+		typ.Kind = types.Struct
+
+		got := private.Name(typ)
+		if e, a := "_"+kw, got; e != a {
+			t.Errorf("private name of type %q: wanted %q, got %q", typeName, e, a)
+		}
+		if token.IsKeyword(got) {
+			t.Errorf("private name of type %q is the keyword %q", typeName, got)
+		}
+		if !token.IsIdentifier(got) {
+			t.Errorf("private name of type %q is not a legal identifier: %q", typeName, got)
+		}
+
+		// The public namer capitalizes the first character, so it can never
+		// land on a keyword and must be left alone.
+		if e, a := typeName, public.Name(typ); e != a {
+			t.Errorf("public name of type %q: wanted %q, got %q", typeName, e, a)
+		}
+	}
+}
+
+func TestNameStrategyKeywordAnonymousTypes(t *testing.T) {
+	u := types.Universe{}
+
+	emptyInterface := u.Type(types.Name{Name: "interface{}"})
+	emptyInterface.Kind = types.Interface
+
+	emptyStruct := u.Type(types.Name{Name: "struct{}"})
+	emptyStruct.Kind = types.Struct
+
+	pkg := u.Type(types.Name{Package: "example.com/api/core/v1", Name: "Package"})
+	pkg.Kind = types.Struct
+
+	// A composite type embeds the name of its element, which is itself
+	// keyword-escaped.
+	slice := u.Type(types.Name{Name: "[]v1.Package"})
+	slice.Kind = types.Slice
+	slice.Elem = pkg
+
+	// A name which merely contains a keyword is not a keyword and is untouched.
+	iface := u.Type(types.Name{Package: "example.com/api/core/v1", Name: "Interfaces"})
+	iface.Kind = types.Struct
+
+	private := NewPrivateNamer(0)
+	for _, tc := range []struct {
+		typ    *types.Type
+		expect string
+	}{
+		{emptyInterface, "_interface"},
+		{emptyStruct, "_struct"},
+		{slice, "slice_package"},
+		{iface, "interfaces"},
+	} {
+		got := private.Name(tc.typ)
+		if e, a := tc.expect, got; e != a {
+			t.Errorf("private name of %q: wanted %q, got %q", tc.typ.Name, e, a)
+		}
+		if !token.IsIdentifier(got) || token.IsKeyword(got) {
+			t.Errorf("private name of %q is not a legal identifier: %q", tc.typ.Name, got)
+		}
 	}
 }

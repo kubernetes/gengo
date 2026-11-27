@@ -385,28 +385,16 @@ func (p *Parser) NewUniverse() (types.Universe, error) {
 	return u, nil
 }
 
-// minimize returns a copy of lines with "irrelevant" lines removed.  This
-// includes blank lines and paragraphs starting with "Deprecated:".
+// minimize returns only generator directives for comparing comments. Aliases
+// may legitimately have different documentation, but mismatched directives can
+// affect generated code and should still produce a warning.
 func minimize(lines []string) []string {
 	out := make([]string, 0, len(lines))
-	inDeprecated := false // paragraph tracking
-	prevWasBlank := false
 	for _, line := range lines {
-		if len(strings.TrimSpace(line)) == 0 {
-			prevWasBlank = true
-			inDeprecated = false
-			continue
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "+") {
+			out = append(out, line)
 		}
-		if inDeprecated {
-			continue
-		}
-		if prevWasBlank && strings.HasPrefix(strings.TrimSpace(line), "Deprecated:") {
-			prevWasBlank = false
-			inDeprecated = true
-			continue
-		}
-		prevWasBlank = false
-		out = append(out, line)
 	}
 	return out
 }
